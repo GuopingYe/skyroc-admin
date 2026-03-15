@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/github/clinical-mdr/**)",
+      "Bash(xargs grep:*)",
+      "Bash(timeout 30 pnpm dev:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(curl:*)",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}

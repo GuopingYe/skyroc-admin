@@ -1,0 +1,29 @@
+# FastAPI & ASGI
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# Database
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+greenlet==3.0.3
+
+# Validation & Serialization
+pydantic==2.6.1
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Utilities
+python-dotenv==1.0.1
+orjson==3.9.12
+
+# Development
+httpx==0.26.0
+pytest==8.0.0
+pytest-asyncio==0.23.4

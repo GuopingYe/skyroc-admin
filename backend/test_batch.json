@@ -1,0 +1,43 @@
+{
+  "rules": [
+    {
+      "source_item_id": 1,
+      "target_variable_id": 4,
+      "mapping_type": "direct",
+      "derivation_logic": {
+        "sas": "VSORRES = STRIP(VS_RAW_VAL);",
+        "r": "VSORRES <- trimws(VS_RAW_VAL)",
+        "nl": "直接取源数据的值并去除首尾空格"
+      },
+      "visibility_context": "All",
+      "status": "Draft",
+      "created_by": "sysadmin"
+    },
+    {
+      "source_item_id": null,
+      "target_variable_id": 1,
+      "mapping_type": "derived",
+      "derivation_logic": {
+        "sas": "STUDYID = 'ZL-1310-001';",
+        "r": "STUDYID <- 'ZL-1310-001'",
+        "nl": "派生变量：硬编码为当前项目编号 ZL-1310-001"
+      },
+      "visibility_context": "All",
+      "status": "Validated",
+      "created_by": "sysadmin"
+    },
+    {
+      "source_item_id": 6,
+      "target_variable_id": 3,
+      "mapping_type": "compound",
+      "derivation_logic": {
+        "sas": "IF TRT_CODE = 'A' THEN TRT01P = 'Active Drug'; ELSE TRT01P = 'Placebo';",
+        "r": "TRT01P <- ifelse(TRT_CODE == 'A', 'Active Drug', 'Placebo')",
+        "nl": "疗效组推导：如果揭盲代码为A，则为试验药，否则为安慰剂"
+      },
+      "visibility_context": "Unblinded_Only",
+      "status": "Draft",
+      "created_by": "sysadmin"
+    }
+  ]
+}
