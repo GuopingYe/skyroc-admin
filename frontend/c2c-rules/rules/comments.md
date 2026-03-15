@@ -1,0 +1,61 @@
+# 组件开发规范 Component Guidelines
+
+## 通用原则
+- **函数式组件 + Hooks**：所有 UI 使用函数式组件，遵循 React 19 的写法。以箭头函数定义组件并导出（单组件默认导出，组合导出使用命名导出）。
+- **按需拆分**：优先将业务逻辑沉入 `src/features/<domain>`，页面只组织展示与组合。
+- **稳定的依赖顺序**：导入顺序建议为：React/库 → 三方 hooks → `@sa/*` 包 → `@/` 别名模块 → 相对路径资源 → 样式文件。
+- **受控 props**：Props 接口应显式声明，必要时提供 `Partial<>` 或默认值。避免在 props 上写 `any`。
+
+## 状态与副作用
+- 本地 UI 状态使用 `useState`、或 ahooks，跨组件状态抽离到 Redux slice 或 TanStack Query。
+- 异步请求推荐：
+  - 表单/按钮类操作：`useMutation`。
+  - 数据展示：`useQuery`，在 `service/hooks` 中封装共享逻辑。
+- 副作用集中在 `useEffect`/`useLayoutEffect`，需要清理时返回 cleanup。避免在组件主体内直接访问 `window`，请放到自定义 hook。
+
+## 组合 UI
+- 使用 Ant Design 组件时，统一从 `antd` 导入并搭配 UnoCSS class 管理间距与布局。
+- 公共视觉效果（波浪背景、图标、翻牌数字等）收敛在 `src/components`，复用时传入语义化 props。
+- 通过 `src/components/ErrorBoundary.tsx` 和 `keepalive-for-react` 提供错误兜底与缓存。新页面若有潜在异常，请嵌入 `ErrorBoundary`。
+
+## 目录组织
+- 页面目录：
+  - `index.tsx` 或 `[id].tsx` 渲染核心内容。
+  - 局部子组件放在 `components/` 子目录。
+  - 页面级 hooks 放在 `hooks/` 子目录，命名 `useXxx.ts`。
+- Feature 模块：统一暴露 `index.ts`。在 `providers/`、`hooks/`、`components/` 等子目录中组织资源，避免跨域引用内部实现细节。
+
+## 示例
+```tsx
+import { Card } from 'antd';
+import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
+
+import { useAppSelector } from '@/hooks/business/useStore';
+import { getThemeSettings } from '@/features/theme';
+
+interface OverviewCardProps {
+  icon: string;
+  titleKey: string;
+  value: number;
+}
+
+const OverviewCard = ({ icon, titleKey, value }: OverviewCardProps) => {
+  const { t } = useTranslation();
+  const theme = useAppSelector(getThemeSettings);
+
+  return (
+    <Card className="flex flex-col gap-12px">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <Icon icon={icon} className="text-icon" style={{ color: theme.themeColor }} />
+        <p className="text-16px font-500">{t(titleKey)}</p>
+        <span className="text-24px font-600">{value}</span>
+      </motion.div>
+    </Card>
+  );
+};
+
+export default OverviewCard;
+```
+
+该示例体现了：类型声明、路径别名、UnoCSS 类与动画库协同的推荐写法。
