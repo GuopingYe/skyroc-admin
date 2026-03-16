@@ -1,0 +1,18 @@
+.figure-editor {
+  padding: 24px;
+}
+
+.figure-editor .editor-header {
+  margin-bottom: 24px;
+}
+
+.figure-editor .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.figure-editor .tab-content {
+  padding: 16px 0;
+}

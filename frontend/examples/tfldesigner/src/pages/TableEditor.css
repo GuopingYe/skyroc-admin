@@ -1,0 +1,58 @@
+.table-editor {
+  padding: 0;
+}
+
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.editor-header {
+  margin-bottom: 16px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.editor-card {
+  min-height: calc(100vh - 200px);
+}
+
+.editor-card .ant-card-body {
+  padding: 12px 24px;
+}
+
+.tab-content {
+  padding: 16px 0;
+}
+
+.treatment-arm-section {
+  margin-top: 16px;
+}
+
+.export-tab {
+  max-width: 400px;
+}
+
+/* Tabs styling */
+.editor-card .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.editor-card .ant-tabs-tab {
+  font-size: 14px;
+}

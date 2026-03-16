@@ -1,0 +1,37 @@
+.nested-row-editor {
+  background: #fff;
+}
+
+.row-editor-toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.nested-row-editor .ant-table-tbody > tr {
+  transition: all 0.2s;
+}
+
+.nested-row-editor .ant-table-tbody > tr:hover {
+  background: #f5f5f5;
+}
+
+.nested-row-editor .row-level-0 {
+  font-weight: 500;
+}
+
+.nested-row-editor .row-level-1 {
+  background: #fafafa;
+}
+
+.nested-row-editor .row-level-2 {
+  background: #f5f5f5;
+}
+
+.nested-row-editor .parent-row td:first-child {
+  font-weight: 600;
+}
+
+.nested-row-editor .child-row td:first-child input {
+  font-weight: 400;
+}

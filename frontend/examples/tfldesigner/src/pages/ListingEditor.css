@@ -1,0 +1,18 @@
+.listing-editor {
+  padding: 24px;
+}
+
+.listing-editor .editor-header {
+  margin-bottom: 24px;
+}
+
+.listing-editor .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.listing-editor .tab-content {
+  padding: 16px 0;
+}

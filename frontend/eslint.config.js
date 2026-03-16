@@ -3,7 +3,7 @@ import sort from 'eslint-plugin-sort';
 
 export default defineConfig(
   {
-    ignores: ['ErrorBoundary.tsx'],
+    ignores: ['ErrorBoundary.tsx', 'examples/**'],
     prettierRules: {
       singleAttributePerLine: true,
       trailingCommas: 'none'
