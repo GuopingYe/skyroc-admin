@@ -45,10 +45,8 @@ export function useTrackerTasks(
 
     try {
       const response = await getTrackerTaskList(analysisId);
-      const data = response.data as BackendTrackerListResponse;
-
-      // 使用转换层处理数据
-      const mappedTasks = transformBackendTrackerList(data);
+      // response 已经是解包后的数据 { total, items }
+      const mappedTasks = transformBackendTrackerList(response);
       setAllTasks(mappedTasks);
     } catch (err) {
       console.error('Failed to fetch tracker tasks:', err);

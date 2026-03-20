@@ -913,12 +913,14 @@ declare namespace App {
                 totalCount: string;
               };
               save: string;
+              saveFailed: string;
               saveSuccess: string;
               selectNodeHint: string;
               studyConfig: {
                 basicInfo: string;
                 cdiscStandards: string;
                 dictionaries: string;
+                loadVersionsFailed: string;
                 phase: string;
                 protocolTitle: string;
                 title: string;

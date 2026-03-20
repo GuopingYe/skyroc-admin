@@ -1,26 +1,31 @@
 /**
  * Programming Tracker - 编程任务跟踪器
  *
- * 基于 Product/Study/Analysis 层级的多类型任务管理（SDTM/ADaM/TFL/Other） 使用全局临床上下文 (useClinicalContext) 进行作用域管理
+ * 基于 Product/Study/Analysis 层级的多类型任务管理（SDTM/ADaM/TFL/Other）
+ * 使用全局临床上下文 (useClinicalContext) 进行作用域管理
+ * 连接后端 API 进行数据持久化
  */
-import { Card, Col, Row, Typography, message } from 'antd';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Card, Col, Row, Typography, message, Spin, Alert } from 'antd';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useClinicalContext } from '@/features/clinical-context';
 import { useUserPermissions } from '@/hooks/business/useUserPermissions';
+import {
+  createTrackerTask,
+  deleteTrackerTask,
+  updateTrackerTask
+} from '@/service/api/mdr';
+import {
+  transformToFrontendCreateParams,
+  type FrontendTrackerTask
+} from '@/service/transforms/tracker';
 
 import { CategoryTabs, TaskFormModal, TrackerTable } from './components';
 import { useTrackerState } from './hooks';
+import { useTrackerTasks } from './hooks/useTrackerTasks';
 import type { IProgrammingTask, TaskCategory } from './mockData';
-import {
-  TASK_CATEGORY_ORDER,
-  getAnalysisById,
-  getProductById,
-  getStudyById,
-  getTaskStats,
-  getTasksByCategory
-} from './mockData';
+import { TASK_CATEGORY_ORDER } from './mockData';
 
 const { Title } = Typography;
 
@@ -41,10 +46,19 @@ const ProgrammingTracker: React.FC = () => {
   const isLead = isSuperAdmin || hasRole('Study Lead' as never) || Boolean(userInfo);
 
   // 使用全局临床上下文
-  const { addRecent, analysisId, context, isReady, productId, studyId } = useClinicalContext();
+  const { addRecent, analysisId, isReady, productId, studyId } = useClinicalContext();
 
   // 使用本地状态管理页面特有状态（仅 activeCategory）
   const { activeCategory, setActiveCategory } = useTrackerState();
+
+  // 使用 useTrackerTasks hook 获取真实数据
+  const {
+    tasks: currentTasks,
+    loading: tasksLoading,
+    error: tasksError,
+    refresh: refreshTasks,
+    categoryCounts: allCategoryCounts
+  } = useTrackerTasks(analysisId, activeCategory);
 
   // Modal 状态
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -52,52 +66,51 @@ const ProgrammingTracker: React.FC = () => {
   const [editingTask, setEditingTask] = useState<IProgrammingTask | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  // 获取所有分类的任务数量（修复 Tab Badge 问题）
-  const allCategoryCounts = useMemo(() => {
-    const counts: Record<TaskCategory, number> = {
-      ADaM: 0,
-      Other: 0,
-      SDTM: 0,
-      TFL: 0
+  // 统计数据 - 从任务列表计算
+  const stats = useMemo(() => {
+    const result = {
+      total: currentTasks.length,
+      signedOff: 0,
+      qcPass: 0,
+      readyForQC: 0,
+      inProgress: 0,
+      notStarted: 0
     };
 
-    if (!isReady) return counts;
-
-    // 遍历所有分类获取任务数量
-    TASK_CATEGORY_ORDER.forEach(category => {
-      const tasks = getTasksByCategory(category, analysisId!);
-      counts[category] = tasks.length;
+    currentTasks.forEach(task => {
+      switch (task.status) {
+        case 'Signed Off':
+          result.signedOff++;
+          break;
+        case 'QC Pass':
+          result.qcPass++;
+          break;
+        case 'Ready for QC':
+          result.readyForQC++;
+          break;
+        case 'In Progress':
+          result.inProgress++;
+          break;
+        case 'Not Started':
+          result.notStarted++;
+          break;
+      }
     });
 
-    return counts;
-  }, [isReady, analysisId]);
-
-  // 当前分类的任务列表
-  const currentTasks = useMemo(() => {
-    if (!isReady || !analysisId) return [];
-    return getTasksByCategory(activeCategory, analysisId);
-  }, [activeCategory, isReady, analysisId]);
-
-  // 统计数据
-  const stats = useMemo(() => getTaskStats(currentTasks), [currentTasks]);
+    return result;
+  }, [currentTasks]);
 
   // 当上下文完整时，添加到最近访问
   useEffect(() => {
     if (isReady && productId && studyId && analysisId) {
-      const product = getProductById(productId);
-      const study = getStudyById(studyId);
-      const analysis = getAnalysisById(analysisId);
-
-      if (product && study && analysis) {
-        addRecent({
-          analysisId,
-          analysisName: analysis.name,
-          productId,
-          productName: product.name,
-          studyId,
-          studyName: study.name
-        });
-      }
+      addRecent({
+        analysisId,
+        analysisName: `Analysis ${analysisId}`, // TODO: 从上下文获取真实名称
+        productId,
+        productName: `Product ${productId}`,
+        studyId,
+        studyName: `Study ${studyId}`
+      });
     }
   }, [productId, studyId, analysisId, isReady, addRecent]);
 
@@ -126,55 +139,59 @@ const ProgrammingTracker: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setSubmitLoading(true);
       try {
-        // 模拟 API 调用
-        await new Promise<void>(resolve => {
-          setTimeout(resolve, 500);
-        });
-
         if (operateType === 'add') {
-          // eslint-disable-next-line no-console
-          console.log('Create task:', {
-            analysisId: context.analysisId,
-            ...values
-          });
+          // 创建新任务
+          const createParams = transformToFrontendCreateParams(
+            {
+              category: activeCategory as TaskCategory,
+              ...values
+            } as Partial<FrontendTrackerTask>,
+            analysisId!,
+            userInfo?.userName || 'system'
+          );
+          await createTrackerTask(createParams as Parameters<typeof createTrackerTask>[0]);
           message.success(t('page.mdr.programmingTracker.createModal.success'));
         } else {
-          // eslint-disable-next-line no-console
-          console.log('Edit task:', { id: editingTask?.id, ...values });
+          // 更新任务
+          await updateTrackerTask(editingTask?.id || '', {
+            ...values,
+            updated_by: userInfo?.userName || 'system'
+          });
           message.success(t('page.mdr.programmingTracker.editModal.success'));
         }
 
         closeFormModal();
+        refreshTasks(); // 刷新任务列表
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Submit failed:', error);
         message.error(t('common.operationFailed'));
       } finally {
         setSubmitLoading(false);
       }
     },
-    [operateType, editingTask, analysisId, t, closeFormModal]
+    [operateType, editingTask, analysisId, activeCategory, t, closeFormModal, refreshTasks, userInfo]
   );
 
   // 处理删除
   const handleDelete = useCallback(
     async (taskId: string) => {
       try {
-        // 模拟 API 调用
-        await new Promise<void>(resolve => {
-          setTimeout(resolve, 300);
-        });
-        // eslint-disable-next-line no-console
-        console.log('Delete task:', taskId);
+        await deleteTrackerTask(taskId);
         message.success(t('page.mdr.programmingTracker.deleteSuccess'));
+        refreshTasks(); // 刷新任务列表
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Delete failed:', error);
         message.error(t('common.operationFailed'));
       }
     },
-    [t]
+    [t, refreshTasks]
   );
+
+  // 上下文名称显示
+  const contextDisplay = useMemo(() => {
+    if (!productId || !studyId || !analysisId) return null;
+    return `Product ${productId} / Study ${studyId} / Analysis ${analysisId}`;
+  }, [productId, studyId, analysisId]);
 
   return (
     <div className="h-full flex flex-col gap-12px overflow-hidden">
@@ -262,17 +279,24 @@ const ProgrammingTracker: React.FC = () => {
                   {t('page.mdr.programmingTracker.title')}
                 </Title>
                 <span className="text-12px text-gray-500">
-                  {getProductById(productId!)?.name} / {getStudyById(studyId!)?.name} /{' '}
-                  {getAnalysisById(analysisId!)?.name}
+                  {contextDisplay}
                 </span>
               </div>
             }
           >
+            {tasksError && (
+              <Alert
+                className="mb-12px"
+                message={tasksError}
+                type="error"
+                showIcon
+              />
+            )}
             <TrackerTable
               activeCategory={activeCategory}
               canEdit={isLead}
-              loading={false}
-              tasks={currentTasks}
+              loading={tasksLoading}
+              tasks={currentTasks as unknown as IProgrammingTask[]}
               onDelete={handleDelete}
               onEdit={openEditModal}
             />

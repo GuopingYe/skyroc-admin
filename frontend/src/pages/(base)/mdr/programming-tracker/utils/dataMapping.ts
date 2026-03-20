@@ -6,7 +6,8 @@
  * 后端使用双轨状态机 (prod_status + qc_status)
  * 前端使用单一 status 字段
  */
-import type { Api } from '@/types/app';
+
+// Api.MDR 类型通过全局声明文件 (service/types/mdr.d.ts) 提供
 
 // 后端状态枚举值
 type BackendProdStatus = 'Completed' | 'Not_Started' | 'Programming' | 'Ready_for_QC';
@@ -59,7 +60,7 @@ interface BackendTracker {
  * - prod_status=Programming -> In Progress
  * - prod_status=Not_Started -> Not Started
  */
-function mapStatus(prodStatus: BackendProdStatus, qcStatus: BackendQCStatus): Api.MDR.TaskStatus {
+function mapStatus(prodStatus: BackendProdStatus, qcStatus: BackendQCStatus): 'In Progress' | 'Not Started' | 'QC Pass' | 'Ready for QC' | 'Signed Off' {
   // QC 通过
   if (qcStatus === 'Passed') {
     if (prodStatus === 'Completed') {
@@ -93,7 +94,7 @@ function mapStatus(prodStatus: BackendProdStatus, qcStatus: BackendQCStatus): Ap
 /**
  * 将后端 deliverable_type 转换为前端 category
  */
-function mapCategory(deliverableType: BackendDeliverableType): Api.MDR.TaskCategory {
+function mapCategory(deliverableType: BackendDeliverableType): 'ADaM' | 'Other' | 'SDTM' | 'TFL' {
   const mapping: Record<BackendDeliverableType, Api.MDR.TaskCategory> = {
     SDTM: 'SDTM',
     ADaM: 'ADaM',
