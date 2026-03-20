@@ -123,11 +123,23 @@ def _gen_uuid(prefix: str = "id") -> str:
 def _format_node(node: ScopeNode) -> dict:
     """Format a single node."""
     meta = node.extra_attrs or {}
-    lifecycle = node.lifecycle_status.value if node.lifecycle_status else "Draft"
+
+    # Map backend lifecycle status to frontend expected values
+    lifecycle_map = {
+        "Ongoing": "Active",
+        "Planning": "Draft",
+        "Completed": "Locked",
+        "Terminated": "Locked",
+        # Keep existing values for compatibility
+        "Active": "Active",
+        "Draft": "Draft",
+        "Locked": "Locked"
+    }
+    raw_lifecycle = node.lifecycle_status.value if node.lifecycle_status else "Draft"
+    lifecycle = lifecycle_map.get(raw_lifecycle, "Draft")
+
     # Basic mapping
     status = "Active" if not node.is_deleted else "Archived"
-    # For POC UI compatibility, check if it's considered "archived" purely by is_deleted 
-    # (since the UI relies on status='Active'|'Archived')
     
     base_dict = {
         "id": str(node.id),
