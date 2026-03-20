@@ -144,6 +144,7 @@ def _format_node(node: ScopeNode) -> dict:
     base_dict = {
         "id": str(node.id),
         "dbId": node.id,
+        "name": node.name,
         "title": node.name,
         "description": node.description,
         "nodeType": node.node_type.value,
