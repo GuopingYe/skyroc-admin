@@ -55,7 +55,8 @@ declare module "@soybean-react/vite-plugin-react-router" {
     "(base)_mdr_pr-approval": "/mdr/pr-approval";
     "(base)_mdr_programming-tracker": "/mdr/programming-tracker";
     "(base)_mdr_study-spec": "/mdr/study-spec";
-    "(base)_mdr_tfl-builder": "/mdr/tfl-builder";
+    "(base)_mdr_tfl-designer": "/mdr/tfl-designer";
+    "(base)_mdr_tfl-template-library": "/mdr/tfl-template-library";
     "(base)_mdr_tracker": "/mdr/tracker";
     "(base)_multi-menu": "/multi-menu";
     "(base)_multi-menu_first": "/multi-menu/first";
@@ -175,7 +176,8 @@ declare module "@soybean-react/vite-plugin-react-router" {
     | "(base)_mdr_pr-approval"
     | "(base)_mdr_programming-tracker"
     | "(base)_mdr_study-spec"
-    | "(base)_mdr_tfl-builder"
+    | "(base)_mdr_tfl-designer"
+    | "(base)_mdr_tfl-template-library"
     | "(base)_mdr_tracker"
     | "(base)_multi-menu_first_child"
     | "(base)_multi-menu_first"

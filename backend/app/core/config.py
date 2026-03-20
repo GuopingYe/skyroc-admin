@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8080
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/clinical_mdr"
+    # Database (defaults match docker-compose.yml)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres123@localhost:15432/clinical_mdr"
 
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
@@ -34,11 +34,6 @@ class Settings(BaseSettings):
     # CDISC Library API
     CDISC_LIBRARY_API_KEY: str = ""
     CDISC_API_BASE_URL: str = "https://library.cdisc.org/api"
-
-    # Default Admin Credentials (for seed data)
-    DEFAULT_ADMIN_USERNAME: str = "admin"
-    DEFAULT_ADMIN_PASSWORD: str = "admin123"
-    DEFAULT_ADMIN_EMAIL: str = "admin@pharma.com"
 
     # Default Admin Credentials (for seed data)
     DEFAULT_ADMIN_USERNAME: str = "admin"

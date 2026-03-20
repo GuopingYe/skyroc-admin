@@ -82,7 +82,7 @@ const ProgrammingTracker: React.FC = () => {
   const stats = useMemo(() => getTaskStats(currentTasks), [currentTasks]);
 
   // 当上下文完整时，添加到最近访问
-  useMemo(() => {
+  useEffect(() => {
     if (isReady && productId && studyId && analysisId) {
       const product = getProductById(productId);
       const study = getStudyById(studyId);

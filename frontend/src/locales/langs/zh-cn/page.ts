@@ -602,12 +602,14 @@ const page: App.I18n.Schema['translation']['page'] = {
         totalCount: '共 {{count}} 个里程碑'
       },
       save: '保存',
+      saveFailed: '保存失败，请重试',
       saveSuccess: '保存成功',
       selectNodeHint: '请在左侧选择节点进行管理',
       studyConfig: {
         basicInfo: '基本信息',
         cdiscStandards: 'CDISC 标准锁定',
         dictionaries: '医学字典锁定',
+        loadVersionsFailed: '加载版本选项失败',
         phase: '研究阶段',
         protocolTitle: '方案标题',
         title: 'Study 配置'
@@ -799,7 +801,16 @@ const page: App.I18n.Schema['translation']['page'] = {
       traceGlobalLibrary: '溯源 Global Library',
       variables: '变量列表'
     },
-    tflBuilder: {
+    tflDesigner: {
+      actions: {
+        confirmDelete: '确定要删除此 Shell 吗？',
+        delete: '删除',
+        duplicate: '复制',
+        fromTemplate: '从模板创建',
+        newFigure: '新建 Figure',
+        newListing: '新建 Listing',
+        newTable: '新建 Table'
+      },
       canvas: {
         addColumn: '添加列',
         addFootnote: '添加脚注',
@@ -813,6 +824,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         selectAnalysisForTfl: '选择分析批次后开始设计',
         selectAnalysisHint: '请在上方选择 Analysis 以开始设计 TFL Shell'
       },
+      figureMeta: {
+        basicInfo: '基本信息',
+        chartType: '图表类型'
+      },
       leftPanel: {
         datasets: '数据集变量',
         searchStatistics: '搜索统计组件...',
@@ -820,12 +835,25 @@ const page: App.I18n.Schema['translation']['page'] = {
         statisticHint: '拖拽组件到画布添加统计行',
         statistics: '统计组件'
       },
+      listingMeta: {
+        analysisFilter: '分析筛选',
+        analysisSubset: '分析子集',
+        basicInfo: '基本信息',
+        columnHeaderSet: '列头设置',
+        selectHeaderSet: '选择列头设置',
+        selectHeaderSetPlaceholder: '从研究设置中选择',
+        whereClause: 'Where 条件'
+      },
       messages: {
         exported: '导出成功',
         newShellCreated: '已创建新 Shell',
         saved: '保存成功',
         statisticAdded: '已添加统计: {{name}}',
         variableAdded: '已添加变量: {{name}}'
+      },
+      overview: {
+        emptyHint: '未选择任何输出',
+        selectOrCreate: '从工具栏或侧边栏创建新的 Table、Figure 或 Listing'
       },
       props: {
         alignment: '对齐方式',
@@ -855,9 +883,53 @@ const page: App.I18n.Schema['translation']['page'] = {
         shell: 'TFL Shell',
         title: '标题'
       },
+      sidebar: {
+        all: '全部',
+        empty: '暂无输出',
+        figures: 'Figure',
+        listings: 'Listing',
+        studySettings: '研究设置',
+        studySettingsBack: '返回输出列表',
+        tables: 'Table'
+      },
+      tableMeta: {
+        analysisFilter: '分析筛选',
+        analysisSubset: '分析子集',
+        basicInfo: '基本信息',
+        columnHeaderSet: '列标题',
+        headerLayers: '表格级标题层',
+        selectArmSet: '选择列头样式',
+        selectArmSetPlaceholder: '从研究设置中选择',
+        selectHeaderSet: '选择列标题集',
+        selectHeaderSetPlaceholder: '从研究设置中选择',
+        treatmentArms: '列头样式',
+        whereClause: 'Where 条件'
+      },
+      tabs: {
+        axes: '坐标轴',
+        columns: '列配置',
+        filter: '筛选',
+        footer: '页脚',
+        metadata: '元数据',
+        preview: '预览',
+        rowStructure: '行结构',
+        series: '系列',
+        sortOrder: '排序',
+        population: '人群设置',
+        programmingNotes: '编程备注',
+        treatmentArms: '列头样式',
+        statistics: '统计设置'
+      },
+      figureHints: {
+        addSeries: '请在"系列"标签页中添加至少一个数据系列',
+        configureXAxis: '请在"坐标轴"标签页中配置 X 轴标签和类型',
+        configureYAxis: '请在"坐标轴"标签页中配置 Y 轴标签和范围',
+        selectChartType: '请在"元数据"标签页中选择图表类型以预览',
+        unsupportedType: '该图表类型尚未支持。已支持: 折线图、柱状图、散点图、箱线图、KM 曲线、森林图'
+      },
       toolbar: {
         editMode: '编辑模式',
-        export: '导出 JSON',
+        export: '导出',
         newShell: '新建 Shell',
         previewMode: '预览模式',
         redo: '重做',
@@ -866,6 +938,32 @@ const page: App.I18n.Schema['translation']['page'] = {
         zoomIn: '放大',
         zoomOut: '缩小'
       }
+    },
+    tflTemplateLibrary: {
+      addTemplate: '新建模板',
+      all: '全部',
+      categoryFilter: '按分类筛选',
+      confirmDelete: '确定要删除此模板吗？',
+      delete: '删除',
+      deleteSuccess: '模板已删除',
+      description: '描述',
+      duplicate: '复制',
+      duplicateSuccess: '模板已复制',
+      edit: '编辑',
+      empty: '未找到模板',
+      figures: '图形',
+      import: '导入',
+      listings: '列表',
+      searchPlaceholder: '搜索模板...',
+      selectToEdit: '选择模板查看详情',
+      selectToPreview: '选择模板进行预览',
+      shellPreview: 'Shell 配置预览',
+      subtitle: '共 {{count}} 个模板',
+      tables: '表格',
+      templates: '个模板',
+      title: '模板库',
+      use: '使用',
+      useHint: '模板已选中 — 前往 TFL 设计器应用'
     }
   }
 };

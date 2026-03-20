@@ -52,3 +52,22 @@ html.grayscale {
 .dark::view-transition-new(root) {
   z-index: 9999;
 }
+
+/* Global Context Selector: 禁止截断，按内容自适应宽度 */
+.global-context-selector .ant-select {
+  min-width: 140px;
+  width: max-content;
+  max-width: 320px;
+}
+
+.global-context-selector .ant-select-selection-item {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+.global-context-selector .ant-select-selection-placeholder {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}

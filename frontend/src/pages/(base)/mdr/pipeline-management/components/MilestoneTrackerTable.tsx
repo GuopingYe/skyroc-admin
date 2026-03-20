@@ -5,7 +5,12 @@ import dayjs from 'dayjs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { createMilestone, deleteMilestone, updateMilestone } from '../milestoneData';
+import {
+  createPipelineMilestone,
+  deletePipelineMilestone,
+  updatePipelineMilestone
+} from '@/service/api/mdr';
+
 import type { IProjectMilestone, MilestoneStatus, PresetMilestoneType } from '../types';
 import {
   milestoneStatusConfig,
@@ -66,22 +71,29 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
       setLoading(true);
 
       const milestoneData = {
-        actualDate: values.actualDate?.format('YYYY-MM-DD') || null,
-        analysisId: values.level === 'Analysis' ? analysisId : undefined,
+        actual_date: values.actualDate?.format('YYYY-MM-DD') || null,
+        analysis_id: values.level === 'Analysis' ? analysisId : undefined,
         assignee: values.assignee,
         comment: values.comment,
         level: values.level as 'Study' | 'Analysis',
         name: values.name || presetMilestoneConfig[values.presetType as PresetMilestoneType].label,
-        plannedDate: values.plannedDate?.format('YYYY-MM-DD') || null,
-        presetType: values.presetType as PresetMilestoneType,
-        status: values.status as MilestoneStatus,
-        studyId
+        planned_date: values.plannedDate?.format('YYYY-MM-DD') || null,
+        preset_type: values.presetType as string,
+        status: values.status as string,
+        study_id: studyId
       };
 
       if (editingMilestone) {
-        updateMilestone(editingMilestone.id, milestoneData);
+        await updatePipelineMilestone(editingMilestone.id, {
+          actual_date: milestoneData.actual_date,
+          assignee: milestoneData.assignee,
+          comment: milestoneData.comment,
+          name: milestoneData.name,
+          planned_date: milestoneData.planned_date,
+          status: milestoneData.status
+        });
       } else {
-        createMilestone(milestoneData as Omit<IProjectMilestone, 'createdAt' | 'id' | 'updatedAt'>);
+        await createPipelineMilestone(milestoneData);
       }
 
       setModalOpen(false);
@@ -95,9 +107,13 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
 
   // 删除里程碑
   const handleDelete = useCallback(
-    (id: string) => {
-      deleteMilestone(id);
-      onRefresh();
+    async (id: string) => {
+      try {
+        await deletePipelineMilestone(id);
+        onRefresh();
+      } catch (err) {
+        console.error('Delete milestone failed:', err);
+      }
     },
     [onRefresh]
   );

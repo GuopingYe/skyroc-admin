@@ -1110,7 +1110,16 @@ declare namespace App {
               traceGlobalLibrary: string;
               variables: string;
             };
-            tflBuilder: {
+            tflDesigner: {
+              actions: {
+                confirmDelete: string;
+                delete: string;
+                duplicate: string;
+                fromTemplate: string;
+                newFigure: string;
+                newListing: string;
+                newTable: string;
+              };
               canvas: {
                 addColumn: string;
                 addFootnote: string;
@@ -1124,12 +1133,25 @@ declare namespace App {
                 selectAnalysisForTfl: string;
                 selectAnalysisHint: string;
               };
+              figureMeta: {
+                basicInfo: string;
+                chartType: string;
+              };
               leftPanel: {
                 datasets: string;
                 searchStatistics: string;
                 searchVariables: string;
                 statisticHint: string;
                 statistics: string;
+              };
+              listingMeta: {
+                analysisFilter: string;
+                analysisSubset: string;
+                basicInfo: string;
+                columnHeaderSet: string;
+                selectHeaderSet: string;
+                selectHeaderSetPlaceholder: string;
+                whereClause: string;
               };
               messages: {
                 exported: string;
@@ -1166,6 +1188,54 @@ declare namespace App {
                 shell: string;
                 title: string;
               };
+              tableMeta: {
+                analysisFilter: string;
+                analysisSubset: string;
+                basicInfo: string;
+                columnHeaderSet: string;
+                headerLayers: string;
+                selectArmSet: string;
+                selectArmSetPlaceholder: string;
+                selectHeaderSet: string;
+                selectHeaderSetPlaceholder: string;
+                treatmentArms: string;
+                whereClause: string;
+              };
+              overview: {
+                emptyHint: string;
+                selectOrCreate: string;
+              };
+              sidebar: {
+                all: string;
+                empty: string;
+                figures: string;
+                listings: string;
+                studySettings: string;
+                studySettingsBack: string;
+                tables: string;
+              };
+              tabs: {
+                axes: string;
+                columns: string;
+                filter: string;
+                footer: string;
+                metadata: string;
+                preview: string;
+                rowStructure: string;
+                series: string;
+                sortOrder: string;
+                population: string;
+                programmingNotes: string;
+                treatmentArms: string;
+                statistics: string;
+              };
+              figureHints: {
+                addSeries: string;
+                configureXAxis: string;
+                configureYAxis: string;
+                selectChartType: string;
+                unsupportedType: string;
+              };
               toolbar: {
                 editMode: string;
                 export: string;
@@ -1178,6 +1248,7 @@ declare namespace App {
                 zoomOut: string;
               };
             };
+            tflTemplateLibrary: Record<string, string>;
           };
         };
         request: {
@@ -1199,6 +1270,21 @@ declare namespace App {
             lockedWarning: string;
           };
           reload: string;
+          tflDesigner: {
+            title: string;
+            common: Record<string, string>;
+            displayTypes: Record<string, string>;
+            categories: Record<string, string>;
+            table: Record<string, any>;
+            figure: Record<string, any>;
+            listing: Record<string, any>;
+            studyMetadata: Record<string, string>;
+            populations: Record<string, string>;
+            headerStyles: Record<string, any>;
+            exportFormats: Record<string, any>;
+            [key: string]: any;
+          };
+          tflTemplateLibrary: Record<string, string>;
           title: string;
           updateCancel: string;
           updateConfirm: string;

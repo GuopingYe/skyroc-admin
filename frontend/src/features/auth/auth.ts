@@ -147,7 +147,10 @@ export function resetAuth() {
     localStg.set('globalTabs', tabs);
   }
 
-  // 清除查询缓存
+  // 先取消所有进行中的查询，避免 CancelledError
+  queryClient.cancelQueries();
+
+  // 然后清除查询缓存
   queryClient.clear();
 
   const location = router.reactRouter.state.location;

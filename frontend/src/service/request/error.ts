@@ -2,11 +2,28 @@ import type { RequestInstance } from '@sa/axios';
 import { BACKEND_ERROR_CODE } from '@sa/axios';
 import type { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 
-import { router } from '@/features/router';
 import { $t } from '@/locales';
 
 import { getAuthorization, handleExpiredRequest, showErrorMsg } from './shared';
 import type { RequestInstanceState } from './type';
+
+/** Cached dynamic import of router to avoid circular dependency */
+let _routerModule: Promise<typeof import('@/features/router')> | null = null;
+function getRouterModule() {
+  if (!_routerModule) {
+    _routerModule = import('@/features/router');
+  }
+  return _routerModule;
+}
+
+/** Navigate to login-out page (lazy-loaded to break circular dependency) */
+function navigateToLogout() {
+  getRouterModule().then(({ router }) => {
+    const location = router.reactRouter.state.location;
+    const fullPath = location.pathname + location.search + location.hash;
+    router.push('/login-out', { query: { redirect: fullPath } });
+  });
+}
 
 /** - 后端错误处理 */
 export async function backEndFail(
@@ -16,23 +33,15 @@ export async function backEndFail(
 ) {
   const responseCode = String(response.data.code);
 
-  function handleLogout() {
-    const location = router.reactRouter.state.location;
-    const fullPath = location.pathname + location.search + location.hash;
-    router.push('/login-out', { query: { redirect: fullPath } });
-  }
-
   function logoutAndCleanup() {
-    handleLogout();
-    window.removeEventListener('beforeunload', handleLogout);
-
+    navigateToLogout();
     request.state.errMsgStack = request.state.errMsgStack.filter(msg => msg !== response.data.msg);
   }
 
   // when the backend response code is in `logoutCodes`, it means the user will be logged out and redirected to login page
   const logoutCodes = import.meta.env.VITE_SERVICE_LOGOUT_CODES?.split(',') || [];
   if (logoutCodes.includes(responseCode)) {
-    handleLogout();
+    navigateToLogout();
     return null;
   }
 
@@ -42,7 +51,7 @@ export async function backEndFail(
     request.state.errMsgStack = [...(request.state.errMsgStack || []), response.data.msg];
 
     // prevent the user from refreshing the page
-    window.addEventListener('beforeunload', handleLogout);
+    window.addEventListener('beforeunload', navigateToLogout);
 
     window.$modal?.error({
       content: response.data.msg,

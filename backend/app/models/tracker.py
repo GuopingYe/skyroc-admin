@@ -390,6 +390,16 @@ class ProgrammingTracker(Base, TimestampMixin, SoftDeleteMixin):
         self.status = TrackerStatus.FAILED
         self.qc_completed_at = datetime.utcnow()
 
+    def sign_off(self) -> None:
+        """
+        签收任务（21 CFR Part 11 合规要求）
+
+        只有 QC 通过后才能签收
+        """
+        if self.qc_status != QCStatus.PASSED:
+            raise ValueError("Cannot sign off: QC has not passed")
+        self.status = TrackerStatus.SIGNED_OFF
+
     def is_complete(self) -> bool:
         """判断任务是否完成"""
         return self.prod_status == ProdStatus.COMPLETED and self.qc_status == QCStatus.PASSED

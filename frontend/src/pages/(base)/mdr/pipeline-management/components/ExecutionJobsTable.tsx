@@ -1,5 +1,5 @@
-/** ExecutionJobsTable - 执行作业列表 */
-import { Card, Space, Table, Tag } from 'antd';
+/** ExecutionJobsTable - 执行作业列表 (Enhanced with progress bars, environment tags, error display) */
+import { Card, Progress, Space, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +30,12 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
     TFL: { color: 'purple', icon: 'i-mdi-file-chart-outline' }
   };
 
+  const envConfig: Record<string, { color: string }> = {
+    Development: { color: 'blue' },
+    Production: { color: 'red' },
+    UAT: { color: 'orange' }
+  };
+
   const columns: ColumnsType<IExecutionJobDisplay> = useMemo(
     () => [
       {
@@ -38,38 +44,57 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
         key: 'name',
         render: (text: string, record) => (
           <Space>
-            <div className={typeConfig[record.type].icon} />
+            <div className={typeConfig[record.type]?.icon || 'i-mdi-play-circle-outline'} />
             <span>{text}</span>
           </Space>
         )
       },
       {
         dataIndex: 'type',
-      key: 'type',
-      render: (type: string) => (
-        <Tag color={typeConfig[type]?.color}>{type}</Tag>
-      ),
-      title: t('page.mdr.pipelineManagement.jobs.cols.type'),
-      width: 80
-    },
-    {
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={statusConfig[status]?.color}>
-          {status === 'Running' && <div className="i-mdi-loading animate-spin mr-4px" />}
-          {t(`page.mdr.pipelineManagement.jobs.status.${status}`)}
-        </Tag>
-      ),
-      title: t('page.mdr.pipelineManagement.jobs.cols.status'),
-      width: 100
+        key: 'type',
+        render: (type: string) => (
+          <Tag color={typeConfig[type]?.color}>{type}</Tag>
+        ),
+        title: t('page.mdr.pipelineManagement.jobs.cols.type'),
+        width: 100
+      },
+      {
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string, record) => (
+          <Space direction="vertical" size={2} className="w-full">
+            <Tag color={statusConfig[status]?.color}>
+              {status === 'Running' && <div className="i-mdi-loading animate-spin mr-4px" />}
+              {t(`page.mdr.pipelineManagement.jobs.status.${status}`)}
+            </Tag>
+            {(status === 'Running' || (status === 'Failed' && record.progress > 0)) && (
+              <Progress
+                percent={record.progress}
+                size="small"
+                status={status === 'Failed' ? 'exception' : 'active'}
+                strokeWidth={4}
+              />
+            )}
+          </Space>
+        ),
+        title: t('page.mdr.pipelineManagement.jobs.cols.status'),
+        width: 140
+      },
+      {
+        dataIndex: 'environment',
+        key: 'environment',
+        render: (env: string) => (
+          <Tag color={envConfig[env]?.color || 'default'}>{env}</Tag>
+        ),
+        title: 'Environment',
+        width: 110
       },
       {
         dataIndex: 'startTime',
-      key: 'startTime',
-      render: (time: string) => new Date(time).toLocaleString(),
-      title: t('page.mdr.pipelineManagement.jobs.cols.startTime'),
-      width: 160
+        key: 'startTime',
+        render: (time: string) => new Date(time).toLocaleString(),
+        title: t('page.mdr.pipelineManagement.jobs.cols.startTime'),
+        width: 160
       },
       {
         title: t('page.mdr.pipelineManagement.jobs.cols.duration'),
@@ -80,9 +105,26 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
       },
       {
         dataIndex: 'triggeredBy',
-      key: 'triggeredBy',
-      title: t('page.mdr.pipelineManagement.jobs.cols.triggeredBy'),
-        width: 120
+        key: 'triggeredBy',
+        title: t('page.mdr.pipelineManagement.jobs.cols.triggeredBy'),
+        width: 150,
+        ellipsis: true
+      },
+      {
+        key: 'error',
+        render: (_: unknown, record) => {
+          if (!record.error) return null;
+          return (
+            <Tooltip title={record.error} color="red">
+              <Tag color="error" className="cursor-pointer">
+                <div className="i-mdi-alert-circle-outline mr-4px inline-block" />
+                Error
+              </Tag>
+            </Tooltip>
+          );
+        },
+        title: 'Details',
+        width: 100
       }
     ],
     [t]
@@ -96,6 +138,7 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
         <div className="flex items-center gap-8px">
           <div className="i-mdi-play-circle-outline text-green-500" />
           <span>{t('page.mdr.pipelineManagement.jobs.title')}</span>
+          <Tag className="ml-8px" color="blue">{jobs.length} jobs</Tag>
         </div>
       }
     >

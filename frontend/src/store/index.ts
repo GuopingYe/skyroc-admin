@@ -5,9 +5,11 @@ import { authSlice } from '../features/auth/authStore';
 import { clinicalContextMiddleware, clinicalContextSlice } from '../features/clinical-context';
 import { routeSlice } from '../features/router/routeStore';
 import { tabSlice } from '../features/tab/tabStore';
-import { tflBuilderSlice } from '../features/tfl-builder';
 import { themeSlice } from '../features/theme';
 import { appSlice } from '../layouts/appStore';
+
+// TFL Designer uses Zustand for independent state management (frontend-arch rule)
+// See: src/features/tfl-designer/stores/
 
 // `combineSlices` automatically combines the reducers using
 // their `reducerPath`s, therefore we no longer need to call `combineReducers`.
@@ -17,8 +19,7 @@ const rootReducer = combineSlices(
   clinicalContextSlice,
   themeSlice,
   routeSlice,
-  tabSlice,
-  tflBuilderSlice
+  tabSlice
 );
 
 // Infer the `RootState` type from the root reducer

@@ -63,7 +63,22 @@
       "Bash(cd D:/github/clinical-mdr/backend && python -c \"\nimport asyncio\nfrom app.database import async_session_factory\nfrom app.services.cdisc_sync_service import CDISCSyncService\n\nasync def sync_v23\\(\\):\n    service = CDISCSyncService\\(\\)\n    async with async_session_factory\\(\\) as session:\n        print\\('Syncing CDASHIG v2-3...'\\)\n        result = await service.sync\\(session, 'cdashig', '2-3'\\)\n        print\\(f'Result: {result}'\\)\n        await session.commit\\(\\)\n    await service.close\\(\\)\n\nasyncio.run\\(sync_v23\\(\\)\\)\n\" 2>&1 | tail -30)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git reset:*)",
+      "Bash(npx eslint:*)",
+      "Bash(dos2unix src/features/tfl-builder/components/figure/FigurePreview.tsx)",
+      "Bash(dos2unix src/features/tfl-builder/components/table/TablePreview.tsx)",
+      "Bash(cd:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Skill(glm-plan-usage:usage-query-skill)",
+      "Skill(glm-plan-usage:usage-query-skill:*)",
+      "Bash(git checkout:*)",
+      "Bash(head:*)",
+      "Bash(npx vite:*)",
+      "mcp__web-search-prime__web_search_prime",
+      "mcp__web-reader__webReader"
     ]
   }
 }

@@ -297,15 +297,16 @@ export const generatedRoutes: ElegantConstRoute[] = [
                 handle: { i18nKey: 'route.(base)_mdr_study-spec', title: '(base)_mdr_study-spec' }
               },
               {
-                matchedFiles: [null, '/src/pages/(base)/mdr/tfl-builder/index.tsx', null, null],
-                name: '(base)_mdr_tfl-builder',
-                path: '/mdr/tfl-builder',
-                handle: {
-                  i18nKey: 'route.(base)_mdr_tfl-builder',
-                  icon: 'mdi:view-dashboard-edit',
-                  order: 3,
-                  title: 'TFL Builder'
-                }
+                matchedFiles: [null, '/src/pages/(base)/mdr/tfl-designer/index.tsx', null, null],
+                name: '(base)_mdr_tfl-designer',
+                path: '/mdr/tfl-designer',
+                handle: { i18nKey: 'route.(base)_mdr_tfl-designer', title: '(base)_mdr_tfl-designer' }
+              },
+              {
+                matchedFiles: [null, '/src/pages/(base)/mdr/tfl-template-library/index.tsx', null, null],
+                name: '(base)_mdr_tfl-template-library',
+                path: '/mdr/tfl-template-library',
+                handle: { i18nKey: 'route.(base)_mdr_tfl-template-library', title: '(base)_mdr_tfl-template-library' }
               },
               {
                 matchedFiles: [null, '/src/pages/(base)/mdr/tracker/index.tsx', null, null],

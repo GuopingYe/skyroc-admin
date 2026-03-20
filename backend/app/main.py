@@ -152,6 +152,7 @@ from app.api.routers import (
     auth_router,
     global_library_router,
     mapping_studio_router,
+    pipeline_router,
     pull_requests_router,
     rbac_router,
     tracker_router,
@@ -194,5 +195,10 @@ app.include_router(
 
 app.include_router(
     auth_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    pipeline_router,
     prefix="/api/v1",
 )

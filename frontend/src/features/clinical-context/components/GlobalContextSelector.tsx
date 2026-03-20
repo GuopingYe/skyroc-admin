@@ -1,22 +1,16 @@
 /**
  * GlobalContextSelector - 全局上下文选择器
  *
- * 三级联动选择器：Product -> Study -> Analysis 数据来源于统一的 clinicalDataStore 用于 MDR 业务模块的统一上下文切换
+ * 三级联动选择器：Product -> Study -> Analysis
+ * 数据来源于后端 API（pipeline endpoints），与 pipeline management 保持同步
  */
 import { AuditOutlined, ExperimentOutlined, MedicineBoxOutlined } from '@ant-design/icons';
-import { Select, Space, Tag, Typography } from 'antd';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import { Select, Space, Spin, Tag, Typography } from 'antd';
+import type { DefaultOptionType } from 'antd/es/select';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  analysisStatusColorMap,
-  getActiveProducts,
-  getAnalysesByStudy,
-  getAnalysisById,
-  getProductById,
-  getStudiesByProduct,
-  getStudyById
-} from '@/mock/clinicalDataStore';
+import { getPipelineAnalyses, getPipelineProducts, getPipelineStudies } from '@/service/api/mdr';
 
 import { useClinicalContext } from '../hooks';
 import type { IClinicalAnalysis, IClinicalProduct, IClinicalStudy } from '../types';
@@ -34,83 +28,204 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
   const { t } = useTranslation();
   const { context, isAnalysisReady, isStudyReady, selectAnalysis, selectProduct, selectStudy } = useClinicalContext();
 
-  // 从统一数据源获取 Products
-  const products = useMemo(() => getActiveProducts(), []);
+  // 数据源状态
+  const [products, setProducts] = useState<any[]>([]);
+  const [studies, setStudies] = useState<any[]>([]);
+  const [analyses, setAnalyses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // 可选的 Studies（基于选中的 Product）
-  const availableStudies = useMemo(() => {
-    return getStudiesByProduct(context.productId);
+  // 加载 products
+  const fetchProducts = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    getPipelineProducts()
+      .then(data => {
+        if (!cancelled && data) setProducts(data as any[]);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 加载 studies
+  const fetchStudies = useCallback(() => {
+    if (!context.productId) {
+      setStudies([]);
+      return;
+    }
+    let cancelled = false;
+    getPipelineStudies(context.productId)
+      .then(data => {
+        if (!cancelled && data) setStudies(data as any[]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [context.productId]);
 
-  // 可选的 Analyses（基于选中的 Study）
-  const availableAnalyses = useMemo(() => {
-    return getAnalysesByStudy(context.studyId);
+  // 加载 analyses
+  const fetchAnalyses = useCallback(() => {
+    if (!context.studyId) {
+      setAnalyses([]);
+      return;
+    }
+    let cancelled = false;
+    getPipelineAnalyses(context.studyId)
+      .then(data => {
+        if (!cancelled && data) setAnalyses(data as any[]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [context.studyId]);
 
-  // 当 Product 变化时，检查当前选中的 Study 是否还在可选列表中
-  // 如果不在，自动清空 Study 和 Analysis（通过 selectProduct 已经处理）
   useEffect(() => {
-    if (context.studyId && context.productId) {
-      const studyStillValid = availableStudies.some(s => s.id === context.studyId);
-      if (!studyStillValid) {
-        // Study 不再有效，由 Redux slice 的 setProduct 已自动清空
-      }
-    }
-  }, [context.productId, context.studyId, availableStudies]);
+    return fetchProducts();
+  }, [fetchProducts]);
 
-  // 当 Study 变化时，检查当前选中的 Analysis 是否还在可选列表中
   useEffect(() => {
-    if (context.analysisId && context.studyId) {
-      const analysisStillValid = availableAnalyses.some(a => a.id === context.analysisId);
-      if (!analysisStillValid) {
-        // Analysis 不再有效，由 Redux slice 的 setStudy 已自动清空
+    return fetchStudies();
+  }, [fetchStudies]);
+
+  useEffect(() => {
+    return fetchAnalyses();
+  }, [fetchAnalyses]);
+
+  // 下拉展开时刷新对应列表（捕获新增后未切换上下文的情况）
+  const handleDropdownVisibleChange = useCallback(
+    (visible: boolean, type: 'product' | 'study' | 'analysis') => {
+      if (visible) {
+        if (type === 'product') fetchProducts();
+        else if (type === 'study') fetchStudies();
+        else fetchAnalyses();
       }
-    }
-  }, [context.studyId, context.analysisId, availableAnalyses]);
+    },
+    [fetchProducts, fetchStudies, fetchAnalyses]
+  );
 
   // 处理 Product 选择（切换 Product 时自动清空下游）
   const handleProductChange = useCallback(
     (productId: string | undefined) => {
-      const product = productId ? getProductById(productId) : undefined;
-      selectProduct(productId || null, product as IClinicalProduct | undefined);
+      if (productId) {
+        const node = products.find(p => String(p.id) === productId);
+        selectProduct(productId, {
+          id: productId,
+          name: node?.name || node?.code || productId
+        } as IClinicalProduct);
+      } else {
+        selectProduct(null);
+      }
     },
-    [selectProduct]
+    [products, selectProduct]
   );
 
   // 处理 Study 选择（切换 Study 时自动清空 Analysis）
   const handleStudyChange = useCallback(
     (studyId: string | undefined) => {
-      const study = studyId ? getStudyById(studyId) : undefined;
-      selectStudy(studyId || null, study as IClinicalStudy | undefined);
+      if (studyId) {
+        const node = studies.find(s => String(s.id) === studyId);
+        selectStudy(studyId, {
+          id: studyId,
+          name: node?.name || node?.study_code || node?.code || studyId,
+          phase: node?.phase || '',
+          status: node?.status || 'Active'
+        } as IClinicalStudy);
+      } else {
+        selectStudy(null);
+      }
     },
-    [selectStudy]
+    [studies, selectStudy]
   );
 
   // 处理 Analysis 选择
   const handleAnalysisChange = useCallback(
     (analysisId: string | undefined) => {
-      const analysis = analysisId ? getAnalysisById(analysisId) : undefined;
-      selectAnalysis(analysisId || null, analysis as IClinicalAnalysis | undefined);
+      if (analysisId) {
+        const node = analyses.find(a => String(a.id) === analysisId);
+        selectAnalysis(analysisId, {
+          id: analysisId,
+          name: node?.name || node?.code || analysisId,
+          status: (node?.lifecycleStatus || 'Active') as IClinicalAnalysis['status']
+        } as IClinicalAnalysis);
+      } else {
+        selectAnalysis(null);
+      }
     },
-    [selectAnalysis]
+    [analyses, selectAnalysis]
   );
 
-  // 获取当前选中项的完整对象（用于显示详情）
-  const selectedProduct = useMemo(() => {
-    return context.productId ? getProductById(context.productId) : null;
-  }, [context.productId]);
+  // 构建 options（纯字符串 label，避免 JSX 渲染问题）
+  const productOptions = useMemo<DefaultOptionType[]>(
+    () =>
+      products.map(p => {
+        const name = p.name || p.code || p.id || '';
+        return {
+          label: p.indication ? `${name} (${p.indication})` : name,
+          value: String(p.id)
+        };
+      }),
+    [products]
+  );
 
-  const selectedStudy = useMemo(() => {
-    return context.studyId ? getStudyById(context.studyId) : null;
-  }, [context.studyId]);
+  const studyOptions = useMemo<DefaultOptionType[]>(
+    () =>
+      studies.map(s => {
+        const name = s.name || s.study_code || s.code || s.id || '';
+        const meta = [s.phase, s.lifecycleStatus || s.status].filter(Boolean).join(' \u00b7 ');
+        return {
+          label: meta ? `${name} \u2014 ${meta}` : name,
+          value: String(s.id)
+        };
+      }),
+    [studies]
+  );
 
-  const selectedAnalysis = useMemo(() => {
-    return context.analysisId ? getAnalysisById(context.analysisId) : null;
-  }, [context.analysisId]);
+  const analysisOptions = useMemo<DefaultOptionType[]>(
+    () =>
+      analyses.map(a => {
+        const name = a.name || a.code || a.id || '';
+        return {
+          label: a.status ? `${name} \u2014 ${a.status}` : name,
+          value: String(a.id)
+        };
+      }),
+    [analyses]
+  );
+
+  // 选中态只显示纯 name
+  const productLabelRender = useCallback(
+    (option: DefaultOptionType) => {
+      const node = products.find(p => String(p.id) === option.value);
+      return node?.name || node?.code || String(option.value);
+    },
+    [products]
+  );
+
+  const studyLabelRender = useCallback(
+    (option: DefaultOptionType) => {
+      const node = studies.find(s => String(s.id) === option.value);
+      return node?.name || node?.study_code || node?.code || String(option.value);
+    },
+    [studies]
+  );
+
+  const analysisLabelRender = useCallback(
+    (option: DefaultOptionType) => {
+      const node = analyses.find(a => String(a.id) === option.value);
+      return node?.name || node?.code || String(option.value);
+    },
+    [analyses]
+  );
 
   return (
     <div
-      className={`border-b border-blue-100 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 px-16px py-12px ${className || ''}`}
+      className={`global-context-selector border-b border-blue-100 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 px-16px py-12px ${className || ''}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-16px">
@@ -121,118 +236,69 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
             {t('page.mdr.contextSelector.label')}:
           </Text>
 
-          <Space
-            wrap
-            size={8}
+          <Spin
+            size="small"
+            spinning={loading}
           >
-            {/* Product 选择 */}
-            <div className="flex items-center gap-4px">
-              <MedicineBoxOutlined className="text-blue-500" />
-              <Select
-                allowClear
-                showSearch
-                optionFilterProp="children"
-                placeholder={t('page.mdr.contextSelector.selectProduct')}
-                size="small"
-                style={{ minWidth: compact ? 120 : 160 }}
-                value={context.productId}
-                onChange={handleProductChange}
-              >
-                {products.map(product => (
-                  <Select.Option
-                    key={product.id}
-                    value={product.id}
-                  >
-                    <Space>
-                      <span>{product.name}</span>
-                      <Tag
-                        className="m-0 text-10px"
-                        color="blue"
-                      >
-                        {product.indication}
-                      </Tag>
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
+            <Space
+              wrap
+              size={8}
+            >
+              {/* Product 选择 */}
+              <div className="flex items-center gap-4px">
+                <MedicineBoxOutlined className="text-blue-500" />
+                <Select
+                  labelRender={productLabelRender}
+                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'product')}
+                  options={productOptions}
+                  placeholder={t('page.mdr.contextSelector.selectProduct')}
+                  popupMatchSelectWidth={false}
+                  showSearch
+                  size="small"
+                  value={context.productId}
+                  onChange={handleProductChange}
+                />
+              </div>
 
-            <span className="text-gray-300">→</span>
+              <span className="text-gray-300">&rarr;</span>
 
-            {/* Study 选择 */}
-            <div className="flex items-center gap-4px">
-              <ExperimentOutlined className="text-orange-500" />
-              <Select
-                allowClear
-                showSearch
-                disabled={!context.productId}
-                optionFilterProp="children"
-                placeholder={t('page.mdr.contextSelector.selectStudy')}
-                size="small"
-                style={{ minWidth: compact ? 120 : 180 }}
-                value={context.studyId}
-                onChange={handleStudyChange}
-              >
-                {availableStudies.map(study => (
-                  <Select.Option
-                    key={study.id}
-                    value={study.id}
-                  >
-                    <Space>
-                      <span>{study.studyCode}</span>
-                      <Tag
-                        className="m-0 text-10px"
-                        color="orange"
-                      >
-                        {study.phase}
-                      </Tag>
-                      <Tag
-                        className="m-0 text-10px"
-                        color={study.lifecycleStatus === 'Locked' ? 'red' : 'green'}
-                      >
-                        {study.lifecycleStatus}
-                      </Tag>
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
+              {/* Study 选择 */}
+              <div className="flex items-center gap-4px">
+                <ExperimentOutlined className="text-orange-500" />
+                <Select
+                  disabled={!context.productId}
+                  labelRender={studyLabelRender}
+                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'study')}
+                  options={studyOptions}
+                  placeholder={t('page.mdr.contextSelector.selectStudy')}
+                  popupMatchSelectWidth={false}
+                  showSearch
+                  size="small"
+                  value={context.studyId}
+                  onChange={handleStudyChange}
+                />
+              </div>
 
-            <span className="text-gray-300">→</span>
+              <span className="text-gray-300">&rarr;</span>
 
-            {/* Analysis 选择 */}
-            <div className="flex items-center gap-4px">
-              <AuditOutlined className="text-purple-500" />
-              <Select
-                allowClear
-                showSearch
-                disabled={!context.studyId}
-                optionFilterProp="children"
-                placeholder={t('page.mdr.contextSelector.selectAnalysis')}
-                size="small"
-                style={{ minWidth: compact ? 140 : 200 }}
-                value={context.analysisId}
-                onChange={handleAnalysisChange}
-              >
-                {availableAnalyses.map(analysis => (
-                  <Select.Option
-                    key={analysis.id}
-                    value={analysis.id}
-                  >
-                    <Space>
-                      <span>{analysis.name}</span>
-                      <Tag
-                        className="m-0 text-10px"
-                        color={analysisStatusColorMap[analysis.status]}
-                      >
-                        {analysis.status}
-                      </Tag>
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-          </Space>
+              {/* Analysis 选择 */}
+              <div className="flex items-center gap-4px">
+                <AuditOutlined className="text-purple-500" />
+                <Select
+                  disabled={!context.studyId}
+                  labelRender={analysisLabelRender}
+                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'analysis')}
+                  options={analysisOptions}
+                  placeholder={t('page.mdr.contextSelector.selectAnalysis')}
+                  popupMatchSelectWidth={false}
+                  showSearch
+                  size="small"
+                  value={context.analysisId}
+                  onChange={handleAnalysisChange}
+                />
+              </div>
+            </Space>
+          </Spin>
         </div>
 
         {/* 状态提示 */}
@@ -241,11 +307,11 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
             <Tag color="success">{t('page.mdr.contextSelector.contextReady')}</Tag>
           ) : isStudyReady ? (
             <Tag color="processing">
-              {selectedStudy?.studyCode} - {t('page.mdr.contextSelector.selectAnalysisHint')}
+              {context.study?.name} - {t('page.mdr.contextSelector.selectAnalysisHint')}
             </Tag>
           ) : context.productId ? (
             <Tag color="warning">
-              {selectedProduct?.name} - {t('page.mdr.contextSelector.selectStudyHint')}
+              {context.product?.name} - {t('page.mdr.contextSelector.selectStudyHint')}
             </Tag>
           ) : (
             <Text

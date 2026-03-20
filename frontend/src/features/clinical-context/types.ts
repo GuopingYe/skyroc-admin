@@ -75,7 +75,7 @@ export const MDR_CONTEXT_ROUTES = [
   '/mdr/programming-tracker',
   '/mdr/study-spec',
   '/mdr/mapping-studio',
-  '/mdr/tfl-builder',
+  '/mdr/tfl-designer',
   '/mdr/pipeline-management'
 ] as const;
 

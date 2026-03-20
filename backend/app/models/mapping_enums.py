@@ -174,6 +174,10 @@ class TrackerStatus(str, enum.Enum):
     任务状态（旧版，保留兼容）
 
     Programming Tracker 中使用
+
+    状态流转：
+    Not_Started -> Programming -> Ready_for_QC -> QC_In_Progress -> Passed/Failed
+    Passed -> Signed_Off (21 CFR Part 11 合规要求)
     """
 
     NOT_STARTED = "Not_Started"  # 未开始
@@ -182,6 +186,7 @@ class TrackerStatus(str, enum.Enum):
     QC_IN_PROGRESS = "QC_In_Progress"  # QC 进行中
     PASSED = "Passed"  # 已通过
     FAILED = "Failed"  # 未通过
+    SIGNED_OFF = "Signed_Off"  # 已签收（21 CFR Part 11 合规）
 
 
 class ProdStatus(str, enum.Enum):

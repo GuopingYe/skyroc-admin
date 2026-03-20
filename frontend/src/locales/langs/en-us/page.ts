@@ -600,12 +600,14 @@ const page: App.I18n.Schema['translation']['page'] = {
         totalCount: '{{count}} milestones'
       },
       save: 'Save',
+      saveFailed: 'Save failed, please try again',
       saveSuccess: 'Saved successfully',
       selectNodeHint: 'Please select a node from the left tree to manage',
       studyConfig: {
         basicInfo: 'Basic Information',
         cdiscStandards: 'CDISC Standards',
         dictionaries: 'Medical Dictionaries',
+        loadVersionsFailed: 'Failed to load version options',
         phase: 'Phase',
         protocolTitle: 'Protocol Title',
         title: 'Study Configuration'
@@ -797,7 +799,16 @@ const page: App.I18n.Schema['translation']['page'] = {
       traceGlobalLibrary: 'Trace in Global Library',
       variables: 'Variables'
     },
-    tflBuilder: {
+    tflDesigner: {
+      actions: {
+        confirmDelete: 'Are you sure you want to delete this shell?',
+        delete: 'Delete',
+        duplicate: 'Duplicate',
+        fromTemplate: 'From Template',
+        newFigure: 'New Figure',
+        newListing: 'New Listing',
+        newTable: 'New Table'
+      },
       canvas: {
         addColumn: 'Add Column',
         addFootnote: 'Add Footnote',
@@ -811,6 +822,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         selectAnalysisForTfl: 'Select an Analysis to start designing',
         selectAnalysisHint: 'Please select an Analysis above to start designing TFL Shell'
       },
+      figureMeta: {
+        basicInfo: 'Basic Information',
+        chartType: 'Chart Type'
+      },
       leftPanel: {
         datasets: 'Dataset Variables',
         searchStatistics: 'Search statistics...',
@@ -818,12 +833,25 @@ const page: App.I18n.Schema['translation']['page'] = {
         statisticHint: 'Drag components to canvas to add statistic rows',
         statistics: 'Statistics Components'
       },
+      listingMeta: {
+        analysisFilter: 'Analysis Filter',
+        analysisSubset: 'Analysis Subset',
+        basicInfo: 'Basic Information',
+        columnHeaderSet: 'Column Headers',
+        selectHeaderSet: 'Select Header Set',
+        selectHeaderSetPlaceholder: 'Choose from Study Settings',
+        whereClause: 'Where Clause'
+      },
       messages: {
         exported: 'Exported successfully',
         newShellCreated: 'New shell created',
         saved: 'Saved successfully',
         statisticAdded: 'Added statistic: {{name}}',
         variableAdded: 'Added variable: {{name}}'
+      },
+      overview: {
+        emptyHint: 'No output selected',
+        selectOrCreate: 'Create a new Table, Figure, or Listing from the toolbar or sidebar'
       },
       props: {
         alignment: 'Alignment',
@@ -853,9 +881,53 @@ const page: App.I18n.Schema['translation']['page'] = {
         shell: 'TFL Shell',
         title: 'Title'
       },
+      sidebar: {
+        all: 'All',
+        empty: 'No outputs yet',
+        figures: 'Figures',
+        listings: 'Listings',
+        studySettings: 'Study Settings',
+        studySettingsBack: 'Back to Outputs',
+        tables: 'Tables'
+      },
+      tableMeta: {
+        analysisFilter: 'Analysis Filter',
+        analysisSubset: 'Analysis Subset',
+        basicInfo: 'Basic Information',
+        columnHeaderSet: 'Column Headers',
+        headerLayers: 'Per-Table Header Layers',
+        selectArmSet: 'Select Arm Set',
+        selectArmSetPlaceholder: 'Choose from Study Settings',
+        selectHeaderSet: 'Select Header Set',
+        selectHeaderSetPlaceholder: 'Choose from Study Settings',
+        treatmentArms: 'Header Style',
+        whereClause: 'Where Clause'
+      },
+      tabs: {
+        axes: 'Axes',
+        columns: 'Columns',
+        filter: 'Filter',
+        footer: 'Footer',
+        metadata: 'Metadata',
+        preview: 'Preview',
+        rowStructure: 'Row Structure',
+        series: 'Series',
+        sortOrder: 'Sort Order',
+        population: 'Population',
+        programmingNotes: 'Programming Notes',
+        treatmentArms: 'Header Styles',
+        statistics: 'Statistics'
+      },
+      figureHints: {
+        addSeries: 'Add at least one data series in the Series tab',
+        configureXAxis: 'Configure X-Axis label and type in the Axes tab',
+        configureYAxis: 'Configure Y-Axis label and range in the Axes tab',
+        selectChartType: 'Select a chart type in the Metadata tab to preview',
+        unsupportedType: 'This chart type is not yet supported. Supported: Line, Bar, Scatter, Box Plot, KM Curve, Forest Plot'
+      },
       toolbar: {
         editMode: 'Edit Mode',
-        export: 'Export JSON',
+        export: 'Export',
         newShell: 'New Shell',
         previewMode: 'Preview Mode',
         redo: 'Redo',
@@ -864,6 +936,32 @@ const page: App.I18n.Schema['translation']['page'] = {
         zoomIn: 'Zoom In',
         zoomOut: 'Zoom Out'
       }
+    },
+    tflTemplateLibrary: {
+      addTemplate: 'Add Template',
+      all: 'All',
+      categoryFilter: 'Filter by category',
+      confirmDelete: 'Are you sure you want to delete this template?',
+      delete: 'Delete',
+      deleteSuccess: 'Template deleted',
+      description: 'Description',
+      duplicate: 'Duplicate',
+      duplicateSuccess: 'Template duplicated',
+      edit: 'Edit',
+      empty: 'No templates found',
+      figures: 'Figures',
+      import: 'Import',
+      listings: 'Listings',
+      searchPlaceholder: 'Search templates...',
+      selectToEdit: 'Select a template to view details',
+      selectToPreview: 'Select a template to preview',
+      shellPreview: 'Shell Configuration Preview',
+      subtitle: '{{count}} templates available',
+      tables: 'Tables',
+      templates: 'templates',
+      title: 'Template Library',
+      use: 'Use',
+      useHint: 'Template selected — go to TFL Designer to apply it'
     }
   }
 };

@@ -8,7 +8,7 @@ import { setToken } from '@/features/auth/authStore';
 import { store } from '@/store';
 import { localStg } from '@/utils/storage';
 
-/** 开发模式自动登录 如果没有 token 且开启了自动登录，则使用默认账号密码登录 */
+/** 开发模式自动登录 如果没有 token 或 token 已过期，则使用默认账号密码登录 */
 export async function devAutoLogin(): Promise<string | null> {
   const { MODE, VITE_DEV_AUTO_LOGIN, VITE_DEV_LOGIN_PASSWORD, VITE_DEV_LOGIN_USERNAME } = import.meta.env;
 
@@ -17,15 +17,35 @@ export async function devAutoLogin(): Promise<string | null> {
     return null;
   }
 
-  // 如果已有 token，不自动登录
-  if (localStg.get('token')) {
-    return null;
+  // 检查现有 token 是否有效
+  const existingToken = localStg.get('token');
+  if (existingToken) {
+    // 验证 token 是否有效
+    try {
+      const verifyResp = await fetch('/proxy-default/api/v1/auth/user-info', {
+        headers: { 'Authorization': `Bearer ${existingToken}` }
+      });
+      if (verifyResp.ok) {
+        const verifyData = await verifyResp.json();
+        if (verifyData.code === '0000') {
+          console.log('[Dev Auto Login] Existing token is valid, skipping auto login');
+          return existingToken;
+        }
+      }
+      // Token 无效，清除旧数据
+      console.log('[Dev Auto Login] Existing token is invalid, will re-login');
+      localStg.remove('token');
+      localStg.remove('refreshToken');
+      localStg.remove('userInfo');
+    } catch {
+      console.log('[Dev Auto Login] Token verification failed, will re-login');
+    }
   }
 
   console.log('[Dev Auto Login] Attempting auto login with default credentials...');
 
   try {
-    const response = await fetch('/proxy-default/auth/login', {
+    const response = await fetch('/proxy-default/api/v1/auth/login', {
       body: JSON.stringify({
         password: VITE_DEV_LOGIN_PASSWORD || 'admin123',
         userName: VITE_DEV_LOGIN_USERNAME || 'admin'

@@ -1,12 +1,38 @@
 /** MDR module type definitions */
 
 declare namespace Api.MDR {
+  // ============================================================
+  // Backend Enums (与后端 Schema 对齐)
+  // ============================================================
+
+  /** 交付物类型 */
+  type BackendDeliverableType = 'ADaM' | 'OTHER_LOOKUP' | 'SDTM' | 'TFL';
+
+  /** 生产状态 (双轨状态机 - 生产侧) */
+  type BackendProdStatus = 'Completed' | 'Not_Started' | 'Programming' | 'Ready_for_QC';
+
+  /** QC 状态 (双轨状态机 - QC 侧) */
+  type BackendQCStatus = 'In_Progress' | 'Issues_Found' | 'Not_Started' | 'Passed';
+
+  /** 优先级 */
+  type BackendPriority = 'High' | 'Low' | 'Medium';
+
+  /** QC 方法 */
+  type BackendQCMethod = 'Double_Programming' | 'Review' | 'Spot_Check';
+
+  /** Tracker 状态 (旧版，保留兼容) */
+  type BackendTrackerStatus = 'Failed' | 'Not_Started' | 'Passed' | 'Programming' | 'QC_In_Progress' | 'Ready_for_QC';
+
+  // ============================================================
+  // Frontend Types
+  // ============================================================
+
   // Programming Tracker types
   type TaskCategory = 'ADaM' | 'Other' | 'SDTM' | 'TFL';
   type TFLOutputType = 'Figure' | 'Listing' | 'Table';
   type TaskStatus = 'In Progress' | 'Not Started' | 'QC Pass' | 'Ready for QC' | 'Signed Off';
   type IssueCategory = 'Comment' | 'Data' | 'Format' | 'Logic' | 'Validation';
-  type IssueStatus = 'Closed' | 'Open' | 'Responded';
+  type IssueStatus = 'Answered' | 'Closed' | 'Open' | 'Resolved';
   type QCRoundStatus = 'Closed' | 'Open';
 
   interface Person {

@@ -109,38 +109,7 @@ export const lifecycleConfig: Record<
   }
 };
 
-/** CDISC 版本选项 */
-export const sdtmModelVersions = [
-  { label: 'SDTM v1.9', value: 'SDTM v1.9' },
-  { label: 'SDTM v1.8', value: 'SDTM v1.8' },
-  { label: 'SDTM v1.7', value: 'SDTM v1.7' }
-];
-
-export const sdtmIgVersions = [
-  { label: 'SDTMIG v3.4', value: 'SDTMIG v3.4' },
-  { label: 'SDTMIG v3.3', value: 'SDTMIG v3.3' }
-];
-
-export const adamModelVersions = [
-  { label: 'ADaM v1.3', value: 'ADaM v1.3' },
-  { label: 'ADaM v1.2', value: 'ADaM v1.2' }
-];
-
-export const adamIgVersions = [
-  { label: 'ADaMIG v1.4', value: 'ADaMIG v1.4' },
-  { label: 'ADaMIG v1.3', value: 'ADaMIG v1.3' }
-];
-
-export const meddraVersions = [
-  { label: 'MedDRA 26.1', value: 'MedDRA 26.1' },
-  { label: 'MedDRA 26.0', value: 'MedDRA 26.0' }
-];
-
-export const whodrugVersions = [
-  { label: 'WHODrug Global 5.1', value: 'WHODrug Global 5.1' },
-  { label: 'WHODrug Global 5.0', value: 'WHODrug Global 5.0' }
-];
-
+/** 临床研究阶段（静态枚举，行业标准不变） */
 export const studyPhases = [
   { label: 'Phase I', value: 'Phase I' },
   { label: 'Phase I/II', value: 'Phase I/II' },
@@ -150,21 +119,11 @@ export const studyPhases = [
   { label: 'Phase IV', value: 'Phase IV' }
 ];
 
-/** 默认 Study 配置 */
-export const defaultStudyConfig: StudyConfig = {
-  adamIgVersion: 'ADaMIG v1.4',
-  adamModelVersion: 'ADaM v1.3',
-  meddraVersion: 'MedDRA 26.1',
-  sdtmIgVersion: 'SDTMIG v3.4',
-  sdtmModelVersion: 'SDTM v1.9',
-  whodrugVersion: 'WHODrug Global 5.1'
-};
-
 // ==================== 数据转换函数 ====================
 
 /** 将 IStudyConfiguration 转换为 StudyConfig */
 const convertStudyConfig = (config: IStudyConfiguration | null): StudyConfig => {
-  if (!config) return defaultStudyConfig;
+  if (!config) return {} as StudyConfig;
   return {
     adamIgVersion: config.adamIgVersion,
     adamModelVersion: config.adamModelVersion,

@@ -1,7 +1,8 @@
-import { router } from '@/features/router';
 import { localStg } from '@/utils/storage';
+import { store } from '@/store';
 
 import { fetchRefreshToken } from '../api';
+import { setToken } from '@/features/auth/authStore';
 
 import type { RequestInstanceState } from './type';
 
@@ -30,6 +31,17 @@ export async function handleRefreshToken() {
     localStg.remove('refreshToken');
     localStg.remove('userInfo');
 
+    // Try dev auto login in development mode
+    const { devAutoLogin } = await import('@/utils/dev-login');
+    const newToken = await devAutoLogin();
+
+    if (newToken) {
+      // Dev auto login succeeded, update Redux store and return true to retry
+      store.dispatch(setToken(newToken));
+      return true;
+    }
+
+    const { router } = await import('@/features/router');
     const location = router.reactRouter.state.location;
     const fullPath = location.pathname + location.search + location.hash;
     router.push('/login-out', { query: { redirect: fullPath } });

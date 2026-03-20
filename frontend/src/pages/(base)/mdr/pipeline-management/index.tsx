@@ -17,6 +17,8 @@ import {
   FundOutlined,
   LockOutlined,
   PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
   SettingOutlined
 } from '@ant-design/icons';
 import {
@@ -29,8 +31,11 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Progress,
+  Result,
   Select,
   Space,
+  Spin,
   Table,
   Tabs,
   Tag,
@@ -46,31 +51,34 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useClinicalContext } from '@/features/clinical-context';
+import {
+  archivePipelineNode,
+  createPipelineMilestone,
+  createPipelineNode,
+  deletePipelineMilestone,
+  getAvailableVersions,
+  getPipelineExecutionJobs,
+  getPipelineMilestones,
+  getPipelineTree,
+  updatePipelineMilestone,
+  updatePipelineStudyConfig
+} from '@/service/api/mdr';
 
 import { ExecutionJobsTable, MilestoneTimeline, MilestoneTrackerTable } from './components';
-import { getExecutionJobs, getMilestoneStats, getMilestones } from './milestoneData';
+import { getMilestoneStats } from './milestoneData';
 import {
   type AnalysisNode,
   type NodeLifecycleStatus,
   type NodeType,
   type PipelineNode,
-  type StudyConfig,
   type StudyNode,
-  adamIgVersions,
-  adamModelVersions,
-  defaultStudyConfig,
   findNodeById,
   getAllowedChildType,
   getChildNodes,
   lifecycleConfig,
-  meddraVersions,
   nodeTypeConfig,
-  pipelineTree,
-  sdtmIgVersions,
-  sdtmModelVersions,
   statusConfig,
-  studyPhases,
-  whodrugVersions
+  studyPhases
 } from './mockData';
 import type { IProjectMilestone } from './types';
 
@@ -90,8 +98,6 @@ const PipelineManagement: React.FC = () => {
   const canManage = Boolean(BYPASS_RBAC);
 
   // 从全局 Store 获取上下文状态
-  // - isStudyReady: Product + Study 已选择（Tab 2, Tab 3 依赖）
-  // - isAnalysisReady: Analysis 已选择（Tab 4 依赖）
   const {
     analysisId,
     context,
@@ -105,7 +111,10 @@ const PipelineManagement: React.FC = () => {
   } = useClinicalContext();
 
   // 本地状态
-  const [treeData, setTreeData] = useState<PipelineNode[]>(pipelineTree);
+  const [treeData, setTreeData] = useState<PipelineNode[]>([]);
+  const [treeLoading, setTreeLoading] = useState(true);
+  const [treeError, setTreeError] = useState<string | null>(null);
+  const [treeSearchQuery, setTreeSearchQuery] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<PipelineNode | null>(null);
   const [activeTab, setActiveTab] = useState<string>('portfolio');
@@ -113,7 +122,31 @@ const PipelineManagement: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createNodeType, setCreateNodeType] = useState<NodeType | null>(null);
   const [createForm] = Form.useForm();
-  const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
+  const [milestones, setMilestones] = useState<IProjectMilestone[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [executionJobs, setExecutionJobs] = useState<any[]>([]);
+  const [executionJobsLoading, setExecutionJobsLoading] = useState(false);
+
+  // Fetch pipeline tree from API
+  const fetchTree = useCallback(async () => {
+    setTreeLoading(true);
+    setTreeError(null);
+    try {
+      const data = await getPipelineTree();
+      if (data) {
+        setTreeData(data as PipelineNode[]);
+      }
+    } catch (err) {
+      console.error('Failed to load pipeline tree:', err);
+      setTreeError('Failed to load pipeline tree');
+    } finally {
+      setTreeLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTree();
+  }, [fetchTree]);
 
   // 当全局 context 变化时，自动选中对应的树节点
   useEffect(() => {
@@ -127,25 +160,70 @@ const PipelineManagement: React.FC = () => {
     }
   }, [studyId, treeData, form]);
 
-  // 获取里程碑数据
-  const milestones = useMemo(() => {
-    if (!studyId) return [];
-    return getMilestones(studyId, analysisId || undefined);
-  }, [studyId, analysisId, milestoneRefreshKey]);
+  // Fetch milestones from API when study/analysis changes
+  const fetchMilestones = useCallback(async () => {
+    if (!studyId) {
+      setMilestones([]);
+      return;
+    }
+    setMilestonesLoading(true);
+    try {
+      const data = await getPipelineMilestones(studyId, analysisId || undefined);
+      if (data) {
+        // Map snake_case from API to camelCase for frontend types
+        const mapped = (data as any[]).map((m: any) => ({
+          actualDate: m.actual_date,
+          analysisId: m.analysis_id,
+          assignee: m.assignee,
+          comment: m.comment,
+          createdAt: m.created_at,
+          id: m.id,
+          level: m.level,
+          name: m.name,
+          plannedDate: m.planned_date,
+          presetType: m.preset_type,
+          status: m.status,
+          studyId: m.study_id,
+          updatedAt: m.updated_at
+        }));
+        setMilestones(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to load milestones:', err);
+    } finally {
+      setMilestonesLoading(false);
+    }
+  }, [studyId, analysisId]);
+
+  useEffect(() => {
+    fetchMilestones();
+  }, [fetchMilestones]);
 
   // 里程碑统计
   const milestoneStats = useMemo(() => getMilestoneStats(milestones), [milestones]);
 
-  // 刷新里程碑
-  const handleRefreshMilestones = useCallback(() => {
-    setMilestoneRefreshKey(k => k + 1);
-  }, []);
-
-  // 获取执行作业
-  const executionJobs = useMemo(() => {
-    if (!analysisId) return [];
-    return getExecutionJobs(analysisId);
+  // Fetch execution jobs from API when analysis changes
+  const fetchExecutionJobs = useCallback(async () => {
+    if (!analysisId) {
+      setExecutionJobs([]);
+      return;
+    }
+    setExecutionJobsLoading(true);
+    try {
+      const data = await getPipelineExecutionJobs(analysisId);
+      if (data) {
+        setExecutionJobs(data as any[]);
+      }
+    } catch (err) {
+      console.error('Failed to load execution jobs:', err);
+    } finally {
+      setExecutionJobsLoading(false);
+    }
   }, [analysisId]);
+
+  useEffect(() => {
+    fetchExecutionJobs();
+  }, [fetchExecutionJobs]);
 
   // 树节点转换
   const treeDataNodes = useMemo(() => convertToTreeData(treeData), [treeData]);
@@ -160,17 +238,41 @@ const PipelineManagement: React.FC = () => {
         setIsEditing(false);
         if (node) form.setFieldsValue(node);
 
-        // 同步更新全局上下文
+        // 同步更新全局上下文（带名称对象）
         if (node) {
           if (node.nodeType === 'STUDY') {
             // 找到父节点 (Compound/Product)
             const parent = findParentNode(treeData, nodeId);
             if (parent) {
-              selectProduct(parent.id);
+              selectProduct(parent.id, { id: parent.id, name: parent.title });
             }
-            selectStudy(nodeId);
+            selectStudy(nodeId, {
+              id: node.id,
+              name: node.title,
+              phase: (node as StudyNode).phase || '',
+              status: node.status
+            });
           } else if (node.nodeType === 'ANALYSIS') {
-            selectAnalysis(nodeId);
+            // 找到父 Study 节点
+            const parentStudy = findParentNode(treeData, nodeId);
+            if (parentStudy) {
+              selectStudy(parentStudy.id, {
+                id: parentStudy.id,
+                name: parentStudy.title,
+                phase: (parentStudy as StudyNode).phase || '',
+                status: parentStudy.status
+              });
+              // 找到祖父 Product 节点
+              const grandParent = findParentNode(treeData, parentStudy.id);
+              if (grandParent) {
+                selectProduct(grandParent.id, { id: grandParent.id, name: grandParent.title });
+              }
+            }
+            selectAnalysis(nodeId, {
+              id: node.id,
+              name: node.title,
+              status: (node.lifecycleStatus as 'Active' | 'Archived' | 'Completed' | 'Planned') || 'Active'
+            });
           }
         }
       }
@@ -179,19 +281,19 @@ const PipelineManagement: React.FC = () => {
   );
 
   const handleArchive = useCallback(
-    (nodeId: string) => {
-      const updateNodeStatus = (nodes: PipelineNode[]): PipelineNode[] => {
-        return nodes.map(node => {
-          if (node.id === nodeId)
-            return { ...node, status: node.status === 'Active' ? 'Archived' : 'Active' } as PipelineNode;
-          if (node.children) return { ...node, children: updateNodeStatus(node.children) };
-          return node;
-        });
-      };
-      setTreeData(prev => updateNodeStatus(prev));
-      messageApi.success(t('page.mdr.pipelineManagement.archiveSuccess'));
+    async (nodeId: string) => {
+      const node = findNodeById(treeData, nodeId);
+      const newStatus = node?.status === 'Active' ? 'Archived' : 'Active';
+      try {
+        await archivePipelineNode(nodeId, newStatus as 'Active' | 'Archived');
+        // Refresh tree from API to get consistent state
+        await fetchTree();
+        messageApi.success(t('page.mdr.pipelineManagement.archiveSuccess'));
+      } catch (err) {
+        messageApi.error('Failed to archive node');
+      }
     },
-    [messageApi, t]
+    [treeData, messageApi, t, fetchTree]
   );
 
   const handleOpenCreate = useCallback(
@@ -203,48 +305,25 @@ const PipelineManagement: React.FC = () => {
     [createForm]
   );
 
-  const handleCreateNode = useCallback(() => {
-    createForm.validateFields().then(values => {
-      const now = new Date().toISOString().split('T')[0];
-      const newNode: PipelineNode = {
-        children: createNodeType === 'STUDY' ? [] : undefined,
-        createdAt: now,
-        id: `${createNodeType?.toLowerCase()}-${Date.now()}`,
-        lifecycleStatus: 'Draft',
-        nodeType: createNodeType!,
-        status: 'Active',
+  const handleCreateNode = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      await createPipelineNode({
         title: values.title,
-        updatedAt: now,
-        ...(createNodeType === 'STUDY' &&
-          ({
-            config: defaultStudyConfig,
-            phase: values.phase,
-            protocolTitle: values.protocolTitle
-          } as Partial<StudyNode>))
-      };
-
-      // 添加到树中
-      if (selectedNodeId) {
-        const addToTree = (nodes: PipelineNode[]): PipelineNode[] => {
-          return nodes.map(node => {
-            if (node.id === selectedNodeId) {
-              return { ...node, children: [...(node.children || []), newNode] };
-            }
-            if (node.children) {
-              return { ...node, children: addToTree(node.children) };
-            }
-            return node;
-          });
-        };
-        setTreeData(prev => addToTree(prev));
-      } else if (createNodeType === 'TA') {
-        setTreeData(prev => [...prev, newNode]);
-      }
-
+        node_type: createNodeType!,
+        parent_id: selectedNodeId || undefined,
+        phase: values.phase,
+        protocol_title: values.protocolTitle,
+        description: values.description
+      });
+      // Refresh tree from API
+      await fetchTree();
       messageApi.success(t('page.mdr.pipelineManagement.createSuccess'));
       setCreateModalVisible(false);
-    });
-  }, [createForm, createNodeType, selectedNodeId, messageApi, t]);
+    } catch (err) {
+      console.error('Create node failed:', err);
+    }
+  }, [createForm, createNodeType, selectedNodeId, messageApi, t, fetchTree]);
 
   // 子节点表格列
   const childColumns: ColumnsType<PipelineNode> = useMemo(
@@ -343,9 +422,14 @@ const PipelineManagement: React.FC = () => {
             setIsEditing={setIsEditing}
             treeData={treeData}
             treeDataNodes={treeDataNodes}
+            treeError={treeError}
+            treeLoading={treeLoading}
+            treeSearchQuery={treeSearchQuery}
             onArchive={handleArchive}
             onOpenCreate={handleOpenCreate}
+            onRetryLoadTree={fetchTree}
             onSelect={handleSelect}
+            onTreeSearchChange={setTreeSearchQuery}
           />
         ),
         key: 'portfolio',
@@ -384,9 +468,10 @@ const PipelineManagement: React.FC = () => {
             hasAnalysis={Boolean(analysisId)}
             isStudyReady={isStudyReady}
             milestones={milestones}
+            milestonesLoading={milestonesLoading}
             milestoneStats={milestoneStats}
             studyId={studyId}
-            onRefresh={handleRefreshMilestones}
+            onRefresh={fetchMilestones}
           />
         ),
         disabled: !studyId,
@@ -403,6 +488,7 @@ const PipelineManagement: React.FC = () => {
           <ExecutionJobsTab
             analysisId={analysisId}
             executionJobs={executionJobs}
+            executionJobsLoading={executionJobsLoading}
             isAnalysisReady={isAnalysisReady}
           />
         ),
@@ -440,7 +526,7 @@ const PipelineManagement: React.FC = () => {
       milestones,
       milestoneStats,
       executionJobs,
-      handleRefreshMilestones
+      fetchMilestones
     ]
   );
 
@@ -519,12 +605,17 @@ interface PortfolioAdminTabProps {
   navigate: ReturnType<typeof useNavigate>;
   onArchive: (id: string) => void;
   onOpenCreate: (type: NodeType) => void;
+  onRetryLoadTree: () => void;
   onSelect: (keys: React.Key[]) => void;
+  onTreeSearchChange: (query: string) => void;
   selectedNode: PipelineNode | null;
   selectedNodeId: string | null;
   setIsEditing: (v: boolean) => void;
   treeData: PipelineNode[];
   treeDataNodes: DataNode[];
+  treeError: string | null;
+  treeLoading: boolean;
+  treeSearchQuery: string;
 }
 
 const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
@@ -542,14 +633,95 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   selectedNode,
   selectedNodeId,
   setIsEditing,
-  treeDataNodes
+  treeDataNodes,
+  treeLoading,
+  treeError,
+  treeSearchQuery,
+  onTreeSearchChange,
+  onRetryLoadTree
 }) => {
   const { t } = useTranslation();
 
-  if (!selectedNode) {
+  // Filter tree nodes by search query
+  const filteredTreeNodes = useMemo(() => {
+    if (!treeSearchQuery) return treeDataNodes;
+    const query = treeSearchQuery.toLowerCase();
+    const filterNodes = (nodes: DataNode[]): DataNode[] => {
+      return nodes
+        .map(node => {
+          const titleStr = typeof node.title === 'string' ? node.title : '';
+          const childMatches = node.children ? filterNodes(node.children) : [];
+          // Check if the node key contains the query (study code, TA name, etc)
+          const keyMatch = String(node.key).toLowerCase().includes(query);
+          if (childMatches.length > 0 || keyMatch) {
+            return { ...node, children: childMatches.length > 0 ? childMatches : node.children };
+          }
+          return null;
+        })
+        .filter(Boolean) as DataNode[];
+    };
+    return filterNodes(treeDataNodes);
+  }, [treeDataNodes, treeSearchQuery]);
+
+  if (treeError) {
     return (
       <div className="h-full flex-center">
-        <Empty description={t('page.mdr.pipelineManagement.selectNodeHint')} />
+        <Result
+          status="error"
+          title="Failed to Load Pipeline"
+          subTitle={treeError}
+          extra={<Button type="primary" icon={<ReloadOutlined />} onClick={onRetryLoadTree}>Retry</Button>}
+        />
+      </div>
+    );
+  }
+
+  if (!selectedNode) {
+    return (
+      <div className="h-full flex gap-16px overflow-hidden">
+        {/* Left tree still shows even when no node selected */}
+        <Card
+          className="w-320px flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
+          size="small"
+          title={
+            <Space>
+              <ApartmentOutlined className="text-blue-500" />
+              <span className="font-medium">{t('page.mdr.pipelineManagement.tree.title')}</span>
+            </Space>
+          }
+        >
+          <Input
+            allowClear
+            className="mb-8px"
+            placeholder="Search nodes..."
+            prefix={<SearchOutlined className="text-gray-400" />}
+            size="small"
+            value={treeSearchQuery}
+            onChange={e => onTreeSearchChange(e.target.value)}
+          />
+          {canManage && (
+            <div className="mb-12px">
+              <Button block icon={<PlusOutlined />} type="dashed" onClick={() => onOpenCreate('TA')}>
+                {t('page.mdr.pipelineManagement.createTA')}
+              </Button>
+            </div>
+          )}
+          <Spin spinning={treeLoading}>
+            <div className="flex-1 overflow-y-auto">
+              <Tree
+                showIcon
+                defaultExpandAll
+                className="bg-transparent"
+                selectedKeys={selectedNodeId ? [selectedNodeId] : []}
+                treeData={filteredTreeNodes}
+                onSelect={onSelect}
+              />
+            </div>
+          </Spin>
+        </Card>
+        <div className="flex-1 flex-center">
+          <Empty description={t('page.mdr.pipelineManagement.selectNodeHint')} />
+        </div>
       </div>
     );
   }
@@ -571,6 +743,15 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           </Space>
         }
       >
+        <Input
+          allowClear
+          className="mb-8px"
+          placeholder="Search nodes..."
+          prefix={<SearchOutlined className="text-gray-400" />}
+          size="small"
+          value={treeSearchQuery}
+          onChange={e => onTreeSearchChange(e.target.value)}
+        />
         {canManage && (
           <div className="mb-12px">
             <Button
@@ -583,15 +764,18 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             </Button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto">
-          <Tree
-            showIcon
-            className="bg-transparent"
-            selectedKeys={selectedNodeId ? [selectedNodeId] : []}
-            treeData={treeDataNodes}
-            onSelect={onSelect}
-          />
-        </div>
+        <Spin spinning={treeLoading}>
+          <div className="flex-1 overflow-y-auto">
+            <Tree
+              showIcon
+              defaultExpandAll
+              className="bg-transparent"
+              selectedKeys={selectedNodeId ? [selectedNodeId] : []}
+              treeData={filteredTreeNodes}
+              onSelect={onSelect}
+            />
+          </div>
+        </Spin>
       </Card>
 
       {/* 右侧详情区 */}
@@ -818,6 +1002,26 @@ interface StudyConfigCardProps {
 
 const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLocked, messageApi, studyNode }) => {
   const { t } = useTranslation();
+  const [versionsLoading, setVersionsLoading] = useState(true);
+  const [versionOptions, setVersionOptions] = useState<{
+    adamIgVersions: { label: string; value: string }[];
+    adamModelVersions: { label: string; value: string }[];
+    meddraVersions: { label: string; value: string }[];
+    sdtmIgVersions: { label: string; value: string }[];
+    sdtmModelVersions: { label: string; value: string }[];
+    studyPhases: { label: string; value: string }[];
+    whodrugVersions: { label: string; value: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    getAvailableVersions().then((res: any) => {
+      if (res?.data) {
+        setVersionOptions(res.data);
+      }
+    }).finally(() => {
+      setVersionsLoading(false);
+    });
+  }, []);
 
   return (
     <Card
@@ -830,88 +1034,90 @@ const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLo
         </Space>
       }
     >
-      <Form
-        form={form}
-        layout="vertical"
-      >
-        <div className="grid grid-cols-2 gap-16px">
-          <Form.Item
-            label={t('page.mdr.pipelineManagement.studyConfig.protocolTitle')}
-            name="protocolTitle"
-          >
-            <Input disabled={!isEditing} />
-          </Form.Item>
-          <Form.Item
-            label={t('page.mdr.pipelineManagement.studyConfig.phase')}
-            name="phase"
-          >
-            <Select
-              disabled={!isEditing}
-              options={studyPhases}
-            />
-          </Form.Item>
-        </div>
-        <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.cdiscStandards')}</Divider>
-        <div className="grid grid-cols-2 gap-16px">
-          <Form.Item
-            label="SDTM Model"
-            name={['config', 'sdtmModelVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={sdtmModelVersions}
-            />
-          </Form.Item>
-          <Form.Item
-            label="SDTM IG"
-            name={['config', 'sdtmIgVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={sdtmIgVersions}
-            />
-          </Form.Item>
-          <Form.Item
-            label="ADaM Model"
-            name={['config', 'adamModelVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={adamModelVersions}
-            />
-          </Form.Item>
-          <Form.Item
-            label="ADaM IG"
-            name={['config', 'adamIgVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={adamIgVersions}
-            />
-          </Form.Item>
-        </div>
-        <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.dictionaries')}</Divider>
-        <div className="grid grid-cols-2 gap-16px">
-          <Form.Item
-            label="MedDRA"
-            name={['config', 'meddraVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={meddraVersions}
-            />
-          </Form.Item>
-          <Form.Item
-            label="WHODrug"
-            name={['config', 'whodrugVersion']}
-          >
-            <Select
-              disabled={!isEditing}
-              options={whodrugVersions}
-            />
-          </Form.Item>
-        </div>
-      </Form>
+      <Spin spinning={versionsLoading}>
+        <Form
+          form={form}
+          layout="vertical"
+        >
+          <div className="grid grid-cols-2 gap-16px">
+            <Form.Item
+              label={t('page.mdr.pipelineManagement.studyConfig.protocolTitle')}
+              name="protocolTitle"
+            >
+              <Input disabled={!isEditing} />
+            </Form.Item>
+            <Form.Item
+              label={t('page.mdr.pipelineManagement.studyConfig.phase')}
+              name="phase"
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.studyPhases || []}
+              />
+            </Form.Item>
+          </div>
+          <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.cdiscStandards')}</Divider>
+          <div className="grid grid-cols-2 gap-16px">
+            <Form.Item
+              label="SDTM Model"
+              name={['config', 'sdtmModelVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.sdtmModelVersions || []}
+              />
+            </Form.Item>
+            <Form.Item
+              label="SDTM IG"
+              name={['config', 'sdtmIgVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.sdtmIgVersions || []}
+              />
+            </Form.Item>
+            <Form.Item
+              label="ADaM Model"
+              name={['config', 'adamModelVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.adamModelVersions || []}
+              />
+            </Form.Item>
+            <Form.Item
+              label="ADaM IG"
+              name={['config', 'adamIgVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.adamIgVersions || []}
+              />
+            </Form.Item>
+          </div>
+          <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.dictionaries')}</Divider>
+          <div className="grid grid-cols-2 gap-16px">
+            <Form.Item
+              label="MedDRA"
+              name={['config', 'meddraVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.meddraVersions || []}
+              />
+            </Form.Item>
+            <Form.Item
+              label="WHODrug"
+              name={['config', 'whodrugVersion']}
+            >
+              <Select
+                disabled={!isEditing}
+                options={versionOptions?.whodrugVersions || []}
+              />
+            </Form.Item>
+          </div>
+        </Form>
+      </Spin>
     </Card>
   );
 };
@@ -936,12 +1142,62 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
 }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
+  const [versionsLoading, setVersionsLoading] = useState(true);
+  const [versionOptions, setVersionOptions] = useState<{
+    adamIgVersions: { label: string; value: string }[];
+    adamModelVersions: { label: string; value: string }[];
+    meddraVersions: { label: string; value: string }[];
+    sdtmIgVersions: { label: string; value: string }[];
+    sdtmModelVersions: { label: string; value: string }[];
+    studyPhases: { label: string; value: string }[];
+    whodrugVersions: { label: string; value: string }[];
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
 
+  // Fetch available versions from API
+  useEffect(() => {
+    getAvailableVersions().then((res: any) => {
+      if (res?.data) {
+        setVersionOptions(res.data);
+      }
+    }).catch(() => {
+      messageApi.error(t('page.mdr.pipelineManagement.studyConfig.loadVersionsFailed'));
+    }).finally(() => {
+      setVersionsLoading(false);
+    });
+  }, [messageApi, t]);
+
+  // Sync form values when selectedNode changes
   useEffect(() => {
     if (selectedNode) {
       form.setFieldsValue(selectedNode);
     }
   }, [selectedNode, form]);
+
+  const handleSave = async () => {
+    if (!studyId) return;
+    try {
+      setSaving(true);
+      const values = form.getFieldsValue();
+      const config = values.config || {};
+      await updatePipelineStudyConfig(studyId, {
+        adam_ig_version: config.adamIgVersion,
+        adam_model_version: config.adamModelVersion,
+        meddra_version: config.meddraVersion,
+        phase: values.phase,
+        protocol_title: values.protocolTitle,
+        sdtm_ig_version: config.sdtmIgVersion,
+        sdtm_model_version: config.sdtmModelVersion,
+        whodrug_version: config.whodrugVersion
+      });
+      messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
+      setIsEditing(false);
+    } catch {
+      messageApi.error(t('page.mdr.pipelineManagement.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // 仅需要 Study 级别的上下文
   if (!isStudyReady || !studyId) {
@@ -988,118 +1244,118 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
           </Space>
         }
       >
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          {/* 基本信息 */}
-          <div className="mb-12px text-14px text-gray-600 font-medium">
-            {t('page.mdr.pipelineManagement.studyConfig.basicInfo')}
-          </div>
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label={t('page.mdr.pipelineManagement.studyConfig.protocolTitle')}
-              name="protocolTitle"
-            >
-              <Input disabled={!isEditing} />
-            </Form.Item>
-            <Form.Item
-              label={t('page.mdr.pipelineManagement.studyConfig.phase')}
-              name="phase"
-            >
-              <Select
-                disabled={!isEditing}
-                options={studyPhases}
-              />
-            </Form.Item>
-          </div>
-
-          <Divider />
-
-          {/* CDISC 标准版本 */}
-          <div className="mb-12px text-14px text-gray-600 font-medium">
-            {t('page.mdr.pipelineManagement.studyConfig.cdiscStandards')}
-          </div>
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label="SDTM Model"
-              name={['config', 'sdtmModelVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={sdtmModelVersions}
-              />
-            </Form.Item>
-            <Form.Item
-              label="SDTM IG"
-              name={['config', 'sdtmIgVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={sdtmIgVersions}
-              />
-            </Form.Item>
-            <Form.Item
-              label="ADaM Model"
-              name={['config', 'adamModelVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={adamModelVersions}
-              />
-            </Form.Item>
-            <Form.Item
-              label="ADaM IG"
-              name={['config', 'adamIgVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={adamIgVersions}
-              />
-            </Form.Item>
-          </div>
-
-          <Divider />
-
-          {/* 医学字典版本 */}
-          <div className="mb-12px text-14px text-gray-600 font-medium">
-            {t('page.mdr.pipelineManagement.studyConfig.dictionaries')}
-          </div>
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label="MedDRA"
-              name={['config', 'meddraVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={meddraVersions}
-              />
-            </Form.Item>
-            <Form.Item
-              label="WHODrug"
-              name={['config', 'whodrugVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={whodrugVersions}
-              />
-            </Form.Item>
-          </div>
-
-          {isEditing && (
-            <div className="mt-16px flex justify-end">
-              <Button
-                type="primary"
-                onClick={() => {
-                  messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
-                  setIsEditing(false);
-                }}
-              >
-                {t('page.mdr.pipelineManagement.save')}
-              </Button>
+        <Spin spinning={versionsLoading}>
+          <Form
+            form={form}
+            layout="vertical"
+          >
+            {/* 基本信息 */}
+            <div className="mb-12px text-14px text-gray-600 font-medium">
+              {t('page.mdr.pipelineManagement.studyConfig.basicInfo')}
             </div>
-          )}
-        </Form>
+            <div className="grid grid-cols-2 gap-16px">
+              <Form.Item
+                label={t('page.mdr.pipelineManagement.studyConfig.protocolTitle')}
+                name="protocolTitle"
+              >
+                <Input disabled={!isEditing} />
+              </Form.Item>
+              <Form.Item
+                label={t('page.mdr.pipelineManagement.studyConfig.phase')}
+                name="phase"
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.studyPhases || []}
+                />
+              </Form.Item>
+            </div>
+
+            <Divider />
+
+            {/* CDISC 标准版本 */}
+            <div className="mb-12px text-14px text-gray-600 font-medium">
+              {t('page.mdr.pipelineManagement.studyConfig.cdiscStandards')}
+            </div>
+            <div className="grid grid-cols-2 gap-16px">
+              <Form.Item
+                label="SDTM Model"
+                name={['config', 'sdtmModelVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.sdtmModelVersions || []}
+                />
+              </Form.Item>
+              <Form.Item
+                label="SDTM IG"
+                name={['config', 'sdtmIgVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.sdtmIgVersions || []}
+                />
+              </Form.Item>
+              <Form.Item
+                label="ADaM Model"
+                name={['config', 'adamModelVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.adamModelVersions || []}
+                />
+              </Form.Item>
+              <Form.Item
+                label="ADaM IG"
+                name={['config', 'adamIgVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.adamIgVersions || []}
+                />
+              </Form.Item>
+            </div>
+
+            <Divider />
+
+            {/* 医学字典版本 */}
+            <div className="mb-12px text-14px text-gray-600 font-medium">
+              {t('page.mdr.pipelineManagement.studyConfig.dictionaries')}
+            </div>
+            <div className="grid grid-cols-2 gap-16px">
+              <Form.Item
+                label="MedDRA"
+                name={['config', 'meddraVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.meddraVersions || []}
+                />
+              </Form.Item>
+              <Form.Item
+                label="WHODrug"
+                name={['config', 'whodrugVersion']}
+              >
+                <Select
+                  disabled={!isEditing}
+                  options={versionOptions?.whodrugVersions || []}
+                />
+              </Form.Item>
+            </div>
+
+            {isEditing && (
+              <div className="mt-16px flex justify-end">
+                <Button
+                  loading={saving}
+                  type="primary"
+                  onClick={handleSave}
+                >
+                  {t('page.mdr.pipelineManagement.save')}
+                </Button>
+              </div>
+            )}
+          </Form>
+        </Spin>
       </Card>
     </div>
   );
@@ -1112,6 +1368,7 @@ interface ProjectTimelinesTabProps {
   hasAnalysis: boolean;
   isStudyReady: boolean;
   milestones: IProjectMilestone[];
+  milestonesLoading: boolean;
   milestoneStats: ReturnType<typeof getMilestoneStats>;
   onRefresh: () => void;
   studyId: string | null;
@@ -1123,6 +1380,7 @@ const ProjectTimelinesTab: React.FC<ProjectTimelinesTabProps> = ({
   hasAnalysis,
   isStudyReady,
   milestones,
+  milestonesLoading,
   milestoneStats,
   onRefresh,
   studyId
@@ -1240,11 +1498,12 @@ const ProjectTimelinesTab: React.FC<ProjectTimelinesTabProps> = ({
 /** Execution Jobs Tab - 强依赖 Analysis 级别 */
 interface ExecutionJobsTabProps {
   analysisId: string | null;
-  executionJobs: ReturnType<typeof getExecutionJobs>;
+  executionJobs: any[];
+  executionJobsLoading: boolean;
   isAnalysisReady: boolean;
 }
 
-const ExecutionJobsTab: React.FC<ExecutionJobsTabProps> = ({ analysisId, executionJobs, isAnalysisReady }) => {
+const ExecutionJobsTab: React.FC<ExecutionJobsTabProps> = ({ analysisId, executionJobs, executionJobsLoading, isAnalysisReady }) => {
   const { t } = useTranslation();
 
   // 强依赖 Analysis 级别
@@ -1263,7 +1522,9 @@ const ExecutionJobsTab: React.FC<ExecutionJobsTabProps> = ({ analysisId, executi
 
   return (
     <div className="h-full overflow-auto">
-      <ExecutionJobsTable jobs={executionJobs} />
+      <Spin spinning={executionJobsLoading}>
+        <ExecutionJobsTable jobs={executionJobs} />
+      </Spin>
     </div>
   );
 };
