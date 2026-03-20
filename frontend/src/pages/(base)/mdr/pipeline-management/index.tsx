@@ -320,8 +320,10 @@ const PipelineManagement: React.FC = () => {
       await fetchTree();
       messageApi.success(t('page.mdr.pipelineManagement.createSuccess'));
       setCreateModalVisible(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Create node failed:', err);
+      const errorMsg = err?.response?.data?.detail || err?.message || 'Failed to create node';
+      messageApi.error(errorMsg);
     }
   }, [createForm, createNodeType, selectedNodeId, messageApi, t, fetchTree]);
 

@@ -462,7 +462,7 @@ async def create_node(
     db: AsyncSession = Depends(get_db_session)
 ):
     """Create a new TA, Compound, Study, or Analysis."""
-    
+
     # Map frontend types to DB NodeType
     node_type_map = {
         "TA": NodeType.TA,
@@ -475,10 +475,10 @@ async def create_node(
         raise HTTPException(status_code=400, detail="Invalid node_type")
 
     parent_id = _parse_id(data.parent_id)
-    
+
     meta = {}
     code = f"{data.node_type}-{uuid.uuid4().hex[:6].upper()}"
-    
+
     if target_type == NodeType.STUDY:
         code = data.title
         meta = {
@@ -488,36 +488,42 @@ async def create_node(
         }
     elif target_type == NodeType.ANALYSIS:
         meta = {"analysis_type": "Interim"}
-        
-    node = ScopeNode(
-        code=code,
-        name=data.title,
-        description=data.description,
-        node_type=target_type,
-        parent_id=parent_id,
-        lifecycle_status=LifecycleStatus.ONGOING,
-        created_by=user.username,
-        extra_attrs=meta,
-    )
-    
-    db.add(node)
-    await db.commit()
-    await db.refresh(node)
-    
-    # Update path
-    if parent_id:
-        p_res = await db.execute(select(ScopeNode).where(ScopeNode.id == parent_id))
-        parent_node = p_res.scalar_one_or_none()
-        if parent_node:
-            node.path = f"{parent_node.path}{node.id}/"
-            node.depth = parent_node.depth + 1
-    else:
-        node.path = f"/{node.id}/"
-        node.depth = 0
-        
-    await db.commit()
-    
-    return _ok(_format_node(node))
+
+    try:
+        node = ScopeNode(
+            code=code,
+            name=data.title,
+            description=data.description,
+            node_type=target_type,
+            parent_id=parent_id,
+            lifecycle_status=LifecycleStatus.ONGOING,
+            created_by=user.username,
+            extra_attrs=meta,
+        )
+
+        db.add(node)
+        await db.commit()
+        await db.refresh(node)
+
+        # Update path
+        if parent_id:
+            p_res = await db.execute(select(ScopeNode).where(ScopeNode.id == parent_id))
+            parent_node = p_res.scalar_one_or_none()
+            if parent_node:
+                node.path = f"{parent_node.path}{node.id}/"
+                node.depth = parent_node.depth + 1
+        else:
+            node.path = f"/{node.id}/"
+            node.depth = 0
+
+        await db.commit()
+
+        return _ok(_format_node(node))
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to create node: {str(e)}")
 
 
 # ============================================================
