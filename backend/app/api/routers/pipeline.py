@@ -238,7 +238,7 @@ async def create_therapeutic_area(
         name=data.name,
         description=data.description,
         node_type=NodeType.TA,
-        lifecycle_status=LifecycleStatus.ACTIVE,
+        lifecycle_status=LifecycleStatus.ONGOING,
         created_by=user.username,
         extra_attrs={},
     )
@@ -495,7 +495,7 @@ async def create_node(
         description=data.description,
         node_type=target_type,
         parent_id=parent_id,
-        lifecycle_status=LifecycleStatus.ACTIVE,
+        lifecycle_status=LifecycleStatus.ONGOING,
         created_by=user.username,
         extra_attrs=meta,
     )
