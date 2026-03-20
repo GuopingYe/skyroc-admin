@@ -22,7 +22,7 @@ export async function devAutoLogin(): Promise<string | null> {
   if (existingToken) {
     // 验证 token 是否有效
     try {
-      const verifyResp = await fetch('/proxy-default/api/v1/auth/user-info', {
+      const verifyResp = await fetch('/proxy-default/api/v1/auth/getUserInfo', {
         headers: { 'Authorization': `Bearer ${existingToken}` }
       });
       if (verifyResp.ok) {
