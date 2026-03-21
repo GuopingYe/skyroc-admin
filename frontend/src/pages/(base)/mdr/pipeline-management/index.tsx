@@ -16,7 +16,9 @@ import {
   FileTextOutlined,
   FundOutlined,
   LockOutlined,
+  MinusSquareOutlined,
   PlusOutlined,
+  PlusSquareOutlined,
   ReloadOutlined,
   SearchOutlined,
   SettingOutlined
@@ -308,8 +310,29 @@ const PipelineManagement: React.FC = () => {
   const handleCreateNode = useCallback(async () => {
     try {
       const values = await createForm.validateFields();
+      const newTitle = values.title?.trim();
+
+      // 检查同级节点是否有重名
+      const siblingNodes = selectedNodeId
+        ? getChildNodes(treeData, selectedNodeId)
+        : treeData; // 如果没有选中节点，检查根级别
+
+      const duplicateNode = siblingNodes.find(
+        node => node.title.toLowerCase() === newTitle.toLowerCase() && node.status !== 'Archived'
+      );
+
+      if (duplicateNode) {
+        messageApi.error(
+          t('page.mdr.pipelineManagement.createModal.duplicateNameError', {
+            name: newTitle,
+            defaultValue: `A node with name "${newTitle}" already exists at this level. Please use a different name.`
+          })
+        );
+        return;
+      }
+
       await createPipelineNode({
-        title: values.title,
+        title: newTitle,
         node_type: createNodeType!,
         parent_id: selectedNodeId || undefined,
         phase: values.phase,
@@ -325,7 +348,7 @@ const PipelineManagement: React.FC = () => {
       const errorMsg = err?.response?.data?.detail || err?.message || 'Failed to create node';
       messageApi.error(errorMsg);
     }
-  }, [createForm, createNodeType, selectedNodeId, messageApi, t, fetchTree]);
+  }, [createForm, createNodeType, selectedNodeId, messageApi, t, fetchTree, treeData]);
 
   // 子节点表格列
   const childColumns: ColumnsType<PipelineNode> = useMemo(
@@ -643,6 +666,71 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   onRetryLoadTree
 }) => {
   const { t } = useTranslation();
+  // 收集所有可展开节点的 key（仅包含有子节点的节点）
+  const getExpandableNodeKeys = useCallback((nodes: DataNode[]): React.Key[] => {
+    const keys: React.Key[] = [];
+    const traverse = (nodeList: DataNode[]) => {
+      nodeList.forEach(node => {
+        // 只有有子节点的节点才能被展开
+        if (node.children && node.children.length > 0) {
+          keys.push(node.key);
+          traverse(node.children);
+        }
+      });
+    };
+    traverse(nodes);
+    return keys;
+  }, []);
+
+  // 树节点展开状态
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  const expandableNodeKeys = useMemo(() => getExpandableNodeKeys(treeDataNodes), [treeDataNodes, getExpandableNodeKeys]);
+
+  // 动态计算 allExpanded 状态（基于可展开节点）
+  const allExpanded = useMemo(() => {
+    if (expandableNodeKeys.length === 0) return false;
+    return expandableNodeKeys.every(key => expandedKeys.includes(key));
+  }, [expandedKeys, expandableNodeKeys]);
+
+  // 标记是否已完成初始化展开（用于区分初始化和用户主动收缩）
+  const [hasInitializedExpand, setHasInitializedExpand] = useState(false);
+
+  // 当树数据变化时，初始化展开状态（仅首次加载时执行）
+  useEffect(() => {
+    if (treeDataNodes.length > 0 && !hasInitializedExpand) {
+      const allKeys = getExpandableNodeKeys(treeDataNodes);
+      setExpandedKeys(allKeys);
+      setHasInitializedExpand(true);
+    }
+  }, [treeDataNodes, getExpandableNodeKeys, hasInitializedExpand]);
+
+  // 当树数据完全重新加载时，重置初始化标志
+  useEffect(() => {
+    if (treeDataNodes.length === 0) {
+      setHasInitializedExpand(false);
+    }
+  }, [treeDataNodes.length]);
+
+  // 一键展开
+  const handleExpandAll = useCallback(() => {
+    setExpandedKeys(expandableNodeKeys);
+  }, [expandableNodeKeys]);
+
+  // 一键收缩
+  const handleCollapseAll = useCallback(() => {
+    setExpandedKeys([]);
+  }, []);
+
+  // 切换展开/收缩
+  const handleToggleExpand = useCallback(() => {
+    if (allExpanded) {
+      handleCollapseAll();
+    } else {
+      handleExpandAll();
+    }
+  }, [allExpanded, handleExpandAll, handleCollapseAll]);
+
+
 
   // Filter tree nodes by search query
   const filteredTreeNodes = useMemo(() => {
@@ -701,18 +789,32 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             value={treeSearchQuery}
             onChange={e => onTreeSearchChange(e.target.value)}
           />
-          {canManage && (
-            <div className="mb-12px">
-              <Button block icon={<PlusOutlined />} type="dashed" onClick={() => onOpenCreate('TA')}>
+          {/* 展开/收缩 + 创建按钮 */}
+          <div className="mb-12px flex gap-8px">
+            <Tooltip title={allExpanded ? t('page.mdr.pipelineManagement.tree.collapseAll') : t('page.mdr.pipelineManagement.tree.expandAll')}>
+              <Button
+                icon={allExpanded ? <MinusSquareOutlined /> : <PlusSquareOutlined />}
+                size="small"
+                onClick={handleToggleExpand}
+              />
+            </Tooltip>
+            {canManage && (
+              <Button
+                className="flex-1"
+                icon={<PlusOutlined />}
+                type="dashed"
+                onClick={() => onOpenCreate('TA')}
+              >
                 {t('page.mdr.pipelineManagement.createTA')}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
           <Spin spinning={treeLoading}>
             <div className="flex-1 overflow-y-auto">
               <Tree
                 showIcon
-                defaultExpandAll
+                expandedKeys={expandedKeys}
+                onExpand={setExpandedKeys}
                 className="bg-transparent"
                 selectedKeys={selectedNodeId ? [selectedNodeId] : []}
                 treeData={filteredTreeNodes}
@@ -754,23 +856,32 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           value={treeSearchQuery}
           onChange={e => onTreeSearchChange(e.target.value)}
         />
-        {canManage && (
-          <div className="mb-12px">
+        {/* 展开/收缩 + 创建按钮 */}
+        <div className="mb-12px flex gap-8px">
+          <Tooltip title={allExpanded ? t('page.mdr.pipelineManagement.tree.collapseAll') : t('page.mdr.pipelineManagement.tree.expandAll')}>
             <Button
-              block
+              icon={allExpanded ? <MinusSquareOutlined /> : <PlusSquareOutlined />}
+              size="small"
+              onClick={handleToggleExpand}
+            />
+          </Tooltip>
+          {canManage && (
+            <Button
+              className="flex-1"
               icon={<PlusOutlined />}
               type="dashed"
               onClick={() => onOpenCreate('TA')}
             >
               {t('page.mdr.pipelineManagement.createTA')}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
         <Spin spinning={treeLoading}>
           <div className="flex-1 overflow-y-auto">
             <Tree
               showIcon
-              defaultExpandAll
+              expandedKeys={expandedKeys}
+              onExpand={setExpandedKeys}
               className="bg-transparent"
               selectedKeys={selectedNodeId ? [selectedNodeId] : []}
               treeData={filteredTreeNodes}

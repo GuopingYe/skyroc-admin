@@ -18,6 +18,7 @@ Endpoints:
 - DELETE /pipeline/milestones/{id}       - Delete milestone
 - GET  /pipeline/execution-jobs          - List execution jobs
 """
+import asyncio
 import copy
 import re
 import uuid
@@ -26,11 +27,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, get_db_session
 from app.models import LifecycleStatus, NodeType, ProgrammingTracker, ScopeNode
+from app.models.mapping_enums import SpecType
+from app.models.specification import Specification
 from app.schemas.pipeline_schemas import (
     MilestoneCreate,
     MilestoneUpdate,
@@ -44,7 +48,8 @@ from app.schemas.pipeline_schemas import (
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Management"])
 
 # ============================================================
-# Available Versions (static reference data for Study Config)
+# Available Versions (fallback static data for Study Config)
+# These are used when no data exists in Global Library
 # ============================================================
 
 _SDTM_MODEL_VERSIONS = [
@@ -62,12 +67,13 @@ _SDTM_IG_VERSIONS = [
 _ADAM_MODEL_VERSIONS = [
     {"label": "ADaM v1.3", "value": "ADaM v1.3"},
     {"label": "ADaM v1.2", "value": "ADaM v1.2"},
+    {"label": "ADaM v1.1", "value": "ADaM v1.1"},
 ]
 
 _ADAM_IG_VERSIONS = [
-    {"label": "ADaMIG v1.4", "value": "ADaMIG v1.4"},
     {"label": "ADaMIG v1.3", "value": "ADaMIG v1.3"},
     {"label": "ADaMIG v1.2", "value": "ADaMIG v1.2"},
+    {"label": "ADaMIG v1.1", "value": "ADaMIG v1.1"},
 ]
 
 _MEDDRA_VERSIONS = [
@@ -93,17 +99,61 @@ _STUDY_PHASES = [
 
 
 @router.get("/available-versions", summary="Get available versions for Study Config dropdowns")
-async def get_available_versions():
-    """Return all version options for study configuration dropdowns."""
+async def get_available_versions(
+    db: AsyncSession = Depends(get_db_session)
+):
+    """Return all version options for study configuration dropdowns.
+
+    Queries Global Library dynamically for SDTM/ADaM versions.
+    Falls back to static arrays if no data found in database.
+    """
+    # Query versions from Global Library's Specification table in parallel
+    sdtm_model_versions, sdtm_ig_versions, adam_model_versions, adam_ig_versions = await asyncio.gather(
+        _query_spec_versions(db, SpecType.SDTM, "SDTM v"),
+        _query_spec_versions(db, SpecType.SDTM, "SDTMIG"),
+        _query_spec_versions(db, SpecType.ADAM, "ADaM v"),
+        _query_spec_versions(db, SpecType.ADAM, "ADaMIG"),
+    )
+
     return _ok({
-        "sdtmModelVersions": _SDTM_MODEL_VERSIONS,
-        "sdtmIgVersions": _SDTM_IG_VERSIONS,
-        "adamModelVersions": _ADAM_MODEL_VERSIONS,
-        "adamIgVersions": _ADAM_IG_VERSIONS,
+        "sdtmModelVersions": sdtm_model_versions or _SDTM_MODEL_VERSIONS,
+        "sdtmIgVersions": sdtm_ig_versions or _SDTM_IG_VERSIONS,
+        "adamModelVersions": adam_model_versions or _ADAM_MODEL_VERSIONS,
+        "adamIgVersions": adam_ig_versions or _ADAM_IG_VERSIONS,
         "meddraVersions": _MEDDRA_VERSIONS,
         "whodrugVersions": _WHODRUG_VERSIONS,
         "studyPhases": _STUDY_PHASES,
     })
+
+
+async def _query_spec_versions(
+    db: AsyncSession,
+    spec_type: SpecType,
+    name_prefix: str
+) -> list[dict] | None:
+    """Query Specification table for available versions."""
+    try:
+        result = await db.execute(
+            select(Specification.standard_name)
+            .where(
+                Specification.spec_type == spec_type,
+                Specification.is_deleted == False,  # noqa: E712
+                Specification.standard_name.ilike(f"{name_prefix}%"),
+            )
+            .distinct()
+            .order_by(Specification.standard_name.desc())
+        )
+        names = result.scalars().all()
+
+        if not names:
+            return None
+
+        return [{"label": name, "value": name} for name in names if name]
+    except SQLAlchemyError:
+        # Log error and return None to use fallback static data
+        import logging
+        logging.getLogger(__name__).warning("Failed to query spec versions, using fallback")
+        return None
 
 
 # ============================================================
@@ -475,6 +525,22 @@ async def create_node(
         raise HTTPException(status_code=400, detail="Invalid node_type")
 
     parent_id = _parse_id(data.parent_id)
+
+    # Check for duplicate name at the same level
+    # A node with the same name should not exist at the same parent level (excluding archived nodes)
+    duplicate_check = await db.execute(
+        select(ScopeNode).where(
+            ScopeNode.name == data.title,
+            ScopeNode.parent_id == parent_id,
+            ScopeNode.is_deleted == False,  # noqa: E712
+        )
+    )
+    existing_node = duplicate_check.scalar_one_or_none()
+    if existing_node:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A node with name '{data.title}' already exists at this level. Please use a different name."
+        )
 
     meta = {}
     code = f"{data.node_type}-{uuid.uuid4().hex[:6].upper()}"

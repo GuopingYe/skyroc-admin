@@ -532,6 +532,7 @@ const page: App.I18n.Schema['translation']['page'] = {
       },
       createChild: '新建 {{type}}',
       createModal: {
+        duplicateNameError: '同级已存在名称为 "{{name}}" 的节点，请使用不同的名称。',
         title: '新建 {{type}}',
         titlePlaceholder: '请输入节点名称'
       },
@@ -621,6 +622,8 @@ const page: App.I18n.Schema['translation']['page'] = {
         timelines: '项目时间线'
       },
       tree: {
+        collapseAll: '全部收缩',
+        expandAll: '全部展开',
         title: '管线树'
       },
       view: '查看'
@@ -734,6 +737,26 @@ const page: App.I18n.Schema['translation']['page'] = {
       totalTasks: '共 {{count}} 个任务'
     },
     studySpec: {
+      addDataset: {
+        add: '添加数据集',
+        autoReplaceHint: '带 -- 前缀的通用变量将自动替换为域 {{domain}}',
+        classType: '分类类型',
+        classTypeRequired: '请选择分类类型',
+        customDomain: '自定义域',
+        domainLabel: '域标签',
+        domainLabelRequired: '请输入域标签',
+        domainName: '域名',
+        domainNameFormat: '域名必须是2个大写字母',
+        domainNameRequired: '请输入域名',
+        enterDomainName: '输入域名以预览变量',
+        fromGlobalLibrary: '从标准库选择',
+        searchDataset: '搜索数据集...',
+        selectDataset: '请选择数据集',
+        selectDatasetHint: '从列表中选择数据集',
+        success: '数据集添加成功',
+        title: '添加数据集',
+        variablePreview: '变量预览'
+      },
       addSuccess: '变量添加成功',
       addVariable: '新增变量',
       class: '分类',
@@ -780,10 +803,12 @@ const page: App.I18n.Schema['translation']['page'] = {
         }
       },
       keys: '主键',
+      noDatasets: '未找到数据集',
       scopeContext: {
         analysis: '分析',
         compound: '化合物',
         currentScope: '当前作用域',
+        selectHint: '请在上方上下文选择器中选择一个 Study 以查看规范',
         study: '项目',
         switchAnalysis: '切换 Analysis',
         ta: '治疗领域'

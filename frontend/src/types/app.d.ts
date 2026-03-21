@@ -843,6 +843,7 @@ declare namespace App {
               };
               createChild: string;
               createModal: {
+                duplicateNameError: string;
                 title: string;
                 titlePlaceholder: string;
               };
@@ -932,6 +933,8 @@ declare namespace App {
                 timelines: string;
               };
               tree: {
+                collapseAll: string;
+                expandAll: string;
                 title: string;
               };
               view: string;
@@ -1065,6 +1068,8 @@ declare namespace App {
               };
               confirmDelete: string;
               datasets: string;
+              keys: string;
+              noDatasets: string;
               delete: string;
               deleteSuccess: string;
               edit: string;
@@ -1090,8 +1095,8 @@ declare namespace App {
                   variableNameRequired: string;
                 };
               };
-              keys: string;
               scopeContext: {
+                selectHint: string;
                 analysis: string;
                 compound: string;
                 currentScope: string;

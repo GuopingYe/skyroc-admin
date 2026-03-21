@@ -529,6 +529,7 @@ const page: App.I18n.Schema['translation']['page'] = {
       },
       createChild: 'Create {{type}}',
       createModal: {
+        duplicateNameError: 'A node with name "{{name}}" already exists at this level. Please use a different name.',
         title: 'Create {{type}}',
         titlePlaceholder: 'Enter node title'
       },
@@ -619,6 +620,8 @@ const page: App.I18n.Schema['translation']['page'] = {
         timelines: 'Project Timelines'
       },
       tree: {
+        collapseAll: 'Collapse All',
+        expandAll: 'Expand All',
         title: 'Pipeline Tree'
       },
       view: 'View'
@@ -732,6 +735,26 @@ const page: App.I18n.Schema['translation']['page'] = {
       totalTasks: '{{count}} tasks total'
     },
     studySpec: {
+      addDataset: {
+        add: 'Add Dataset',
+        autoReplaceHint: 'General variables with -- prefix will be auto-replaced with domain {{domain}}',
+        classType: 'Class Type',
+        classTypeRequired: 'Please select class type',
+        customDomain: 'Custom Domain',
+        domainLabel: 'Domain Label',
+        domainLabelRequired: 'Please enter domain label',
+        domainName: 'Domain Name',
+        domainNameFormat: 'Domain name must be 2 uppercase letters',
+        domainNameRequired: 'Please enter domain name',
+        enterDomainName: 'Enter domain name to preview variables',
+        fromGlobalLibrary: 'From Global Library',
+        searchDataset: 'Search datasets...',
+        selectDataset: 'Please select a dataset',
+        selectDatasetHint: 'Select a dataset from the list',
+        success: 'Dataset added successfully',
+        title: 'Add Dataset',
+        variablePreview: 'Variable Preview'
+      },
       addSuccess: 'Variable added successfully',
       addVariable: 'Add Variable',
       class: 'Class',
@@ -778,10 +801,12 @@ const page: App.I18n.Schema['translation']['page'] = {
         }
       },
       keys: 'Keys',
+      noDatasets: 'No datasets found',
       scopeContext: {
         analysis: 'Analysis',
         compound: 'Compound',
         currentScope: 'Current Scope',
+        selectHint: 'Please select a Study in the context selector above to view specifications',
         study: 'Study',
         switchAnalysis: 'Switch Analysis',
         ta: 'Therapeutic Area'
