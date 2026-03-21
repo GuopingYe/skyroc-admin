@@ -1128,8 +1128,8 @@ const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLo
 
   useEffect(() => {
     getAvailableVersions().then((res: any) => {
-      if (res?.data) {
-        setVersionOptions(res.data);
+      if (res) {
+        setVersionOptions(res);
       }
     }).finally(() => {
       setVersionsLoading(false);
@@ -1270,8 +1270,8 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
   // Fetch available versions from API
   useEffect(() => {
     getAvailableVersions().then((res: any) => {
-      if (res?.data) {
-        setVersionOptions(res.data);
+      if (res) {
+        setVersionOptions(res);
       }
     }).catch(() => {
       messageApi.error(t('page.mdr.pipelineManagement.studyConfig.loadVersionsFailed'));
