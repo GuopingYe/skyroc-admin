@@ -48,42 +48,9 @@ from app.schemas.pipeline_schemas import (
 router = APIRouter(prefix="/pipeline", tags=["Pipeline Management"])
 
 # ============================================================
-# Available Versions (fallback static data for Study Config)
-# These are used when no data exists in Global Library
+# Available Versions (static fallback for dictionaries only)
+# CDISC standards (SDTM/ADaM) are queried dynamically from database
 # ============================================================
-
-_SDTM_MODEL_VERSIONS = [
-    {"label": "SDTM v2.1", "value": "SDTM v2.1"},
-    {"label": "SDTM v2.0", "value": "SDTM v2.0"},
-    {"label": "SDTM v1.9", "value": "SDTM v1.9"},
-    {"label": "SDTM v1.8", "value": "SDTM v1.8"},
-    {"label": "SDTM v1.7", "value": "SDTM v1.7"},
-    {"label": "SDTM v1.6", "value": "SDTM v1.6"},
-    {"label": "SDTM v1.5", "value": "SDTM v1.5"},
-    {"label": "SDTM v1.4", "value": "SDTM v1.4"},
-    {"label": "SDTM v1.3", "value": "SDTM v1.3"},
-]
-
-_SDTM_IG_VERSIONS = [
-    {"label": "SDTMIG v3.4", "value": "SDTMIG v3.4"},
-    {"label": "SDTMIG v3.3", "value": "SDTMIG v3.3"},
-    {"label": "SDTMIG v3.2", "value": "SDTMIG v3.2"},
-    {"label": "SDTMIG v3.1", "value": "SDTMIG v3.1"},
-]
-
-_ADAM_MODEL_VERSIONS = [
-    {"label": "ADaM v1.3", "value": "ADaM v1.3"},
-    {"label": "ADaM v1.2", "value": "ADaM v1.2"},
-    {"label": "ADaM v1.1", "value": "ADaM v1.1"},
-    {"label": "ADaM v1.0", "value": "ADaM v1.0"},
-]
-
-_ADAM_IG_VERSIONS = [
-    {"label": "ADaMIG v1.4", "value": "ADaMIG v1.4"},
-    {"label": "ADaMIG v1.3", "value": "ADaMIG v1.3"},
-    {"label": "ADaMIG v1.2", "value": "ADaMIG v1.2"},
-    {"label": "ADaMIG v1.1", "value": "ADaMIG v1.1"},
-]
 
 _MEDDRA_VERSIONS = [
     {"label": "MedDRA 28.0", "value": "MedDRA 28.0"},
@@ -116,23 +83,23 @@ async def get_available_versions(
 ):
     """Return all version options for study configuration dropdowns.
 
-    Queries Global Library dynamically for SDTM/ADaM versions.
-    Falls back to static arrays if no data found in database.
+    CDISC standard versions (SDTM/ADaM) are queried dynamically from the
+    Global Library's Specification table. MedDRA/WHODrug use static fallbacks
+    as they are typically managed separately.
     """
-    # Query versions from Global Library's Specification table in parallel
-    sdtm_model_versions, sdtm_ig_versions, adam_model_versions, adam_ig_versions = await asyncio.gather(
-        _query_spec_versions(db, SpecType.SDTM, "SDTM v"),
-        _query_spec_versions(db, SpecType.SDTM, "SDTMIG"),
-        _query_spec_versions(db, SpecType.ADAM, "ADaM v"),
-        _query_spec_versions(db, SpecType.ADAM, "ADaMIG"),
-    )
+    # Query CDISC versions from Global Library's Specification table
+    # Run sequentially to avoid concurrent session access issues
+    sdtm_model_versions = await _query_spec_versions(db, SpecType.SDTM, "SDTM v")
+    sdtm_ig_versions = await _query_spec_versions(db, SpecType.SDTM, "SDTMIG")
+    adam_model_versions = await _query_spec_versions(db, SpecType.ADAM, "ADaM v")
+    adam_ig_versions = await _query_spec_versions(db, SpecType.ADAM, "ADaMIG")
 
     return _ok({
-        "sdtmModelVersions": sdtm_model_versions or _SDTM_MODEL_VERSIONS,
-        "sdtmIgVersions": sdtm_ig_versions or _SDTM_IG_VERSIONS,
-        "adamModelVersions": adam_model_versions or _ADAM_MODEL_VERSIONS,
-        "adamIgVersions": adam_ig_versions or _ADAM_IG_VERSIONS,
-        "meddraVersions": _MEDDRA_VERSIONS,
+        "sdtmModelVersions": sdtm_model_versions or [],  # No fallback - must be in database
+        "sdtmIgVersions": sdtm_ig_versions or [],
+        "adamModelVersions": adam_model_versions or [],
+        "adamIgVersions": adam_ig_versions or [],
+        "meddraVersions": _MEDDRA_VERSIONS,  # Static fallback for dictionaries
         "whodrugVersions": _WHODRUG_VERSIONS,
         "studyPhases": _STUDY_PHASES,
     })
@@ -162,9 +129,8 @@ async def _query_spec_versions(
 
         return [{"label": name, "value": name} for name in names if name]
     except SQLAlchemyError:
-        # Log error and return None to use fallback static data
         import logging
-        logging.getLogger(__name__).warning("Failed to query spec versions, using fallback")
+        logging.getLogger(__name__).warning("Failed to query spec versions")
         return None
 
 
