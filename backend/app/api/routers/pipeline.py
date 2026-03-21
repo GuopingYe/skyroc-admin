@@ -55,22 +55,31 @@ router = APIRouter(prefix="/pipeline", tags=["Pipeline Management"])
 _SDTM_MODEL_VERSIONS = [
     {"label": "SDTM v2.1", "value": "SDTM v2.1"},
     {"label": "SDTM v2.0", "value": "SDTM v2.0"},
-    {"label": "SDTM v1.13", "value": "SDTM v1.13"},
+    {"label": "SDTM v1.9", "value": "SDTM v1.9"},
+    {"label": "SDTM v1.8", "value": "SDTM v1.8"},
+    {"label": "SDTM v1.7", "value": "SDTM v1.7"},
+    {"label": "SDTM v1.6", "value": "SDTM v1.6"},
+    {"label": "SDTM v1.5", "value": "SDTM v1.5"},
+    {"label": "SDTM v1.4", "value": "SDTM v1.4"},
+    {"label": "SDTM v1.3", "value": "SDTM v1.3"},
 ]
 
 _SDTM_IG_VERSIONS = [
     {"label": "SDTMIG v3.4", "value": "SDTMIG v3.4"},
     {"label": "SDTMIG v3.3", "value": "SDTMIG v3.3"},
     {"label": "SDTMIG v3.2", "value": "SDTMIG v3.2"},
+    {"label": "SDTMIG v3.1", "value": "SDTMIG v3.1"},
 ]
 
 _ADAM_MODEL_VERSIONS = [
     {"label": "ADaM v1.3", "value": "ADaM v1.3"},
     {"label": "ADaM v1.2", "value": "ADaM v1.2"},
     {"label": "ADaM v1.1", "value": "ADaM v1.1"},
+    {"label": "ADaM v1.0", "value": "ADaM v1.0"},
 ]
 
 _ADAM_IG_VERSIONS = [
+    {"label": "ADaMIG v1.4", "value": "ADaMIG v1.4"},
     {"label": "ADaMIG v1.3", "value": "ADaMIG v1.3"},
     {"label": "ADaMIG v1.2", "value": "ADaMIG v1.2"},
     {"label": "ADaMIG v1.1", "value": "ADaMIG v1.1"},
@@ -81,11 +90,14 @@ _MEDDRA_VERSIONS = [
     {"label": "MedDRA 27.1", "value": "MedDRA 27.1"},
     {"label": "MedDRA 27.0", "value": "MedDRA 27.0"},
     {"label": "MedDRA 26.1", "value": "MedDRA 26.1"},
+    {"label": "MedDRA 26.0", "value": "MedDRA 26.0"},
+    {"label": "MedDRA 25.1", "value": "MedDRA 25.1"},
 ]
 
 _WHODRUG_VERSIONS = [
     {"label": "WHODrug Global 5.1", "value": "WHODrug Global 5.1"},
     {"label": "WHODrug Global 5.0", "value": "WHODrug Global 5.0"},
+    {"label": "WHODrug Global 4.0", "value": "WHODrug Global 4.0"},
 ]
 
 _STUDY_PHASES = [
