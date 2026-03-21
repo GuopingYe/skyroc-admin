@@ -474,6 +474,7 @@ const PipelineManagement: React.FC = () => {
             selectedNode={selectedNode as StudyNode}
             setIsEditing={setIsEditing}
             studyId={studyId}
+            onConfigSaved={fetchTree}
           />
         ),
         disabled: !studyId,
@@ -1243,6 +1244,7 @@ interface StudyConfigTabProps {
   selectedNode: StudyNode | null;
   setIsEditing: (v: boolean) => void;
   studyId: string | null;
+  onConfigSaved?: () => void;  // Callback to refresh tree after save
 }
 
 const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
@@ -1251,7 +1253,8 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
   messageApi,
   selectedNode,
   setIsEditing,
-  studyId
+  studyId,
+  onConfigSaved
 }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
@@ -1267,6 +1270,9 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
   } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Track the studyId for which we have loaded data
+  const [loadedStudyId, setLoadedStudyId] = useState<string | null>(null);
+
   // Fetch available versions from API
   useEffect(() => {
     getAvailableVersions().then((res: any) => {
@@ -1280,12 +1286,20 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
     });
   }, [messageApi, t]);
 
-  // Sync form values when selectedNode changes
+  // Reset form when switching to a different study
   useEffect(() => {
-    if (selectedNode) {
-      form.setFieldsValue(selectedNode);
+    if (selectedNode && selectedNode.id !== loadedStudyId) {
+      // Reset form completely before setting new values
+      form.resetFields();
+      // Set new values
+      form.setFieldsValue({
+        protocolTitle: selectedNode.protocolTitle,
+        phase: selectedNode.phase,
+        config: selectedNode.config || {},
+      });
+      setLoadedStudyId(selectedNode.id);
     }
-  }, [selectedNode, form]);
+  }, [selectedNode, form, loadedStudyId]);
 
   const handleSave = async () => {
     if (!studyId) return;
@@ -1305,6 +1319,10 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
       });
       messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
       setIsEditing(false);
+      // Refresh tree data to reflect the changes
+      if (onConfigSaved) {
+        onConfigSaved();
+      }
     } catch {
       messageApi.error(t('page.mdr.pipelineManagement.saveFailed'));
     } finally {

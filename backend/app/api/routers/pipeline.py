@@ -89,20 +89,44 @@ async def get_available_versions(
     """
     # Query CDISC versions from Global Library's Specification table
     # Run sequentially to avoid concurrent session access issues
-    sdtm_model_versions = await _query_spec_versions(db, SpecType.SDTM, "SDTM v")
-    sdtm_ig_versions = await _query_spec_versions(db, SpecType.SDTM, "SDTMIG")
-    adam_model_versions = await _query_spec_versions(db, SpecType.ADAM, "ADaM v")
-    adam_ig_versions = await _query_spec_versions(db, SpecType.ADAM, "ADaMIG")
+    # Query both "CDISC SDTM%" and "SDTM%" patterns to match all possible specs
+    sdtm_model_versions = await _query_spec_versions_multi(db, SpecType.SDTM, ["CDISC SDTM v", "SDTM v"])
+    sdtm_ig_versions = await _query_spec_versions_multi(db, SpecType.SDTM, ["CDISC SDTMIG", "SDTMIG"])
+    adam_model_versions = await _query_spec_versions_multi(db, SpecType.ADAM, ["CDISC ADaM v", "ADaM v"])
+    adam_ig_versions = await _query_spec_versions_multi(db, SpecType.ADAM, ["CDISC ADaMIG", "ADaMIG"])
 
     return _ok({
-        "sdtmModelVersions": sdtm_model_versions or [],  # No fallback - must be in database
-        "sdtmIgVersions": sdtm_ig_versions or [],
-        "adamModelVersions": adam_model_versions or [],
-        "adamIgVersions": adam_ig_versions or [],
+        "sdtmModelVersions": sdtm_model_versions,
+        "sdtmIgVersions": sdtm_ig_versions,
+        "adamModelVersions": adam_model_versions,
+        "adamIgVersions": adam_ig_versions,
         "meddraVersions": _MEDDRA_VERSIONS,  # Static fallback for dictionaries
         "whodrugVersions": _WHODRUG_VERSIONS,
         "studyPhases": _STUDY_PHASES,
     })
+
+
+async def _query_spec_versions_multi(
+    db: AsyncSession,
+    spec_type: SpecType,
+    name_prefixes: list[str]
+) -> list[dict]:
+    """Query Specification table for available versions with multiple prefix patterns."""
+    all_results: list[dict] = []
+    seen_names: set[str] = set()
+
+    for prefix in name_prefixes:
+        result = await _query_spec_versions(db, spec_type, prefix)
+        if result:
+            for item in result:
+                name = item.get("value", "")
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    all_results.append(item)
+
+    # Sort by label descending (newest first)
+    all_results.sort(key=lambda x: x.get("label", ""), reverse=True)
+    return all_results
 
 
 async def _query_spec_versions(
