@@ -1145,15 +1145,15 @@ const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLo
     if (studyNode && studyNode.id !== loadedStudyId) {
       const config = studyNode.config || {};
       form.setFieldsValue({
-        protocolTitle: studyNode.protocolTitle,
-        phase: studyNode.phase,
+        protocolTitle: studyNode.protocolTitle || '',
+        phase: studyNode.phase || '',
         config: {
-          sdtmModelVersion: config.sdtmModelVersion || undefined,
-          sdtmIgVersion: config.sdtmIgVersion || undefined,
-          adamModelVersion: config.adamModelVersion || undefined,
-          adamIgVersion: config.adamIgVersion || undefined,
-          meddraVersion: config.meddraVersion || undefined,
-          whodrugVersion: config.whodrugVersion || undefined,
+          sdtmModelVersion: config.sdtmModelVersion || null,
+          sdtmIgVersion: config.sdtmIgVersion || null,
+          adamModelVersion: config.adamModelVersion || null,
+          adamIgVersion: config.adamIgVersion || null,
+          meddraVersion: config.meddraVersion || null,
+          whodrugVersion: config.whodrugVersion || null,
         },
       });
       setLoadedStudyId(studyNode.id);
@@ -1319,15 +1319,15 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
       // from previous study appearing in the new study's form
       const config = selectedNode.config || {};
       form.setFieldsValue({
-        protocolTitle: selectedNode.protocolTitle,
-        phase: selectedNode.phase,
+        protocolTitle: selectedNode.protocolTitle || '',
+        phase: selectedNode.phase || '',
         config: {
-          sdtmModelVersion: config.sdtmModelVersion || undefined,
-          sdtmIgVersion: config.sdtmIgVersion || undefined,
-          adamModelVersion: config.adamModelVersion || undefined,
-          adamIgVersion: config.adamIgVersion || undefined,
-          meddraVersion: config.meddraVersion || undefined,
-          whodrugVersion: config.whodrugVersion || undefined,
+          sdtmModelVersion: config.sdtmModelVersion || null,
+          sdtmIgVersion: config.sdtmIgVersion || null,
+          adamModelVersion: config.adamModelVersion || null,
+          adamIgVersion: config.adamIgVersion || null,
+          meddraVersion: config.meddraVersion || null,
+          whodrugVersion: config.whodrugVersion || null,
         },
       });
       setLoadedStudyId(selectedNode.id);
@@ -1344,6 +1344,14 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
       setSaving(true);
       const values = form.getFieldsValue();
       const config = values.config || {};
+
+      // Debug: Log what we're saving
+      console.log('[StudyConfigTab] Saving config for study:', targetStudyId, {
+        config,
+        phase: values.phase,
+        protocolTitle: values.protocolTitle
+      });
+
       await updatePipelineStudyConfig(targetStudyId, {
         adam_ig_version: config.adamIgVersion,
         adam_model_version: config.adamModelVersion,
@@ -1354,13 +1362,20 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
         sdtm_model_version: config.sdtmModelVersion,
         whodrug_version: config.whodrugVersion
       });
+
+      console.log('[StudyConfigTab] Save successful, refreshing tree...');
       messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
       setIsEditing(false);
+
+      // Reset loadedStudyId so the form will reload data from the refreshed tree
+      setLoadedStudyId(null);
+
       // Refresh tree data to reflect the changes
       if (onConfigSaved) {
         onConfigSaved();
       }
-    } catch {
+    } catch (error) {
+      console.error('[StudyConfigTab] Save failed:', error);
       messageApi.error(t('page.mdr.pipelineManagement.saveFailed'));
     } finally {
       setSaving(false);
