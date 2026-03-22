@@ -1127,6 +1127,9 @@ const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLo
     whodrugVersions: { label: string; value: string }[];
   } | null>(null);
 
+  // Track which study we've loaded to detect changes
+  const [loadedStudyId, setLoadedStudyId] = useState<string | null>(null);
+
   useEffect(() => {
     getAvailableVersions().then((res: any) => {
       if (res) {
@@ -1136,6 +1139,26 @@ const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLo
       setVersionsLoading(false);
     });
   }, []);
+
+  // Reset form values when studyNode changes
+  useEffect(() => {
+    if (studyNode && studyNode.id !== loadedStudyId) {
+      const config = studyNode.config || {};
+      form.setFieldsValue({
+        protocolTitle: studyNode.protocolTitle,
+        phase: studyNode.phase,
+        config: {
+          sdtmModelVersion: config.sdtmModelVersion || undefined,
+          sdtmIgVersion: config.sdtmIgVersion || undefined,
+          adamModelVersion: config.adamModelVersion || undefined,
+          adamIgVersion: config.adamIgVersion || undefined,
+          meddraVersion: config.meddraVersion || undefined,
+          whodrugVersion: config.whodrugVersion || undefined,
+        },
+      });
+      setLoadedStudyId(studyNode.id);
+    }
+  }, [studyNode, form, loadedStudyId]);
 
   return (
     <Card
@@ -1291,23 +1314,37 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
     if (selectedNode && selectedNode.id !== loadedStudyId) {
       // Reset form completely before setting new values
       form.resetFields();
-      // Set new values
+
+      // CRITICAL: Must explicitly set ALL config fields to prevent stale values
+      // from previous study appearing in the new study's form
+      const config = selectedNode.config || {};
       form.setFieldsValue({
         protocolTitle: selectedNode.protocolTitle,
         phase: selectedNode.phase,
-        config: selectedNode.config || {},
+        config: {
+          sdtmModelVersion: config.sdtmModelVersion || undefined,
+          sdtmIgVersion: config.sdtmIgVersion || undefined,
+          adamModelVersion: config.adamModelVersion || undefined,
+          adamIgVersion: config.adamIgVersion || undefined,
+          meddraVersion: config.meddraVersion || undefined,
+          whodrugVersion: config.whodrugVersion || undefined,
+        },
       });
       setLoadedStudyId(selectedNode.id);
     }
   }, [selectedNode, form, loadedStudyId]);
 
   const handleSave = async () => {
-    if (!studyId) return;
+    // CRITICAL: Use selectedNode.id to ensure we save to the correct study
+    // Do not rely on studyId from global context as it may be stale
+    const targetStudyId = selectedNode?.id || studyId;
+    if (!targetStudyId) return;
+
     try {
       setSaving(true);
       const values = form.getFieldsValue();
       const config = values.config || {};
-      await updatePipelineStudyConfig(studyId, {
+      await updatePipelineStudyConfig(targetStudyId, {
         adam_ig_version: config.adamIgVersion,
         adam_model_version: config.adamModelVersion,
         meddra_version: config.meddraVersion,
