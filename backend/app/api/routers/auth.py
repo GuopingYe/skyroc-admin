@@ -226,7 +226,7 @@ async def get_user_info(
 @router.post("/refreshToken")
 @limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/{settings.RATE_LIMIT_WINDOW_SECONDS}seconds")
 async def refresh_token(
-    http_request: Request,  # Required by slowapi for rate limiting
+    request: Request,  # Required by slowapi for rate limiting
     token_request: RefreshTokenRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
