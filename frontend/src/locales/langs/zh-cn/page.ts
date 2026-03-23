@@ -679,6 +679,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         title: '编辑任务'
       },
       form: {
+        customizedDataset: '自定义数据集',
+        customizedDomain: '自定义域',
+        customDatasetName: '自定义数据集名称',
+        customDomainName: '自定义域名称',
         datasetLabelPlaceholder: '请输入数据集标签',
         datasetPlaceholder: '请选择数据集',
         descriptionPlaceholder: '请输入任务描述',
@@ -695,9 +699,13 @@ const page: App.I18n.Schema['translation']['page'] = {
         titlePlaceholder: '请输入输出标题',
         typePlaceholder: '请选择类型',
         validateMsg: {
+          customDatasetRequired: '请输入自定义数据集名称',
+          customDomainRequired: '请输入自定义域名称',
           datasetLabelRequired: '请输入数据集标签',
+          datasetNameFormat: '数据集名称必须以 AD 开头，后跟1-3个大写字母（如 ADSL, ADAE）',
           datasetRequired: '请选择数据集',
           descriptionRequired: '请输入描述',
+          domainNameFormat: '域名称必须是2个大写字母（如 CE, FA）',
           domainRequired: '请选择域',
           labelRequired: '请输入标签',
           outputIdRequired: '请输入输出 ID',

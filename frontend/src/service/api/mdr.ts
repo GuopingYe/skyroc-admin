@@ -21,10 +21,12 @@ export function getAvailableVersions() {
 }
 
 /**
- * Get the full pipeline tree (TA → Compound → Study → Analysis)
+ * Get the pipeline tree (TA → Compound → Study → Analysis)
+ * @param scopeNodeId Optional - Filter tree to show only the branch for this scope node
  */
-export function getPipelineTree() {
+export function getPipelineTree(scopeNodeId?: number) {
   return request<any[]>({
+    params: scopeNodeId ? { scope_node_id: scopeNodeId } : undefined,
     url: MDR_URLS.PIPELINE_TREE
   });
 }
@@ -223,10 +225,11 @@ export function getTrackerTaskList(analysisId: string, category?: Api.MDR.TaskCa
  * @param data Task creation parameters
  */
 export function createTrackerTask(data: {
-  analysisId: number;  // 使用 camelCase 匹配后端
+  analysis_id: number;  // snake_case to match backend Pydantic schema
   deliverable_type: string;
   deliverable_name: string;
   task_name: string;
+  description?: string;
   prod_programmer_id?: string;
   qc_programmer_id?: string;
   tfl_metadata?: Record<string, unknown>;
@@ -400,5 +403,211 @@ export function getSpecVariableList(datasetKey: string, standard: Api.MDR.Standa
   return request<Api.MDR.SpecVariable[]>({
     params: { datasetKey, standard },
     url: MDR_URLS.SPEC_VARIABLE_LIST
+  });
+}
+
+// ==================== TFL Shells ====================
+
+/**
+ * TFL Shell types for API requests (matches backend ARSDisplay schema)
+ * Backend uses: display_id, display_type, display_config
+ */
+export interface TFLShellCreate {
+  scope_node_id: number;
+  display_id: string;  // e.g., "Table 14.1.1"
+  display_type: 'Table' | 'Figure' | 'Listing';
+  title: string;
+  subtitle?: string | null;
+  footnote?: string | null;
+  sort_order?: number;
+  display_config?: Record<string, unknown> | null;
+  extra_attrs?: Record<string, unknown> | null;
+}
+
+export interface TFLShellUpdate {
+  display_id?: string;
+  display_type?: 'Table' | 'Figure' | 'Listing';
+  title?: string;
+  subtitle?: string | null;
+  footnote?: string | null;
+  sort_order?: number;
+  display_config?: Record<string, unknown> | null;
+  extra_attrs?: Record<string, unknown> | null;
+  updated_by: string;
+}
+
+/**
+ * Get all TFL shells for a scope (analysis)
+ */
+export function getTFLShells(scopeNodeId: number) {
+  return request<{ total: number; items: any[] }>({
+    params: { scope_node_id: scopeNodeId },
+    url: MDR_URLS.TFL_SHELLS
+  });
+}
+
+/**
+ * Get a single TFL shell by ID
+ */
+export function getTFLShellDetail(shellId: string) {
+  return request<any>({
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
+  });
+}
+
+/**
+ * Create a new TFL shell
+ */
+export function createTFLShell(data: TFLShellCreate) {
+  return request<{ id: number; message: string; shell: any }>({
+    data,
+    method: 'post',
+    url: MDR_URLS.TFL_SHELL_CREATE
+  });
+}
+
+/**
+ * Update an existing TFL shell
+ */
+export function updateTFLShell(shellId: string, data: TFLShellUpdate) {
+  return request<{ success: boolean; message: string; shell: any }>({
+    data,
+    method: 'put',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
+  });
+}
+
+/**
+ * Delete a TFL shell (soft delete)
+ */
+export function deleteTFLShell(shellId: string) {
+  return request<{ success: boolean; message: string }>({
+    method: 'delete',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
+  });
+}
+
+/**
+ * Batch update shell order
+ */
+export function updateTFLShellOrder(updates: Array<{ id: number; sort_order: number }>, updatedBy: string) {
+  return request<{ success: boolean; message: string }>({
+    data: { updates, updated_by: updatedBy },
+    method: 'put',
+    url: MDR_URLS.TFL_SHELLS_ORDER
+  });
+}
+
+// ==================== TFL Tables ====================
+
+export function getTFLTables(scopeNodeId: number) {
+  return request<{ total: number; items: any[] }>({
+    params: { display_type: 'Table', scope_node_id: scopeNodeId },
+    url: MDR_URLS.TFL_SHELLS
+  });
+}
+
+export function getTFLTableDetail(tableId: string) {
+  return request<any>({
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', tableId)
+  });
+}
+
+export function createTFLTable(data: Omit<TFLShellCreate, 'display_type'>) {
+  return request<{ id: number; message: string; shell: any }>({
+    data: { ...data, display_type: 'Table' },
+    method: 'post',
+    url: MDR_URLS.TFL_SHELL_CREATE
+  });
+}
+
+export function updateTFLTable(tableId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
+  return request<{ success: boolean; message: string; shell: any }>({
+    data,
+    method: 'put',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', tableId)
+  });
+}
+
+export function deleteTFLTable(tableId: string) {
+  return request<{ success: boolean; message: string }>({
+    method: 'delete',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', tableId)
+  });
+}
+
+// ==================== TFL Figures ====================
+
+export function getTFLFigures(scopeNodeId: number) {
+  return request<{ total: number; items: any[] }>({
+    params: { display_type: 'Figure', scope_node_id: scopeNodeId },
+    url: MDR_URLS.TFL_SHELLS
+  });
+}
+
+export function getTFLFigureDetail(figureId: string) {
+  return request<any>({
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', figureId)
+  });
+}
+
+export function createTFLFigure(data: Omit<TFLShellCreate, 'display_type'>) {
+  return request<{ id: number; message: string; shell: any }>({
+    data: { ...data, display_type: 'Figure' },
+    method: 'post',
+    url: MDR_URLS.TFL_SHELL_CREATE
+  });
+}
+
+export function updateTFLFigure(figureId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
+  return request<{ success: boolean; message: string; shell: any }>({
+    data,
+    method: 'put',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', figureId)
+  });
+}
+
+export function deleteTFLFigure(figureId: string) {
+  return request<{ success: boolean; message: string }>({
+    method: 'delete',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', figureId)
+  });
+}
+
+// ==================== TFL Listings ====================
+
+export function getTFLListings(scopeNodeId: number) {
+  return request<{ total: number; items: any[] }>({
+    params: { display_type: 'Listing', scope_node_id: scopeNodeId },
+    url: MDR_URLS.TFL_SHELLS
+  });
+}
+
+export function getTFLListingDetail(listingId: string) {
+  return request<any>({
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', listingId)
+  });
+}
+
+export function createTFLListing(data: Omit<TFLShellCreate, 'display_type'>) {
+  return request<{ id: number; message: string; shell: any }>({
+    data: { ...data, display_type: 'Listing' },
+    method: 'post',
+    url: MDR_URLS.TFL_SHELL_CREATE
+  });
+}
+
+export function updateTFLListing(listingId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
+  return request<{ success: boolean; message: string; shell: any }>({
+    data,
+    method: 'put',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', listingId)
+  });
+}
+
+export function deleteTFLListing(listingId: string) {
+  return request<{ success: boolean; message: string }>({
+    method: 'delete',
+    url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', listingId)
   });
 }

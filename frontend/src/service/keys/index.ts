@@ -30,6 +30,15 @@ export const QUERY_KEYS = {
       ['mdr', 'specVariables', datasetKey, standard] as const,
     TRACKER_TASK_LIST: (analysisId: string, category: string) => ['mdr', 'trackerTasks', analysisId, category] as const
   },
+  // Study Spec
+  STUDY_SPEC: {
+    DATASETS: (specId: number, params?: Api.StudySpec.StudyDatasetListParams) =>
+      ['studySpec', 'datasets', specId, params] as const,
+    DETAIL: (specId: number) => ['studySpec', 'detail', specId] as const,
+    LIST: (params?: Api.StudySpec.StudySpecListParams) => ['studySpec', 'list', params] as const,
+    VARIABLES: (datasetId: number, params?: Api.StudySpec.StudyVariableListParams) =>
+      ['studySpec', 'variables', datasetId, params] as const
+  },
   // RBAC
   RBAC: {
     MY_PERMISSIONS: (includeTree: boolean) => ['rbac', 'myPermissions', includeTree] as const,

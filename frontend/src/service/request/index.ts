@@ -9,7 +9,9 @@ import type { RequestInstanceState } from './type';
 
 export const request = createRequest<App.Service.Response, RequestInstanceState>(
   {
-    baseURL: globalConfig.serviceBaseURL
+    baseURL: globalConfig.serviceBaseURL,
+    // Increase timeout to 30s for slow dev server startup
+    timeout: 30 * 1000
   },
   {
     isBackendSuccess(response) {

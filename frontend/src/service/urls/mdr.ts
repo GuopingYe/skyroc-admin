@@ -31,5 +31,17 @@ export const MDR_URLS = {
   // Tracker Issues
   TRACKER_ISSUES: '/api/v1/mdr/tracker/task/:taskId/issues',
   TRACKER_ISSUE_CREATE: '/api/v1/mdr/tracker/task/:taskId/issues',
-  TRACKER_ISSUE_RESPONSE: '/api/v1/mdr/tracker/issue/:issueId/response'
+  TRACKER_ISSUE_RESPONSE: '/api/v1/mdr/tracker/issue/:issueId/response',
+
+  // TFL Shells - Tables, Figures, Listings
+  TFL_SHELLS: '/api/v1/mdr/tfl/shells',       // GET list
+  TFL_SHELL_CREATE: '/api/v1/mdr/tfl/shell',   // POST create (singular, matches backend)
+  TFL_SHELL_DETAIL: '/api/v1/mdr/tfl/shell/:id', // GET/PUT/DELETE single
+  TFL_SHELLS_ORDER: '/api/v1/mdr/tfl/shells/order', // PUT batch order
+  TFL_TABLES: '/api/v1/mdr/tfl/tables',
+  TFL_TABLE_DETAIL: '/api/v1/mdr/tfl/table/:id',
+  TFL_FIGURES: '/api/v1/mdr/tfl/figures',
+  TFL_FIGURE_DETAIL: '/api/v1/mdr/tfl/figure/:id',
+  TFL_LISTINGS: '/api/v1/mdr/tfl/listings',
+  TFL_LISTING_DETAIL: '/api/v1/mdr/tfl/listing/:id'
 } as const;

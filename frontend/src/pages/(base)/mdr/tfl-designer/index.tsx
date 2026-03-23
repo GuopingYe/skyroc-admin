@@ -29,6 +29,8 @@ import {
   ColumnWidthOutlined,
   BgColorsOutlined,
   LayoutOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import {
   Tabs,
@@ -47,7 +49,8 @@ import {
   Input,
   InputNumber,
   Select,
-  message,
+  Alert,
+  Spin,
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -84,11 +87,13 @@ import {
   HeaderStyleSelector,
   ColumnHeaderSetEditor,
   InteractiveOutputEditor,
+  useTFLDesignerData,
 } from '@/features/tfl-designer';
 import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
 
 import type { TableShell, FigureShell, ListingShell, IARSDocument, ColumnHeaderGroup } from '@/features/tfl-designer';
 import { generateId } from '@/features/tfl-designer';
+import { useUserInfo } from '@/service/hooks';
 
 const { Text, Title } = Typography;
 
@@ -112,6 +117,24 @@ type SidebarView = 'items' | 'settings';
 const TflDesigner: React.FC = () => {
   const { t } = useTranslation();
   const { isReady } = useClinicalContext();
+  
+  // Get current user for audit trail
+  const { data: userInfo } = useUserInfo();
+  // Backend data integration
+  const {
+    loading: tflLoading,
+    saving: tflSaving,
+    error: tflError,
+    refresh: refreshTFLData,
+    saveCurrentTable,
+    saveCurrentFigure,
+    saveCurrentListing,
+    deleteCurrentTable,
+    deleteCurrentFigure,
+    deleteCurrentListing,
+  } = useTFLDesignerData();
+
+
 
   // Zustand stores
   const studyStore = useStudyStore();
@@ -415,20 +438,20 @@ const TflDesigner: React.FC = () => {
       rows: [],
       footer: { source: 'ADSL', notes: [] },
     };
-    tableStore.tables.push(newTable);
+    tableStore.addTable(newTable);
     tableStore.setCurrentTable(newTable);
     figureStore.setCurrentFigure(null);
     listingStore.setCurrentListing(null);
-    message.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
+    window.$message?.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
   }, [tableStore, figureStore, listingStore, studyStore, t]);
 
   const handleNewFigure = useCallback(() => {
     const fig = createNewFigure(`Figure 15.${figureStore.figures.length + 1}.1`);
-    figureStore.figures.push(fig);
+    figureStore.addFigure(fig);
     figureStore.setCurrentFigure(fig);
     tableStore.setCurrentTable(null);
     listingStore.setCurrentListing(null);
-    message.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
+    window.$message?.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
   }, [figureStore, tableStore, listingStore, t]);
 
   const handleNewListing = useCallback(() => {
@@ -441,11 +464,11 @@ const TflDesigner: React.FC = () => {
       columns: [],
       pageSize: 20,
     };
-    listingStore.listings.push(newList);
+    listingStore.addListing(newList);
     listingStore.setCurrentListing(newList);
     tableStore.setCurrentTable(null);
     figureStore.setCurrentFigure(null);
-    message.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
+    window.$message?.success(t('page.mdr.tflDesigner.messages.newShellCreated'));
   }, [listingStore, tableStore, figureStore, t]);
 
   const handleDuplicateTable = useCallback(() => {
@@ -456,36 +479,101 @@ const TflDesigner: React.FC = () => {
       shellNumber: tableStore.currentTable.shellNumber + ' (copy)',
       title: tableStore.currentTable.title + ' (copy)',
     };
-    tableStore.tables.push(dup);
+    tableStore.addTable(dup);
     tableStore.setCurrentTable(dup);
   }, [tableStore]);
 
   const handleDeleteTable = useCallback(
-    (id: string) => {
-      tableStore.tables = tableStore.tables.filter((t) => t.id !== id);
-      if (tableStore.currentTable?.id === id) {
-        tableStore.setCurrentTable(null);
+    async (id: string) => {
+      // Delete from backend if it's a persisted item
+      if (!id.includes('_')) {
+        const success = await deleteCurrentTable();
+        if (!success) {
+          window.$message?.error('Failed to delete table');
+          return;
+        }
+      } else {
+        // Remove from local store for new items
+        tableStore.deleteTable(id);
       }
+      window.$message?.success('Table deleted');
     },
-    [tableStore]
+    [tableStore, deleteCurrentTable]
   );
 
   const handleDeleteFigure = useCallback(
-    (id: string) => {
-      figureStore.deleteFigure(id);
+    async (id: string) => {
+      if (!id.includes('_')) {
+        const success = await deleteCurrentFigure();
+        if (!success) {
+          window.$message?.error('Failed to delete figure');
+          return;
+        }
+      } else {
+        figureStore.deleteFigure(id);
+      }
+      window.$message?.success('Figure deleted');
     },
-    [figureStore]
+    [figureStore, deleteCurrentFigure]
   );
 
   const handleDeleteListing = useCallback(
-    (id: string) => {
-      listingStore.listings = listingStore.listings.filter((l) => l.id !== id);
-      if (listingStore.currentListing?.id === id) {
-        listingStore.setCurrentListing(null);
+    async (id: string) => {
+      if (!id.includes('_')) {
+        const success = await deleteCurrentListing();
+        if (!success) {
+          window.$message?.error('Failed to delete listing');
+          return;
+        }
+      } else {
+        listingStore.deleteListing(id);
       }
+      window.$message?.success('Listing deleted');
     },
-    [listingStore]
+    [listingStore, deleteCurrentListing]
   );
+  // ============ Save Handlers ============
+
+  const handleSaveTable = useCallback(async () => {
+    if (!tableStore.currentTable) return;
+
+    // Get user ID from somewhere - for now use a placeholder
+    const userId = userInfo?.userId || 'system'; // TODO: Get from auth context
+
+    const success = await saveCurrentTable(userId);
+    if (success) {
+      window.$message?.success('Table saved successfully');
+      if (hasUnsavedStudyChanges) {
+        applyStudyChanges();
+      }
+    } else {
+      window.$message?.error('Failed to save table');
+    }
+  }, [saveCurrentTable, tableStore.currentTable, hasUnsavedStudyChanges, applyStudyChanges]);
+
+  const handleSaveFigure = useCallback(async () => {
+    if (!figureStore.currentFigure) return;
+    const userId = userInfo?.userId || 'system';
+    const success = await saveCurrentFigure(userId);
+    if (success) {
+      window.$message?.success('Figure saved successfully');
+    } else {
+      window.$message?.error('Failed to save figure');
+    }
+  }, [saveCurrentFigure, figureStore.currentFigure]);
+
+  const handleSaveListing = useCallback(async () => {
+    if (!listingStore.currentListing) return;
+    const userId = userInfo?.userId || 'system';
+    const success = await saveCurrentListing(userId);
+    if (success) {
+      window.$message?.success('Listing saved successfully');
+    } else {
+      window.$message?.error('Failed to save listing');
+    }
+  }, [saveCurrentListing, listingStore.currentListing]);
+
+
 
   // ============ Export ============
 
@@ -586,23 +674,12 @@ const TflDesigner: React.FC = () => {
             <Button size="small" icon={<RedoOutlined />} onClick={() => tableEditorRef.current?.redo()}>
               Redo
             </Button>
-            <Button size="small" type="primary" icon={<SaveOutlined />}
-              onClick={() => {
-                if (hasUnsavedStudyChanges) {
-                  Modal.confirm({
-                    title: 'Confirm Study-Level Changes',
-                    content: (
-                      <div>
-                        <p>You have modified the treatment arm column headers. This will affect <strong>{affectedOutputs} other output{affectedOutputs !== 1 ? 's' : ''}</strong> using the same treatment arm set.</p>
-                        <p style={{ marginTop: 8, color: '#fa8c16' }}>This action cannot be undone.</p>
-                      </div>
-                    ),
-                    okText: 'Apply to Study Settings',
-                    cancelText: 'Cancel',
-                    onOk: applyStudyChanges,
-                  });
-                }
-              }}
+            <Button 
+              size="small" 
+              type="primary" 
+              icon={<SaveOutlined />}
+              loading={tflSaving}
+              onClick={handleSaveTable}
             >
               {t('page.mdr.tflDesigner.toolbar.save')}
             </Button>
@@ -843,7 +920,13 @@ const TflDesigner: React.FC = () => {
                 {t('page.mdr.tflDesigner.actions.delete')}
               </Button>
             </Popconfirm>
-            <Button size="small" type="primary" icon={<SaveOutlined />}>
+            <Button 
+              size="small" 
+              type="primary" 
+              icon={<SaveOutlined />}
+              loading={tflSaving}
+              onClick={handleSaveFigure}
+            >
               {t('page.mdr.tflDesigner.toolbar.save')}
             </Button>
           </Space>
@@ -1030,7 +1113,13 @@ const TflDesigner: React.FC = () => {
             <Button size="small" icon={<RedoOutlined />} onClick={() => listingEditorRef.current?.redo()}>
               Redo
             </Button>
-            <Button size="small" type="primary" icon={<SaveOutlined />}>
+            <Button 
+              size="small" 
+              type="primary" 
+              icon={<SaveOutlined />}
+              loading={tflSaving}
+              onClick={handleSaveListing}
+            >
               {t('page.mdr.tflDesigner.toolbar.save')}
             </Button>
           </Space>
@@ -1405,6 +1494,30 @@ const TflDesigner: React.FC = () => {
           </Space>
         </div>
       </Card>
+
+      
+
+      {/* Loading and Error States */}
+      {tflLoading && (
+        <div className="flex items-center justify-center py-16px">
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
+          <Text type="secondary" className="ml-8px">Loading TFL data...</Text>
+        </div>
+      )}
+      {tflError && (
+        <Alert 
+          type="error" 
+          message="Failed to load TFL data" 
+          description={tflError}
+          showIcon
+          action={
+            <Button size="small" onClick={refreshTFLData}>
+              Retry
+            </Button>
+          }
+          className="mx-16px"
+        />
+      )}
 
       {/* Main content: Left sidebar + Center editor */}
       <div className="min-h-0 flex flex-1 overflow-hidden">

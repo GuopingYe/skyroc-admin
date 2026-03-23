@@ -34,6 +34,17 @@ interface ListingState {
 
   // Selection & metadata
   setCurrentListing: (listing: ListingShell | null) => void;
+
+  // Batch update from server
+  setListings: (listings: ListingShell[]) => void;
+  setDirty: (dirty: boolean) => void;
+
+  // Add new listing (proper Zustand/Immer way)
+  addListing: (listing: ListingShell) => void;
+
+  // Delete listing
+  deleteListing: (id: string) => void;
+
   updateMetadata: (updates: Partial<ListingShell>) => void;
 
   // Column operations
@@ -195,6 +206,29 @@ export const useListingStore = create<ListingState>()(
       set((state) => {
         state.currentListing = listing;
         state.isDirty = false;
+      }),
+
+    setListings: (listings) =>
+      set((state) => {
+        state.listings = listings;
+      }),
+
+    setDirty: (dirty) =>
+      set((state) => {
+        state.isDirty = dirty;
+      }),
+
+    addListing: (listing) =>
+      set((state) => {
+        state.listings.push(listing);
+      }),
+
+    deleteListing: (id) =>
+      set((state) => {
+        state.listings = state.listings.filter((l) => l.id !== id);
+        if (state.currentListing?.id === id) {
+          state.currentListing = null;
+        }
       }),
 
     updateMetadata: (updates) =>

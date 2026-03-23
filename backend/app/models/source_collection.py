@@ -6,7 +6,7 @@ Source Collection - 源数据集合模型
 from typing import Any
 
 from sqlalchemy import Enum, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from app.models.base import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin

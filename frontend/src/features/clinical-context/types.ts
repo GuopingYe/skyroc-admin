@@ -10,6 +10,8 @@ export interface IClinicalProduct {
   name: string;
   /** Therapeutic Area 治疗领域 */
   ta?: string;
+  /** ScopeNode ID (数据库主键) */
+  scopeNodeId?: number;
 }
 
 /** Study 信息 */
@@ -20,6 +22,17 @@ export interface IClinicalStudy {
   phase: string;
   /** 研究状态 */
   status: string;
+  /** ScopeNode ID (数据库主键) */
+  scopeNodeId?: number;
+  /** 标准版本配置 */
+  config?: {
+    sdtmIgVersion?: string;
+    sdtmModelVersion?: string;
+    adamIgVersion?: string;
+    adamModelVersion?: string;
+    meddraVersion?: string;
+    whodrugVersion?: string;
+  };
 }
 
 /** Analysis 信息 */
@@ -32,6 +45,8 @@ export interface IClinicalAnalysis {
   name: string;
   /** 分析状态 */
   status: 'Active' | 'Archived' | 'Completed' | 'Planned';
+  /** ScopeNode ID (数据库主键) */
+  scopeNodeId?: number;
 }
 
 /** 全局上下文选择状态 */

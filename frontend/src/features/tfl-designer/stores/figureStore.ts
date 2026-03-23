@@ -20,6 +20,10 @@ interface FigureState {
   setFigure: (figure: FigureShell) => void;
   setCurrentFigure: (figure: FigureShell | null) => void;
 
+  // Batch update from server
+  setFigures: (figures: FigureShell[]) => void;
+  setDirty: (dirty: boolean) => void;
+
   // Metadata
   updateMetadata: (updates: Partial<Pick<FigureShell, 'figureNumber' | 'title' | 'population' | 'programmingNotes'>>) => void;
 
@@ -179,6 +183,16 @@ export const useFigureStore = create<FigureState>()(
     setCurrentFigure: (figure) =>
       set((state) => {
         state.currentFigure = figure;
+      }),
+
+    setFigures: (figures) =>
+      set((state) => {
+        state.figures = figures;
+      }),
+
+    setDirty: (dirty) =>
+      set((state) => {
+        state.isDirty = dirty;
       }),
 
     updateMetadata: (updates) =>

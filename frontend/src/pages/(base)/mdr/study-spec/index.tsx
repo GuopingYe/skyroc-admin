@@ -8,12 +8,14 @@
  * - Origin 属性用不同颜色 Tag 标识
  * - 支持行拖拽排序调整变量顺序
  * - 使用全局临床上下文 (useClinicalContext) 进行作用域管理
+ * - 通过 scopeNodeId 关联到后端 ScopeNode 进行数据过滤
  */
 import {
   BookOutlined,
   DeleteOutlined,
   DragOutlined,
   EditOutlined,
+  LoadingOutlined,
   PlusOutlined,
   SearchOutlined,
   TableOutlined
@@ -40,11 +42,13 @@ import {
   Card,
   Descriptions,
   Drawer,
+  Empty,
   Input,
   List,
   Popconfirm,
   Segmented,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -55,13 +59,24 @@ import type { ColumnsType } from 'antd/es/table';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useClinicalContext } from '@/features/clinical-context';
+import { useClinicalContext, useStudyScopeNodeId } from '@/features/clinical-context';
+import { useStudyDatasets, useStudySpecs, useStudyVariables } from '@/service/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { addDatasetFromGlobalLibrary, createCustomDataset } from '@/service/api';
 
 import type { SpecDataset, SpecVariable, StandardType, VariableOrigin } from './mockData';
-import { getDatasetsByStandard, getVariablesByDomain, originConfig } from './mockData';
-import { VariableFormDrawer } from './modules';
+import { originConfig } from './mockData';
+import { AddDatasetModal, VariableFormDrawer } from './modules';
 
 const { Text, Title } = Typography;
+
+/** API origin_type to frontend display origin mapping */
+const ORIGIN_TYPE_MAP: Record<string, VariableOrigin> = {
+  CDISC: 'Assigned',
+  Sponsor_Standard: 'Derived',
+  Study_Custom: 'Protocol',
+  TA_Standard: 'Assigned'
+};
 
 /** 可拖拽行组件 */
 interface SortableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
@@ -105,21 +120,14 @@ const StudySpec: React.FC = () => {
   const { t } = useTranslation();
 
   // 使用全局临床上下文
-  const { context, isReady } = useClinicalContext();
+  const { context, isReady, isStudyReady } = useClinicalContext();
+  const scopeNodeId = useStudyScopeNodeId();
 
   // 标准类型切换 (SDTM / ADaM)
   const [selectedStandard, setSelectedStandard] = useState<StandardType>('SDTM');
 
-  // 左侧选中的 Dataset
-  const [selectedDataset, setSelectedDataset] = useState<string>('DM');
-
-  // 当标准类型切换时，重置到第一个 Dataset
-  useEffect(() => {
-    const datasets = getDatasetsByStandard(selectedStandard);
-    if (datasets.length > 0) {
-      setSelectedDataset(datasets[0].key);
-    }
-  }, [selectedStandard]);
+  // 选中的 Dataset ID
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
 
   // 左侧搜索
   const [searchText, setSearchText] = useState('');
@@ -138,25 +146,101 @@ const StudySpec: React.FC = () => {
 
   // Loading 状态
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<number | null>(null);
 
-  // 过滤后的 Datasets
+  // Add Dataset Modal 状态
+  const [addDatasetModalOpen, setAddDatasetModalOpen] = useState(false);
+  const [addDatasetLoading, setAddDatasetLoading] = useState(false);
+
+  // Query Client for cache invalidation
+  const queryClient = useQueryClient();
+
+  // ==================== API Hooks ====================
+
+  // 获取 Study Spec 列表（按 scopeNodeId 过滤）
+  const { data: specsData, isLoading: specsLoading, error: specsError } = useStudySpecs(
+    scopeNodeId ? { scope_node_id: scopeNodeId } : undefined
+  );
+
+  // Debug: log any errors
+  useEffect(() => {
+    if (specsError) {
+      // eslint-disable-next-line no-console
+      console.error('[Study Spec] API Error:', specsError);
+    }
+  }, [specsError]);
+
+  // 根据 standard 类型筛选当前 spec
+  const currentSpec = useMemo(() => {
+    if (!specsData?.items) return null;
+    return specsData.items.find(s => s.spec_type === selectedStandard) || specsData.items[0] || null;
+  }, [specsData, selectedStandard]);
+
+  // 获取数据集列表
+  const { data: datasetsData, isLoading: datasetsLoading } = useStudyDatasets(
+    currentSpec?.id ?? null
+  );
+
+  // 获取变量列表
+  const { data: variablesData, isLoading: variablesLoading } = useStudyVariables(
+    selectedDatasetId
+  );
+
+  // 当 spec 变化时，重置到第一个 Dataset
+  useEffect(() => {
+    if (datasetsData?.items?.length && datasetsData.items.length > 0) {
+      setSelectedDatasetId(datasetsData.items[0].id);
+    } else {
+      setSelectedDatasetId(null);
+    }
+  }, [currentSpec?.id, datasetsData?.items]);
+
+  // 转换数据集数据为前端格式
   const filteredDatasets = useMemo(() => {
-    const datasets = getDatasetsByStandard(selectedStandard);
-    if (!searchText) return datasets;
-    const keyword = searchText.toLowerCase();
-    return datasets.filter(d => d.name.toLowerCase().includes(keyword) || d.label.toLowerCase().includes(keyword));
-  }, [searchText, selectedStandard]);
+    if (!datasetsData?.items) return [];
+    let datasets = datasetsData.items;
+    if (searchText) {
+      const keyword = searchText.toLowerCase();
+      datasets = datasets.filter(
+        d => d.dataset_name.toLowerCase().includes(keyword) ||
+             (d.description?.toLowerCase().includes(keyword) ?? false)
+      );
+    }
+    return datasets.map(d => ({
+      key: String(d.id),
+      name: d.dataset_name,
+      label: d.description || '',
+      class: d.class_type,
+      structure: '',
+      keys: [],
+      variableCount: d.variable_count
+    }));
+  }, [datasetsData, searchText]);
 
-  // 当前 Dataset 的变量列表
-  const currentVariables = useMemo(() => {
-    // 优先使用用户拖拽后的状态
-    const stateKey = `${selectedStandard}-${selectedDataset}`;
+  // 转换变量数据为前端格式
+  const currentVariables = useMemo((): SpecVariable[] => {
+    const stateKey = String(selectedDatasetId);
     if (variableStates[stateKey]) {
       return variableStates[stateKey];
     }
-    return getVariablesByDomain(selectedDataset, selectedStandard);
-  }, [selectedStandard, selectedDataset, variableStates]);
+    if (!variablesData?.items) return [];
+    return variablesData.items.map(v => ({
+      key: String(v.id),
+      name: v.variable_name,
+      label: v.variable_label || '',
+      dataType: v.data_type === 'Char' ? 'Char' : v.data_type === 'Num' ? 'Num' : 'DateTime',
+      length: v.length || 0,
+      origin: ORIGIN_TYPE_MAP[v.origin_type] || 'Assigned',
+      role: v.role || '',
+      core: v.core,
+      codelist: v.codelist_name ?? undefined,
+      sourceDerivation: '',
+      implementationNotes: '',
+      comment: v.description || '',
+      globalLibraryRef: v.base_id ? String(v.base_id) : undefined,
+      order: v.sort_order
+    }));
+  }, [variablesData, selectedDatasetId, variableStates]);
 
   // 拖拽传感器配置
   const sensors = useSensors(
@@ -176,9 +260,9 @@ const StudySpec: React.FC = () => {
       const { active, over } = event;
 
       if (over && active.id !== over.id) {
-        const stateKey = `${selectedStandard}-${selectedDataset}`;
+        const stateKey = String(selectedDatasetId);
         setVariableStates(prev => {
-          const currentList = prev[stateKey] || getVariablesByDomain(selectedDataset, selectedStandard);
+          const currentList = prev[stateKey] || currentVariables;
           const oldIndex = currentList.findIndex(item => item.key === active.id);
           const newIndex = currentList.findIndex(item => item.key === over.id);
 
@@ -198,7 +282,7 @@ const StudySpec: React.FC = () => {
         message.success(t('page.mdr.studySpec.sortSuccess'));
       }
     },
-    [selectedStandard, selectedDataset, t]
+    [selectedDatasetId, currentVariables, t]
   );
 
   // 打开新增变量 Drawer
@@ -226,14 +310,14 @@ const StudySpec: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setSubmitLoading(true);
       try {
-        // 模拟 API 调用
+        // TODO: 调用真实的 API
         await new Promise<void>(resolve => {
           setTimeout(resolve, 500);
         });
 
         if (operateType === 'add') {
           // eslint-disable-next-line no-console
-          console.log('Create variable:', { datasetKey: selectedDataset, standard: selectedStandard, ...values });
+          console.log('Create variable:', { datasetId: selectedDatasetId, standard: selectedStandard, ...values });
           message.success(t('page.mdr.studySpec.addSuccess'));
         } else {
           // eslint-disable-next-line no-console
@@ -250,20 +334,20 @@ const StudySpec: React.FC = () => {
         setSubmitLoading(false);
       }
     },
-    [operateType, editingVariable, selectedDataset, selectedStandard, t, closeFormDrawer]
+    [operateType, editingVariable, selectedDatasetId, selectedStandard, t, closeFormDrawer]
   );
 
   // 处理删除
   const handleDelete = useCallback(
-    async (variableKey: string) => {
-      setDeleteLoading(variableKey);
+    async (variableId: number) => {
+      setDeleteLoading(variableId);
       try {
-        // 模拟 API 调用
+        // TODO: 调用真实的 API
         await new Promise<void>(resolve => {
           setTimeout(resolve, 300);
         });
         // eslint-disable-next-line no-console
-        console.log('Delete variable:', variableKey);
+        console.log('Delete variable:', variableId);
         message.success(t('page.mdr.studySpec.deleteSuccess'));
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -276,11 +360,62 @@ const StudySpec: React.FC = () => {
     [t]
   );
 
+  // 处理添加 Dataset
+  const handleAddDataset = useCallback(
+    async (values: { type: 'global_library' | 'custom'; data: Record<string, unknown> }) => {
+      if (!currentSpec?.id) {
+        message.error('No specification selected');
+        return;
+      }
+
+      setAddDatasetLoading(true);
+      try {
+        if (values.type === 'global_library') {
+          const result = await addDatasetFromGlobalLibrary(currentSpec.id, {
+            base_dataset_id: values.data.base_dataset_id as number
+          });
+          message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
+        } else {
+          const result = await createCustomDataset(currentSpec.id, {
+            domain_name: values.data.domain_name as string,
+            domain_label: values.data.domain_label as string,
+            class_type: values.data.class_type as string,
+            inherit_from_model: values.data.inherit_from_model as boolean
+          });
+          message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
+        }
+
+        // 刷新数据集列表
+        queryClient.invalidateQueries({
+          queryKey: ['studySpec', 'datasets', currentSpec.id]
+        });
+
+        setAddDatasetModalOpen(false);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Add dataset failed:', error);
+        message.error(t('common.operationFailed'));
+      } finally {
+        setAddDatasetLoading(false);
+      }
+    },
+    [currentSpec?.id, queryClient, t]
+  );
+
   // 当前 Dataset 信息
   const currentDatasetInfo = useMemo(() => {
-    const datasets = getDatasetsByStandard(selectedStandard);
-    return datasets.find(d => d.key === selectedDataset);
-  }, [selectedStandard, selectedDataset]);
+    if (!datasetsData?.items || !selectedDatasetId) return null;
+    const dataset = datasetsData.items.find(d => d.id === selectedDatasetId);
+    if (!dataset) return null;
+    return {
+      key: String(dataset.id),
+      name: dataset.dataset_name,
+      label: dataset.description || '',
+      class: dataset.class_type,
+      structure: '',
+      keys: []
+    };
+  }, [datasetsData, selectedDatasetId]);
 
   // Origin 统计
   const originStats = useMemo(() => {
@@ -446,15 +581,15 @@ const StudySpec: React.FC = () => {
             </Button>
             <Popconfirm
               cancelText={t('page.mdr.programmingTracker.popconfirm.cancel')}
-              okButtonProps={{ loading: deleteLoading === record.key }}
+              okButtonProps={{ loading: deleteLoading === Number(record.key) }}
               okText={t('page.mdr.programmingTracker.popconfirm.confirm')}
               title={t('page.mdr.studySpec.confirmDelete')}
-              onConfirm={() => handleDelete(record.key)}
+              onConfirm={() => handleDelete(Number(record.key))}
             >
               <Button
                 danger
                 icon={<DeleteOutlined />}
-                loading={deleteLoading === record.key}
+                loading={deleteLoading === Number(record.key)}
                 size="small"
                 type="link"
               >
@@ -467,13 +602,13 @@ const StudySpec: React.FC = () => {
         width: 120
       }
     ],
-    [t, openEditDrawer, handleDelete, deleteLoading]
+    [t, openEditDrawer, handleDelete]
   );
 
   return (
     <div className="h-full flex flex-col gap-12px overflow-hidden">
-      {/* 未选择完整上下文时的提示 */}
-      {!isReady && (
+      {/* 未选择 Study 上下文时的提示 */}
+      {!isStudyReady && (
         <div className="border border-yellow-100 rounded-lg bg-yellow-50 px-16px py-12px text-center text-gray-500">
           <div className="text-14px">{t('page.mdr.studySpec.scopeContext.selectHint')}</div>
         </div>
@@ -529,14 +664,22 @@ const StudySpec: React.FC = () => {
           size="small"
           variant="borderless"
         >
-          <div className="mb-8px">
+          <div className="mb-8px flex gap-8px">
             <Input
               allowClear
+              className="flex-1"
               placeholder={t('page.mdr.studySpec.searchDataset')}
               prefix={<SearchOutlined className="text-gray-400" />}
               size="small"
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
+            />
+            <Button
+              icon={<PlusOutlined />}
+              size="small"
+              title={t('page.mdr.studySpec.addDataset.title')}
+              type="primary"
+              onClick={() => setAddDatasetModalOpen(true)}
             />
           </div>
           <div className="flex-1 overflow-auto">
@@ -546,48 +689,44 @@ const StudySpec: React.FC = () => {
             >
               {t('page.mdr.studySpec.datasets')}
             </Text>
-            <List
-              dataSource={filteredDatasets}
-              size="small"
-              renderItem={(item: SpecDataset) => {
-                const isSelected = selectedDataset === item.key;
-                const variables = getVariablesByDomain(item.key, selectedStandard);
-                const crfCount = variables.filter(v => v.origin === 'CRF').length;
-                const derivedCount = variables.filter(v => v.origin === 'Derived').length;
+            {datasetsLoading ? (
+              <div className="flex justify-center py-24px">
+                <Spin indicator={<LoadingOutlined spin />} />
+              </div>
+            ) : filteredDatasets.length === 0 ? (
+              <Empty
+                className="py-24px"
+                description={t('page.mdr.studySpec.noDatasets')}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <List
+                dataSource={filteredDatasets}
+                size="small"
+                renderItem={(item) => {
+                  const isSelected = selectedDatasetId === Number(item.key);
 
-                return (
-                  <List.Item
-                    className={`cursor-pointer px-8px rounded transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                    onClick={() => setSelectedDataset(item.key)}
-                  >
-                    <div className="w-full flex items-center justify-between">
-                      <Space>
-                        <Tag color="blue">{item.name}</Tag>
-                        <span className="text-13px">{item.label}</span>
-                      </Space>
-                      <Space size={2}>
-                        {crfCount > 0 && (
-                          <Tag
-                            className="m-0 text-10px"
-                            color="green"
-                          >
-                            CRF:{crfCount}
+                  return (
+                    <List.Item
+                      className={`cursor-pointer px-8px rounded transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      onClick={() => setSelectedDatasetId(Number(item.key))}
+                    >
+                      <div className="w-full flex items-center justify-between">
+                        <Space>
+                          <Tag color="blue">{item.name}</Tag>
+                          <span className="text-13px">{item.label}</span>
+                        </Space>
+                        {item.variableCount !== undefined && (
+                          <Tag className="m-0 text-10px" color="blue">
+                            {item.variableCount}
                           </Tag>
                         )}
-                        {derivedCount > 0 && (
-                          <Tag
-                            className="m-0 text-10px"
-                            color="orange"
-                          >
-                            D:{derivedCount}
-                          </Tag>
-                        )}
-                      </Space>
-                    </div>
-                  </List.Item>
-                );
-              }}
-            />
+                      </div>
+                    </List.Item>
+                  );
+                }}
+              />
+            )}
           </div>
         </Card>
 
@@ -807,7 +946,7 @@ const StudySpec: React.FC = () => {
 
       {/* 变量表单 Drawer (新增/编辑) */}
       <VariableFormDrawer
-        datasetKey={selectedDataset}
+        datasetKey={String(selectedDatasetId ?? '')}
         editingVariable={editingVariable}
         loading={submitLoading}
         open={formDrawerOpen}
@@ -815,6 +954,15 @@ const StudySpec: React.FC = () => {
         standard={selectedStandard}
         onCancel={closeFormDrawer}
         onSubmit={handleSubmit}
+      />
+
+      {/* 添加 Dataset Modal */}
+      <AddDatasetModal
+        loading={addDatasetLoading}
+        open={addDatasetModalOpen}
+        specId={currentSpec?.id ?? null}
+        onCancel={() => setAddDatasetModalOpen(false)}
+        onSubmit={handleAddDataset}
       />
     </div>
   );

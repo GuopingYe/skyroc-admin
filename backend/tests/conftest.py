@@ -19,9 +19,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.deps import get_current_user, get_db_session
-from app.database import Base, async_session_factory, engine
+from app.database import async_session_factory, engine
 from app.main import app
-from app.models import User, set_audit_context
+from app.models import Base, User, set_audit_context
 
 
 # ============================================================
@@ -40,9 +40,9 @@ def event_loop() -> Generator:
     loop.close()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def test_engine():
-    """Create test database engine."""
+    """Create test database engine (session-scoped for efficiency)."""
     from sqlalchemy.ext.asyncio import create_async_engine
 
     engine = create_async_engine(
@@ -52,7 +52,8 @@ async def test_engine():
     )
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        # checkfirst=True skips tables that already exist
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
     yield engine
 
@@ -73,6 +74,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 
     async with async_session() as session:
         yield session
+        await session.rollback()  # Rollback to isolate tests
 
 
 @pytest_asyncio.fixture(scope="function")

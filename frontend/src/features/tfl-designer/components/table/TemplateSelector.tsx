@@ -15,20 +15,20 @@ import {
   Button,
   Typography,
   Divider,
-  message,
   Upload
 } from 'antd';
 import { SearchOutlined, ThunderboltOutlined, UploadOutlined } from '@ant-design/icons';
 import type { Template } from '../../types';
-import type { TableShell, IARSDocument } from '../../types';
+import type { TableShell, FigureShell, ListingShell, IARSDocument } from '../../types';
 import {
   allTemplates,
   searchTemplates,
   getTemplatesByType,
 } from '../../data/templates';
 import { useTableStore, useFigureStore, useListingStore } from '../../stores';
-import { categoryOptions } from '../../types';
+import { categoryOptions, generateId } from '../../types';
 import { importAllTemplatesFromJSON } from '../../utils/templateUtils';
+import { createNewFigure } from '../../stores/figureStore';
 
 const { Text, Title } = Typography;
 const { Search } = Input;
@@ -143,12 +143,12 @@ export default function TemplateSelector({ open, onClose }: Props) {
       const { templates } = await importAllTemplatesFromJSON(json);
       if (templates && templates.length > 0) {
          setImportedTemplates(prev => [...prev, ...templates]);
-         message.success(`Imported ${templates.length} templates from JSON.`);
+         window.$message?.success(`Imported ${templates.length} templates from JSON.`);
       } else {
-         message.warning('No valid templates found in the JSON file.');
+         window.$message?.warning('No valid templates found in the JSON file.');
       }
     } catch (err: any) {
-      message.error('Failed to parse JSON file: ' + err.message);
+      window.$message?.error('Failed to parse JSON file: ' + err.message);
     }
     return false; // Prevent default upload behavior
   };
@@ -161,7 +161,7 @@ export default function TemplateSelector({ open, onClose }: Props) {
       let newTable: TableShell;
       if (selectedTemplate.id === 'blank_table') {
         newTable = {
-          id: `table_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          id: generateId('table'),
           shellNumber: 'Table X.X.X',
           title: 'New Table',
           population: 'Safety',
@@ -176,19 +176,54 @@ export default function TemplateSelector({ open, onClose }: Props) {
         const shell = selectedTemplate.shell as TableShell;
         newTable = {
           ...JSON.parse(JSON.stringify(shell)),
-          id: `table_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          id: generateId('table'),
         };
       }
-      tableStore.tables.push(newTable);
+      tableStore.addTable(newTable);
       tableStore.setCurrentTable(newTable);
       figureStore.setCurrentFigure(null);
       listingStore.setCurrentListing(null);
+      window.$message?.success('Table created from template');
     } else if (selectedTemplate.type === 'figure') {
-      // Future: figure template handling
-      message.info('Figure templates coming soon');
+      let newFigure: FigureShell;
+      if (selectedTemplate.id === 'blank_figure') {
+        newFigure = createNewFigure('Figure X.X.X');
+      } else {
+        const shell = selectedTemplate.shell as FigureShell;
+        newFigure = {
+          ...JSON.parse(JSON.stringify(shell)),
+          id: generateId('figure'),
+        };
+      }
+      figureStore.addFigure(newFigure);
+      figureStore.setCurrentFigure(newFigure);
+      tableStore.setCurrentTable(null);
+      listingStore.setCurrentListing(null);
+      window.$message?.success('Figure created from template');
     } else if (selectedTemplate.type === 'listing') {
-      // Future: listing template handling
-      message.info('Listing templates coming soon');
+      let newListing: ListingShell;
+      if (selectedTemplate.id === 'blank_listing') {
+        newListing = {
+          id: generateId('listing'),
+          listingNumber: 'Listing X.X.X',
+          title: 'New Listing',
+          population: 'Safety',
+          dataset: 'ADAE',
+          columns: [],
+          pageSize: 20,
+        };
+      } else {
+        const shell = selectedTemplate.shell as ListingShell;
+        newListing = {
+          ...JSON.parse(JSON.stringify(shell)),
+          id: generateId('listing'),
+        };
+      }
+      listingStore.addListing(newListing);
+      listingStore.setCurrentListing(newListing);
+      tableStore.setCurrentTable(null);
+      figureStore.setCurrentFigure(null);
+      window.$message?.success('Listing created from template');
     }
 
     setSelectedTemplate(null);

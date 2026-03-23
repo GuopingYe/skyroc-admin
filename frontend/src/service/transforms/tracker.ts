@@ -307,11 +307,24 @@ export function transformBackendTrackerList(
 }
 
 /**
+ * Helper to extract programmer ID from either string or object
+ */
+function extractProgrammerId(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'object' && value !== null && 'id' in value) {
+    return (value as { id: string }).id;
+  }
+  return undefined;
+}
+
+/**
  * 将前端任务转换为后端创建参数
  */
 export function transformToFrontendCreateParams(
   task: Partial<FrontendTrackerTask>,
-  analysisId: string,
+  analysisId: string | number,
   createdBy: string
 ): Record<string, unknown> {
   const deliverableTypeMap: Record<FrontendTaskCategory, BackendDeliverableType> = {
@@ -321,8 +334,12 @@ export function transformToFrontendCreateParams(
     Other: 'OTHER_LOOKUP'
   };
 
+  // Extract programmer IDs - handle both string IDs and objects
+  const prodProgrammerId = extractProgrammerId((task as any).primaryProgrammer);
+  const qcProgrammerId = extractProgrammerId((task as any).qcProgrammer);
+
   const baseParams = {
-    analysisId: parseInt(analysisId, 10),  // 使用 camelCase 匹配后端
+    analysis_id: typeof analysisId === 'string' ? parseInt(analysisId, 10) : analysisId,
     deliverable_type: deliverableTypeMap[task.category || 'Other'],
     deliverable_name: '',
     task_name: '',
@@ -336,8 +353,8 @@ export function transformToFrontendCreateParams(
         ...baseParams,
         deliverable_name: sdtmTask.domain || '',
         task_name: sdtmTask.datasetLabel || '',
-        prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id
+        prod_programmer_id: prodProgrammerId,
+        qc_programmer_id: qcProgrammerId
       };
     }
 
@@ -347,8 +364,8 @@ export function transformToFrontendCreateParams(
         ...baseParams,
         deliverable_name: adamTask.dataset || '',
         task_name: adamTask.label || '',
-        prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id,
+        prod_programmer_id: prodProgrammerId,
+        qc_programmer_id: qcProgrammerId,
         tfl_metadata: { population: adamTask.analysisPopulation }
       };
     }
@@ -359,8 +376,8 @@ export function transformToFrontendCreateParams(
         ...baseParams,
         deliverable_name: tflTask.outputId || '',
         task_name: tflTask.title || '',
-        prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id,
+        prod_programmer_id: prodProgrammerId,
+        qc_programmer_id: qcProgrammerId,
         tfl_metadata: {
           outputId: tflTask.outputId,
           type: tflTask.type,
@@ -378,8 +395,8 @@ export function transformToFrontendCreateParams(
         deliverable_name: otherTask.taskName || '',
         task_name: otherTask.taskName || '',
         description: otherTask.description,
-        prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id
+        prod_programmer_id: prodProgrammerId,
+        qc_programmer_id: qcProgrammerId
       };
     }
   }

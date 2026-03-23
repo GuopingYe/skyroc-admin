@@ -5,8 +5,27 @@ SQLAlchemy 基类与通用 Mixin
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, JSON, func
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
+
+
+class JSONB(TypeDecorator):
+    """
+    跨数据库兼容的 JSONB 类型
+
+    - PostgreSQL: 使用原生 JSONB
+    - 其他数据库 (SQLite等): 回退到 JSON
+    """
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_JSONB())
+        return dialect.type_descriptor(JSON())
 
 
 class Base(DeclarativeBase):
@@ -21,7 +40,7 @@ class Base(DeclarativeBase):
 
     # 启用 JSONB 类型映射
     type_annotation_map = {
-        dict[str, Any]: "JSONB",
+        dict[str, Any]: JSONB(),
     }
 
 

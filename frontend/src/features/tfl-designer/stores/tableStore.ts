@@ -20,6 +20,16 @@ interface TableState {
   // Selection
   setCurrentTable: (table: TableShell | null) => void;
 
+  // Batch update from server
+  setTables: (tables: TableShell[]) => void;
+  setDirty: (dirty: boolean) => void;
+
+  // Add new table (proper Zustand/Immer way)
+  addTable: (table: TableShell) => void;
+
+  // Delete table
+  deleteTable: (id: string) => void;
+
   // Metadata
   updateMetadata: (updates: Partial<TableShell>) => void;
   updateHeaderLayers: (layers: TableShell['headerLayers']) => void;
@@ -108,6 +118,29 @@ export const useTableStore = create<TableState>()(
       set((state) => {
         state.currentTable = table;
         state.isDirty = false;
+      }),
+
+    setTables: (tables) =>
+      set((state) => {
+        state.tables = tables;
+      }),
+
+    setDirty: (dirty) =>
+      set((state) => {
+        state.isDirty = dirty;
+      }),
+
+    addTable: (table) =>
+      set((state) => {
+        state.tables.push(table);
+      }),
+
+    deleteTable: (id) =>
+      set((state) => {
+        state.tables = state.tables.filter((t) => t.id !== id);
+        if (state.currentTable?.id === id) {
+          state.currentTable = null;
+        }
       }),
 
     updateMetadata: (updates) =>

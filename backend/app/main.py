@@ -136,13 +136,15 @@ app.add_middleware(
 # Security Headers 中间件
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Rate Limiting - Initialize slowapi state
-from slowapi.errors import RateLimitExceeded
+# Rate Limiting - Initialize slowapi
 from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.limiter import limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # ============================================================

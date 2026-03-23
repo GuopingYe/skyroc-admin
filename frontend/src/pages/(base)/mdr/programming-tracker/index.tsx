@@ -46,19 +46,24 @@ const ProgrammingTracker: React.FC = () => {
   const isLead = isSuperAdmin || hasRole('Study Lead' as never) || Boolean(userInfo);
 
   // 使用全局临床上下文
-  const { addRecent, analysisId, isReady, productId, studyId } = useClinicalContext();
+  const { addRecent, analysisId, isReady, productId, studyId, context } = useClinicalContext();
+
+  // 获取数据库主键 ID (scopeNodeId) 用于 API 调用
+  // 后端需要整数 ID，而不是字符串 ID
+  const analysisDbId = context.analysis?.scopeNodeId;
 
   // 使用本地状态管理页面特有状态（仅 activeCategory）
   const { activeCategory, setActiveCategory } = useTrackerState();
 
   // 使用 useTrackerTasks hook 获取真实数据
+  // 使用 scopeNodeId (数据库主键) 而不是字符串 analysisId
   const {
     tasks: currentTasks,
     loading: tasksLoading,
     error: tasksError,
     refresh: refreshTasks,
     categoryCounts: allCategoryCounts
-  } = useTrackerTasks(analysisId, activeCategory);
+  } = useTrackerTasks(analysisDbId ? String(analysisDbId) : null, activeCategory);
 
   // Modal 状态
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -140,13 +145,13 @@ const ProgrammingTracker: React.FC = () => {
       setSubmitLoading(true);
       try {
         if (operateType === 'add') {
-          // 创建新任务
+          // 创建新任务 - 使用数据库主键 ID
           const createParams = transformToFrontendCreateParams(
             {
               category: activeCategory as TaskCategory,
               ...values
             } as Partial<FrontendTrackerTask>,
-            analysisId!,
+            analysisDbId!, // 使用数据库主键
             userInfo?.userName || 'system'
           );
           await createTrackerTask(createParams as Parameters<typeof createTrackerTask>[0]);
@@ -169,7 +174,7 @@ const ProgrammingTracker: React.FC = () => {
         setSubmitLoading(false);
       }
     },
-    [operateType, editingTask, analysisId, activeCategory, t, closeFormModal, refreshTasks, userInfo]
+    [operateType, editingTask, analysisDbId, activeCategory, t, closeFormModal, refreshTasks, userInfo]
   );
 
   // 处理删除

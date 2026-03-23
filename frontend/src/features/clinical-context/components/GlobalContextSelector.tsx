@@ -116,7 +116,8 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
         const node = products.find(p => String(p.id) === productId);
         selectProduct(productId, {
           id: productId,
-          name: node?.name || node?.code || productId
+          name: node?.name || node?.code || productId,
+          scopeNodeId: node?.dbId // 使用数据库主键
         } as IClinicalProduct);
       } else {
         selectProduct(null);
@@ -130,11 +131,16 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
     (studyId: string | undefined) => {
       if (studyId) {
         const node = studies.find(s => String(s.id) === studyId);
+        // Debug: log the selected study node
+        // eslint-disable-next-line no-console
+        console.log('[Context] Selected study:', { studyId, node, dbId: node?.dbId });
         selectStudy(studyId, {
           id: studyId,
           name: node?.name || node?.study_code || node?.code || studyId,
           phase: node?.phase || '',
-          status: node?.status || 'Active'
+          status: node?.status || 'Active',
+          scopeNodeId: node?.dbId, // 使用数据库主键
+          config: node?.config
         } as IClinicalStudy);
       } else {
         selectStudy(null);
@@ -151,7 +157,8 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
         selectAnalysis(analysisId, {
           id: analysisId,
           name: node?.name || node?.code || analysisId,
-          status: (node?.lifecycleStatus || 'Active') as IClinicalAnalysis['status']
+          status: (node?.lifecycleStatus || 'Active') as IClinicalAnalysis['status'],
+          scopeNodeId: node?.dbId // 使用数据库主键
         } as IClinicalAnalysis);
       } else {
         selectAnalysis(null);

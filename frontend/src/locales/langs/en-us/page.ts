@@ -677,6 +677,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         title: 'Edit Task'
       },
       form: {
+        customizedDataset: 'Customized Dataset',
+        customizedDomain: 'Customized Domain',
+        customDatasetName: 'Custom Dataset Name',
+        customDomainName: 'Custom Domain Name',
         datasetLabelPlaceholder: 'Enter dataset label',
         datasetPlaceholder: 'Select dataset',
         descriptionPlaceholder: 'Enter task description',
@@ -693,9 +697,13 @@ const page: App.I18n.Schema['translation']['page'] = {
         titlePlaceholder: 'Enter output title',
         typePlaceholder: 'Select type',
         validateMsg: {
+          customDatasetRequired: 'Please enter custom dataset name',
+          customDomainRequired: 'Please enter custom domain name',
           datasetLabelRequired: 'Please enter dataset label',
+          datasetNameFormat: 'Dataset name must start with AD and contain 1-3 uppercase letters (e.g., ADSL, ADAE)',
           datasetRequired: 'Please select dataset',
           descriptionRequired: 'Please enter description',
+          domainNameFormat: 'Domain name must be 2 uppercase letters (e.g., CE, FA)',
           domainRequired: 'Please select domain',
           labelRequired: 'Please enter label',
           outputIdRequired: 'Please enter output ID',

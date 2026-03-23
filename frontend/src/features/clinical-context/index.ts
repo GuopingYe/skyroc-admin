@@ -20,7 +20,14 @@ export {
 export { default as GlobalContextSelector } from './components/GlobalContextSelector';
 
 // Hooks
-export { useClinicalContext, useClinicalContextState, useRecentAccess } from './hooks';
+export {
+  useAnalysisScopeNodeId,
+  useClinicalContext,
+  useClinicalContextState,
+  useRecentAccess,
+  useStudyScopeNodeId,
+  useStudyStandardConfig
+} from './hooks';
 
 /**
  * Clinical Context Module - 全局临床上下文模块

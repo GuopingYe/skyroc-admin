@@ -18,16 +18,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import select
 
 from app.database import async_session_factory
-from app.models import ProgrammingTracker, ScopeNode
+from app.models import ProgrammingTracker, ScopeNode, Specification, TargetDataset, TargetVariable
 from app.models.audit_listener import set_audit_context
 from app.models.enums import LifecycleStatus, NodeType
 from app.models.mapping_enums import (
+    DataType,
+    DatasetClass,
     DeliverableType,
+    OriginType,
+    OverrideType,
     Priority,
     ProdStatus,
     QCMethod,
     QCStatus,
+    SpecStatus,
+    SpecType,
     TrackerStatus,
+    VariableCore,
 )
 
 
@@ -89,6 +96,21 @@ async def seed_pipeline_data() -> dict:
 
         ta_nodes = []
         for i, ta in enumerate(ta_data):
+            # Check if TA already exists
+            existing_ta = await session.execute(
+                select(ScopeNode).where(
+                    ScopeNode.code == ta["code"],
+                    ScopeNode.node_type == NodeType.TA,
+                    ScopeNode.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_node = existing_ta.scalar_one_or_none()
+            if existing_node:
+                print(f"   ✓ TA 已存在: {existing_node.code} - {existing_node.name} (ID={existing_node.id})")
+                ta_nodes.append(existing_node)
+                result["tas"].append({"id": existing_node.id, "code": existing_node.code, "name": existing_node.name})
+                continue
+
             node = ScopeNode(
                 code=ta["code"],
                 name=ta["name"],
@@ -157,6 +179,26 @@ async def seed_pipeline_data() -> dict:
         compound_nodes = []
         for i, compound in enumerate(compound_data):
             parent_ta = ta_nodes[compound["ta_index"]]
+            # Check if Compound already exists
+            existing_compound = await session.execute(
+                select(ScopeNode).where(
+                    ScopeNode.code == compound["code"],
+                    ScopeNode.node_type == NodeType.COMPOUND,
+                    ScopeNode.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_node = existing_compound.scalar_one_or_none()
+            if existing_node:
+                print(f"   ✓ Compound 已存在: {existing_node.code} - {existing_node.name} (ID={existing_node.id})")
+                compound_nodes.append(existing_node)
+                result["compounds"].append({
+                    "id": existing_node.id,
+                    "code": existing_node.code,
+                    "name": existing_node.name,
+                    "parent_ta": parent_ta.code,
+                })
+                continue
+
             node = ScopeNode(
                 code=compound["code"],
                 name=compound["name"],
@@ -252,6 +294,26 @@ async def seed_pipeline_data() -> dict:
         study_nodes = []
         for i, study in enumerate(study_data):
             parent_compound = compound_nodes[study["compound_index"]]
+            # Check if Study already exists
+            existing_study = await session.execute(
+                select(ScopeNode).where(
+                    ScopeNode.code == study["code"],
+                    ScopeNode.node_type == NodeType.STUDY,
+                    ScopeNode.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_node = existing_study.scalar_one_or_none()
+            if existing_node:
+                print(f"   ✓ Study 已存在: {existing_node.code} (ID={existing_node.id})")
+                study_nodes.append(existing_node)
+                result["studies"].append({
+                    "id": existing_node.id,
+                    "code": existing_node.code,
+                    "name": existing_node.name,
+                    "parent_compound": parent_compound.code,
+                })
+                continue
+
             node = ScopeNode(
                 code=study["code"],
                 name=study["name"],
@@ -368,6 +430,26 @@ async def seed_pipeline_data() -> dict:
         analysis_nodes = []
         for i, analysis in enumerate(analysis_data):
             parent_study = study_nodes[analysis["study_index"]]
+            # Check if Analysis already exists
+            existing_analysis = await session.execute(
+                select(ScopeNode).where(
+                    ScopeNode.code == analysis["code"],
+                    ScopeNode.node_type == NodeType.ANALYSIS,
+                    ScopeNode.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_node = existing_analysis.scalar_one_or_none()
+            if existing_node:
+                print(f"   ✓ Analysis 已存在: {existing_node.code} - {existing_node.name} (ID={existing_node.id})")
+                analysis_nodes.append(existing_node)
+                result["analyses"].append({
+                    "id": existing_node.id,
+                    "code": existing_node.code,
+                    "name": existing_node.name,
+                    "parent_study": parent_study.code,
+                })
+                continue
+
             node = ScopeNode(
                 code=analysis["code"],
                 name=analysis["name"],
@@ -691,7 +773,114 @@ async def seed_pipeline_data() -> dict:
         })
 
         # ============================================================
-        # 7. 提交事务
+        # 7. 创建 Study Spec 数据 (SDTM/ADaM Specifications)
+        # ============================================================
+        print("\n📚 创建 Study Spec 数据...")
+
+        # Get the first study (ZL-1310-001)
+        study_1 = study_nodes[0]
+
+        # Create SDTM Spec for ZL-1310-001
+        existing_sdtm_spec = await session.execute(
+            select(Specification).where(
+                Specification.scope_node_id == study_1.id,
+                Specification.spec_type == SpecType.SDTM,
+                Specification.is_deleted == False,  # noqa: E712
+            )
+        )
+        sdtm_spec = existing_sdtm_spec.scalar_one_or_none()
+
+        if not sdtm_spec:
+            sdtm_spec = Specification(
+                scope_node_id=study_1.id,
+                name=f"{study_1.code} SDTM Specification v1.0",
+                spec_type=SpecType.SDTM,
+                version="1.0",
+                status=SpecStatus.DRAFT,
+                description=f"SDTM Specification for {study_1.name}",
+                created_by="pipeline_seeder",
+            )
+            session.add(sdtm_spec)
+            await session.flush()
+            print(f"   ✓ SDTM Spec 创建成功: {sdtm_spec.name} (ID={sdtm_spec.id})")
+
+            # Create DM dataset
+            dm_dataset = TargetDataset(
+                specification_id=sdtm_spec.id,
+                dataset_name="DM",
+                description="Demographics",
+                class_type=DatasetClass.SPECIAL_PURPOSE,
+                sort_order=1,
+                origin_type=OriginType.CDISC,
+                override_type=OverrideType.NONE,
+                created_by="pipeline_seeder",
+            )
+            session.add(dm_dataset)
+            await session.flush()
+
+            # Create DM variables
+            dm_variables = [
+                {"name": "STUDYID", "label": "Study Identifier", "type": DataType.CHAR, "length": 12, "core": VariableCore.REQ, "role": "Identifier"},
+                {"name": "DOMAIN", "label": "Domain Abbreviation", "type": DataType.CHAR, "length": 2, "core": VariableCore.REQ, "role": "Identifier"},
+                {"name": "USUBJID", "label": "Unique Subject Identifier", "type": DataType.CHAR, "length": 40, "core": VariableCore.REQ, "role": "Identifier"},
+            ]
+            for i, var_def in enumerate(dm_variables):
+                var = TargetVariable(
+                    dataset_id=dm_dataset.id,
+                    variable_name=var_def["name"],
+                    variable_label=var_def["label"],
+                    data_type=var_def["type"],
+                    length=var_def["length"],
+                    core=var_def["core"],
+                    sort_order=i,
+                    origin_type=OriginType.CDISC,
+                    override_type=OverrideType.NONE,
+                    standard_metadata={"role": var_def["role"]},
+                    created_by="pipeline_seeder",
+                )
+                session.add(var)
+            print(f"   ✓ DM Dataset 创建成功，包含 {len(dm_variables)} 个变量")
+
+            # Create VS dataset
+            vs_dataset = TargetDataset(
+                specification_id=sdtm_spec.id,
+                dataset_name="VS",
+                description="Vital Signs",
+                class_type=DatasetClass.FINDINGS,
+                sort_order=2,
+                origin_type=OriginType.CDISC,
+                override_type=OverrideType.NONE,
+                created_by="pipeline_seeder",
+            )
+            session.add(vs_dataset)
+            await session.flush()
+
+            # Create VS variables
+            vs_variables = [
+                {"name": "STUDYID", "label": "Study Identifier", "type": DataType.CHAR, "length": 12, "core": VariableCore.REQ, "role": "Identifier"},
+                {"name": "DOMAIN", "label": "Domain Abbreviation", "type": DataType.CHAR, "length": 2, "core": VariableCore.REQ, "role": "Identifier"},
+            ]
+            for i, var_def in enumerate(vs_variables):
+                var = TargetVariable(
+                    dataset_id=vs_dataset.id,
+                    variable_name=var_def["name"],
+                    variable_label=var_def["label"],
+                    data_type=var_def["type"],
+                    length=var_def["length"],
+                    core=var_def["core"],
+                    sort_order=i,
+                    origin_type=OriginType.CDISC,
+                    override_type=OverrideType.NONE,
+                    standard_metadata={"role": var_def["role"]},
+                    created_by="pipeline_seeder",
+                )
+                session.add(var)
+            print(f"   ✓ VS Dataset 创建成功，包含 {len(vs_variables)} 个变量")
+        else:
+            print(f"   ✓ SDTM Spec 已存在: {sdtm_spec.name} (ID={sdtm_spec.id})")
+
+        # ============================================================
+        # 8. 提交事务
         # ============================================================
         await session.commit()
 

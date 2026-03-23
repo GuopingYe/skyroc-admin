@@ -162,3 +162,21 @@ export function useRecentAccess() {
     recentAccessList
   };
 }
+
+/** 获取 Study 的 ScopeNode ID（用于 API 查询） */
+export function useStudyScopeNodeId(): number | null {
+  const context = useAppSelector(selectClinicalContext);
+  return context.study?.scopeNodeId ?? null;
+}
+
+/** 获取 Analysis 的 ScopeNode ID（用于 API 查询） */
+export function useAnalysisScopeNodeId(): number | null {
+  const context = useAppSelector(selectClinicalContext);
+  return context.analysis?.scopeNodeId ?? null;
+}
+
+/** 获取 Study 的标准版本配置 */
+export function useStudyStandardConfig() {
+  const context = useAppSelector(selectClinicalContext);
+  return context.study?.config ?? null;
+}
