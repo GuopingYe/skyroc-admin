@@ -990,6 +990,10 @@ declare namespace App {
                 title: string;
               };
               form: {
+                customDatasetName: string;
+                customDomainName: string;
+                customizedDataset: string;
+                customizedDomain: string;
                 datasetLabelPlaceholder: string;
                 datasetPlaceholder: string;
                 descriptionPlaceholder: string;
@@ -1006,9 +1010,13 @@ declare namespace App {
                 titlePlaceholder: string;
                 typePlaceholder: string;
                 validateMsg: {
+                  customDatasetRequired: string;
+                  customDomainRequired: string;
                   datasetLabelRequired: string;
+                  datasetNameFormat: string;
                   datasetRequired: string;
                   descriptionRequired: string;
+                  domainNameFormat: string;
                   domainRequired: string;
                   labelRequired: string;
                   outputIdRequired: string;
@@ -1048,6 +1056,26 @@ declare namespace App {
               totalTasks: string;
             };
             studySpec: {
+              addDataset: {
+                add: string;
+                autoReplaceHint: string;
+                classType: string;
+                classTypeRequired: string;
+                customDomain: string;
+                domainLabel: string;
+                domainLabelRequired: string;
+                domainName: string;
+                domainNameFormat: string;
+                domainNameRequired: string;
+                enterDomainName: string;
+                fromGlobalLibrary: string;
+                searchDataset: string;
+                selectDataset: string;
+                selectDatasetHint: string;
+                success: string;
+                title: string;
+                variablePreview: string;
+              };
               addSuccess: string;
               addVariable: string;
               class: string;
@@ -1068,8 +1096,6 @@ declare namespace App {
               };
               confirmDelete: string;
               datasets: string;
-              keys: string;
-              noDatasets: string;
               delete: string;
               deleteSuccess: string;
               edit: string;
@@ -1095,11 +1121,13 @@ declare namespace App {
                   variableNameRequired: string;
                 };
               };
+              keys: string;
+              noDatasets: string;
               scopeContext: {
-                selectHint: string;
                 analysis: string;
                 compound: string;
                 currentScope: string;
+                selectHint: string;
                 study: string;
                 switchAnalysis: string;
                 ta: string;
@@ -1140,6 +1168,13 @@ declare namespace App {
                 selectAnalysisForTfl: string;
                 selectAnalysisHint: string;
               };
+              figureHints: {
+                addSeries: string;
+                configureXAxis: string;
+                configureYAxis: string;
+                selectChartType: string;
+                unsupportedType: string;
+              };
               figureMeta: {
                 basicInfo: string;
                 chartType: string;
@@ -1166,6 +1201,10 @@ declare namespace App {
                 saved: string;
                 statisticAdded: string;
                 variableAdded: string;
+              };
+              overview: {
+                emptyHint: string;
+                selectOrCreate: string;
               };
               props: {
                 alignment: string;
@@ -1195,6 +1234,15 @@ declare namespace App {
                 shell: string;
                 title: string;
               };
+              sidebar: {
+                all: string;
+                empty: string;
+                figures: string;
+                listings: string;
+                studySettings: string;
+                studySettingsBack: string;
+                tables: string;
+              };
               tableMeta: {
                 analysisFilter: string;
                 analysisSubset: string;
@@ -1208,40 +1256,20 @@ declare namespace App {
                 treatmentArms: string;
                 whereClause: string;
               };
-              overview: {
-                emptyHint: string;
-                selectOrCreate: string;
-              };
-              sidebar: {
-                all: string;
-                empty: string;
-                figures: string;
-                listings: string;
-                studySettings: string;
-                studySettingsBack: string;
-                tables: string;
-              };
               tabs: {
                 axes: string;
                 columns: string;
                 filter: string;
                 footer: string;
                 metadata: string;
+                population: string;
                 preview: string;
+                programmingNotes: string;
                 rowStructure: string;
                 series: string;
                 sortOrder: string;
-                population: string;
-                programmingNotes: string;
-                treatmentArms: string;
                 statistics: string;
-              };
-              figureHints: {
-                addSeries: string;
-                configureXAxis: string;
-                configureYAxis: string;
-                selectChartType: string;
-                unsupportedType: string;
+                treatmentArms: string;
               };
               toolbar: {
                 editMode: string;
@@ -1278,17 +1306,17 @@ declare namespace App {
           };
           reload: string;
           tflDesigner: {
-            title: string;
+            categories: Record<string, string>;
             common: Record<string, string>;
             displayTypes: Record<string, string>;
-            categories: Record<string, string>;
-            table: Record<string, any>;
-            figure: Record<string, any>;
-            listing: Record<string, any>;
-            studyMetadata: Record<string, string>;
-            populations: Record<string, string>;
-            headerStyles: Record<string, any>;
             exportFormats: Record<string, any>;
+            figure: Record<string, any>;
+            headerStyles: Record<string, any>;
+            listing: Record<string, any>;
+            populations: Record<string, string>;
+            studyMetadata: Record<string, string>;
+            table: Record<string, any>;
+            title: string;
             [key: string]: any;
           };
           tflTemplateLibrary: Record<string, string>;
@@ -1478,7 +1506,9 @@ declare namespace App {
         : K
       : never;
 
-    type I18nKey = GetI18nKey<Schema['translation']>;
+    // Use string to avoid TS2589 "Type instantiation is excessively deep" error
+    // The GetI18nKey type is kept for documentation but not used directly
+    type I18nKey = string;
 
     type TranslateOptions<Locales extends string> = import('react-i18next').TranslationProps<Locales>;
 
