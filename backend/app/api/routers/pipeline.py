@@ -429,12 +429,12 @@ async def update_study_config(
         raise HTTPException(status_code=404, detail="Study not found")
 
     meta = copy.deepcopy(study.extra_attrs or {})
-    
+
     if data.protocol_title is not None:
         meta["protocol_title"] = data.protocol_title
     if data.phase is not None:
         meta["phase"] = data.phase
-        
+
     config = meta.get("study_config", {})
     if data.sdtm_model_version is not None:
         config["sdtmModelVersion"] = data.sdtm_model_version
@@ -448,9 +448,9 @@ async def update_study_config(
         config["meddraVersion"] = data.meddra_version
     if data.whodrug_version is not None:
         config["whodrugVersion"] = data.whodrug_version
-        
+
     meta["study_config"] = config
-    
+
     study.extra_attrs = meta
     study.updated_by = user.username
     await db.commit()

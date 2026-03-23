@@ -10,3 +10,23 @@
 # Skills 指引
 - 当你需要编写数据库、API 或处理后端逻辑时，请自动调用 `backend-arch` skill。
 - 当你需要编写 React、Zustand 或 UI 逻辑时，请自动调用 `frontend-arch` skill。
+
+## Coding Standards
+- Always prefer direct code fixes over lengthy explanations
+- Run TypeScript type check after making changes: `npx tsc --noEmit`
+- Verify changes work before marking complete
+
+## Testing & Verification
+- After bug fixes: verify the fix works by running the app or relevant tests
+- Check for React infinite loops (useEffect dependencies) before marking complete
+- Save and checkpoint work frequently to avoid losing progress on interruptions
+
+## Environment
+- Frontend runs on port 5173, backend on port 8080
+- Check if servers are running before debugging connection issues
+- API prefix is /api/v1 (not just /api)
+
+## Git Workflow
+- Commit frequently with descriptive messages
+- Run linting and type checks before committing
+- For multi-component changes, commit frontend and backend separately

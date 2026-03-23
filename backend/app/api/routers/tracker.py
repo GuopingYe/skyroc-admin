@@ -117,7 +117,6 @@ def _filter_by_category(query, category: str | None):
 
 @router.get(
     "/tasks",
-    response_model=TrackerListResponse,
     summary="获取 Tracker 任务列表",
     description="""
 获取指定 Analysis 下的所有 Tracker 任务列表。
@@ -144,7 +143,7 @@ async def get_tracker_tasks(
     limit: int = Query(100, ge=1, le=500, description="返回数量限制"),
     offset: int = Query(0, ge=0, description="偏移量（分页）"),
     db: AsyncSession = Depends(get_db_session),
-) -> TrackerListResponse:
+) -> dict:
     """
     获取 Tracker 任务列表
 
@@ -186,10 +185,10 @@ async def get_tracker_tasks(
     result = await db.execute(query)
     trackers = result.scalars().all()
 
-    # 7. 构建响应
-    items = [ProgrammingTrackerRead.model_validate(t) for t in trackers]
+    # 7. 构建响应 - 使用 _ok 包装以保持与其他 API 一致
+    items = [ProgrammingTrackerRead.model_validate(t).model_dump() for t in trackers]
 
-    return TrackerListResponse(total=total, items=items)
+    return _ok({"total": total, "items": items})
 
 
 # ============================================================
@@ -198,7 +197,6 @@ async def get_tracker_tasks(
 
 @router.post(
     "/task",
-    response_model=TaskCreateResponse,
     summary="创建 Tracker 任务",
     description="""
 创建一个新的编程任务。
@@ -223,7 +221,7 @@ async def create_tracker_task(
     task_data: ProgrammingTrackerCreate,
     user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-) -> TaskCreateResponse:
+) -> dict:
     """
     创建 Tracker 任务
     """
@@ -274,7 +272,7 @@ async def create_tracker_task(
     await db.commit()
     await db.refresh(new_task)
 
-    return TaskCreateResponse(id=new_task.id, message="Task created successfully")
+    return _ok({"id": new_task.id, "message": "Task created successfully"})
 
 
 # ============================================================
@@ -283,7 +281,6 @@ async def create_tracker_task(
 
 @router.put(
     "/task/{task_id}",
-    response_model=TaskUpdateResponse,
     summary="更新 Tracker 任务",
     description="""
 更新指定的编程任务。
@@ -308,7 +305,7 @@ async def update_tracker_task(
     task_data: ProgrammingTrackerUpdate,
     user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-) -> TaskUpdateResponse:
+) -> dict:
     """
     更新 Tracker 任务
     """
@@ -348,7 +345,7 @@ async def update_tracker_task(
 
     await db.commit()
 
-    return TaskUpdateResponse(success=True, message="Task updated successfully")
+    return _ok({"success": True, "message": "Task updated successfully"})
 
 
 # ============================================================
@@ -357,7 +354,6 @@ async def update_tracker_task(
 
 @router.delete(
     "/task/{task_id}",
-    response_model=TaskDeleteResponse,
     summary="删除 Tracker 任务",
     description="""
 软删除指定的编程任务。
@@ -378,7 +374,7 @@ async def delete_tracker_task(
     task_id: int,
     user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-) -> TaskDeleteResponse:
+) -> dict:
     """
     删除 Tracker 任务 (软删除)
     """
@@ -405,7 +401,7 @@ async def delete_tracker_task(
 
     await db.commit()
 
-    return TaskDeleteResponse(success=True, message="Task deleted successfully")
+    return _ok({"success": True, "message": "Task deleted successfully"})
 
 
 # ============================================================
@@ -504,7 +500,6 @@ async def transition_task_status(
 
 @router.get(
     "/task/{task_id}",
-    response_model=ProgrammingTrackerRead,
     summary="获取任务详情",
     description="""
 获取指定任务的详细信息。
@@ -517,7 +512,7 @@ async def transition_task_status(
 async def get_tracker_task(
     task_id: int,
     db: AsyncSession = Depends(get_db_session),
-) -> ProgrammingTrackerRead:
+) -> dict:
     """
     获取单个任务详情
     """
@@ -528,7 +523,7 @@ async def get_tracker_task(
             detail=f"Task with id {task_id} not found",
         )
 
-    return ProgrammingTrackerRead.model_validate(task)
+    return _ok(ProgrammingTrackerRead.model_validate(task).model_dump())
 
 
 # ============================================================
@@ -537,7 +532,6 @@ async def get_tracker_task(
 
 @router.post(
     "/task/{tracker_id}/issues",
-    response_model=TrackerIssueRead,
     summary="提交 QC Issue",
     description="""
 为指定 Tracker 提交一条新的 QC Issue。
@@ -561,7 +555,7 @@ async def create_tracker_issue(
     tracker_id: int,
     issue_data: TrackerIssueCreate,
     db: AsyncSession = Depends(get_db_session),
-) -> TrackerIssueRead:
+) -> dict:
     """
     提交 QC Issue
 
@@ -605,7 +599,7 @@ async def create_tracker_issue(
     await db.commit()
     await db.refresh(new_issue)
 
-    return TrackerIssueRead.model_validate(new_issue)
+    return _ok(TrackerIssueRead.model_validate(new_issue).model_dump())
 
 
 # ============================================================
@@ -614,7 +608,6 @@ async def create_tracker_issue(
 
 @router.put(
     "/issue/{issue_id}/response",
-    response_model=TrackerIssueRead,
     summary="程序员回复 Issue",
     description="""
 程序员回复指定的 Issue。
@@ -637,7 +630,7 @@ async def respond_to_issue(
     issue_id: int,
     response_data: TrackerIssueResponse,
     db: AsyncSession = Depends(get_db_session),
-) -> TrackerIssueRead:
+) -> dict:
     """
     程序员回复 Issue
 
@@ -677,7 +670,7 @@ async def respond_to_issue(
     await db.commit()
     await db.refresh(issue)
 
-    return TrackerIssueRead.model_validate(issue)
+    return _ok(TrackerIssueRead.model_validate(issue).model_dump())
 
 
 # ============================================================
@@ -686,7 +679,6 @@ async def respond_to_issue(
 
 @router.get(
     "/task/{tracker_id}/issues",
-    response_model=IssueListResponse,
     summary="获取 Tracker 的 Issue 列表",
     description="""
 获取指定 Tracker 的所有 Issue 列表。
@@ -710,7 +702,7 @@ async def get_tracker_issues(
     limit: int = Query(100, ge=1, le=500, description="返回数量限制"),
     offset: int = Query(0, ge=0, description="偏移量（分页）"),
     db: AsyncSession = Depends(get_db_session),
-) -> IssueListResponse:
+) -> dict:
     """
     获取 Tracker 的 Issue 列表
     """
@@ -753,6 +745,6 @@ async def get_tracker_issues(
     issues = result.scalars().all()
 
     # 7. 构建响应
-    items = [TrackerIssueRead.model_validate(i) for i in issues]
+    items = [TrackerIssueRead.model_validate(i).model_dump() for i in issues]
 
-    return IssueListResponse(total=total, items=items)
+    return _ok({"total": total, "items": items})

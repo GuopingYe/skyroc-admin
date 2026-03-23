@@ -2,11 +2,18 @@
  * TaskFormModal - 任务表单弹窗
  *
  * 支持创建和编辑不同类型的编程任务（SDTM/ADaM/TFL/Other）
+ *
+ * 域下拉列表特性:
+ * 1. 从 Global Library 继承标准域（基于 Study 配置的标准版本）
+ * 2. 支持 "Customized Domain" 自定义域输入
  */
-import { Avatar, Form, Input, Modal, Select, Space, Tag } from 'antd';
+import { Avatar, Divider, Form, Input, Modal, Select, Space, Spin, Tag } from 'antd';
 import type { ModalProps } from 'antd';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { useStudyStandardConfig } from '@/features/clinical-context';
+import { useSpecifications, useVersionDatasets } from '@/service/hooks';
 
 import type {
   IADaMTask,
@@ -18,7 +25,7 @@ import type {
   TaskCategory,
   TaskStatus
 } from '../mockData';
-import { TASK_CATEGORY_ORDER, adamDatasets, programmers, sdtmDomains, taskStatusConfig } from '../mockData';
+import { TASK_CATEGORY_ORDER, programmers, taskStatusConfig } from '../mockData';
 
 const { TextArea } = Input;
 
@@ -43,6 +50,81 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
+  // Use state to track category to avoid calling form.getFieldValue() before form is connected
+  const [currentCategory, setCurrentCategory] = useState<TaskCategory>(taskCategory);
+
+  // ==================== Global Library Domain Fetching ====================
+  // Get study's standard version configuration
+  const studyConfig = useStudyStandardConfig();
+
+  // Fetch specifications from Global Library
+  const { data: sdtmSpecifications } = useSpecifications('SDTM');
+  const { data: adamSpecifications } = useSpecifications('ADaM');
+
+  // Find specification IDs that match study's configured versions
+  const sdtmSpecId = useMemo(() => {
+    if (!sdtmSpecifications) return null;
+    const version = studyConfig?.sdtmIgVersion;
+    if (version) {
+      const spec = sdtmSpecifications.find(
+        s => s.standard_version === version ||
+             s.version === version ||
+             s.name.includes(version)
+      );
+      if (spec) return spec.id;
+    }
+    // Fallback to first specification
+    return sdtmSpecifications[0]?.id ?? null;
+  }, [sdtmSpecifications, studyConfig?.sdtmIgVersion]);
+
+  const adamSpecId = useMemo(() => {
+    if (!adamSpecifications) return null;
+    const version = studyConfig?.adamIgVersion;
+    if (version) {
+      const spec = adamSpecifications.find(
+        s => s.standard_version === version ||
+             s.version === version ||
+             s.name.includes(version)
+      );
+      if (spec) return spec.id;
+    }
+    // Fallback to first specification
+    return adamSpecifications[0]?.id ?? null;
+  }, [adamSpecifications, studyConfig?.adamIgVersion]);
+
+  // Fetch datasets from the selected specification
+  const { data: sdtmDatasetsData, isLoading: sdtmDatasetsLoading } = useVersionDatasets(sdtmSpecId, { limit: 100 });
+  const { data: adamDatasetsData, isLoading: adamDatasetsLoading } = useVersionDatasets(adamSpecId, { limit: 100 });
+
+  // Custom domain input state
+  const [customDomain, setCustomDomain] = useState('');
+  const [customDataset, setCustomDataset] = useState('');
+
+  // Build SDTM domain options with "Customized Domain" option
+  const sdtmDomainOptions = useMemo(() => {
+    const options: Array<{ domain: string; label: string; isCustom?: boolean }> = [
+      { domain: '__CUSTOM__', label: t('page.mdr.programmingTracker.form.customizedDomain'), isCustom: true }
+    ];
+    if (sdtmDatasetsData?.items) {
+      sdtmDatasetsData.items.forEach(d => {
+        options.push({ domain: d.dataset_name, label: d.description || d.dataset_name });
+      });
+    }
+    return options;
+  }, [sdtmDatasetsData, t]);
+
+  // Build ADaM dataset options with "Customized Domain" option
+  const adamDatasetOptions = useMemo(() => {
+    const options: Array<{ dataset: string; label: string; isCustom?: boolean }> = [
+      { dataset: '__CUSTOM__', label: t('page.mdr.programmingTracker.form.customizedDataset'), isCustom: true }
+    ];
+    if (adamDatasetsData?.items) {
+      adamDatasetsData.items.forEach(d => {
+        options.push({ dataset: d.dataset_name, label: d.description || d.dataset_name });
+      });
+    }
+    return options;
+  }, [adamDatasetsData, t]);
 
   // Modal 打开时初始化表单
   useEffect(() => {
@@ -55,6 +137,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
           qcProgrammer: editingTask.qcProgrammer.id,
           status: editingTask.status
         };
+        // Update currentCategory state when editing
+        setCurrentCategory(editingTask.category);
 
         if (editingTask.category === 'SDTM') {
           const sdtmTask = editingTask as ISDTMTask;
@@ -94,6 +178,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
         // 新增模式：设置默认分类
         form.resetFields();
         form.setFieldsValue({ category: taskCategory });
+        setCurrentCategory(taskCategory);
       }
     }
   }, [open, operateType, editingTask, taskCategory, form]);
@@ -102,7 +187,19 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      await onSubmit(values);
+
+      // Handle custom domain/dataset substitution
+      const processedValues = { ...values };
+      if (values.domain === '__CUSTOM__' && values.customDomainName) {
+        processedValues.domain = values.customDomainName;
+        delete processedValues.customDomainName;
+      }
+      if (values.dataset === '__CUSTOM__' && values.customDatasetName) {
+        processedValues.dataset = values.customDatasetName;
+        delete processedValues.customDatasetName;
+      }
+
+      await onSubmit(processedValues);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Form validation failed:', error);
@@ -191,33 +288,60 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
     </>
   );
 
-  // 分类特定字段
+  // 分类特定字段 - use currentCategory state instead of form.getFieldValue()
   const renderCategoryFields = useMemo(() => {
-    const currentCategory = form.getFieldValue('category') || taskCategory;
-
     switch (currentCategory) {
       case 'SDTM':
         return (
           <>
-            <Form.Item
-              label={t('page.mdr.programmingTracker.cols.domain')}
-              name="domain"
-              rules={[{ message: t('page.mdr.programmingTracker.form.validateMsg.domainRequired'), required: true }]}
-            >
-              <Select
-                showSearch
-                optionFilterProp="children"
-                placeholder={t('page.mdr.programmingTracker.form.domainPlaceholder')}
+            <Spin spinning={sdtmDatasetsLoading}>
+              <Form.Item
+                label={t('page.mdr.programmingTracker.cols.domain')}
+                name="domain"
+                rules={[{ message: t('page.mdr.programmingTracker.form.validateMsg.domainRequired'), required: true }]}
               >
-                {sdtmDomains.map(d => (
-                  <Select.Option
-                    key={d.domain}
-                    value={d.domain}
+                <Select
+                  showSearch
+                  optionFilterProp="children"
+                  placeholder={t('page.mdr.programmingTracker.form.domainPlaceholder')}
+                  onChange={() => setCustomDomain('')}
+                >
+                  {sdtmDomainOptions.map(d => (
+                    <Select.Option
+                      key={d.domain}
+                      value={d.domain}
+                    >
+                      {d.isCustom ? (
+                        <Tag color="gold">{d.label}</Tag>
+                      ) : (
+                        <><Tag color="blue">{d.domain}</Tag> - {d.label}</>
+                      )}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Spin>
+            {/* Custom Domain Input - shows when __CUSTOM__ is selected */}
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldValue }) => {
+                const domainValue = getFieldValue('domain');
+                return domainValue === '__CUSTOM__' ? (
+                  <Form.Item
+                    label={t('page.mdr.programmingTracker.form.customDomainName')}
+                    name="customDomainName"
+                    rules={[
+                      { message: t('page.mdr.programmingTracker.form.validateMsg.customDomainRequired'), required: true },
+                      { pattern: /^[A-Z]{2}$/, message: t('page.mdr.programmingTracker.form.validateMsg.domainNameFormat') }
+                    ]}
                   >
-                    <Tag color="blue">{d.domain}</Tag> - {d.label}
-                  </Select.Option>
-                ))}
-              </Select>
+                    <Input
+                      maxLength={2}
+                      placeholder="e.g., CE, FA, SV"
+                      onChange={e => setCustomDomain(e.target.value.toUpperCase())}
+                    />
+                  </Form.Item>
+                ) : null;
+              }}
             </Form.Item>
             <Form.Item
               label={t('page.mdr.programmingTracker.cols.datasetLabel')}
@@ -242,25 +366,53 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       case 'ADaM':
         return (
           <>
-            <Form.Item
-              label={t('page.mdr.programmingTracker.cols.dataset')}
-              name="dataset"
-              rules={[{ message: t('page.mdr.programmingTracker.form.validateMsg.datasetRequired'), required: true }]}
-            >
-              <Select
-                showSearch
-                optionFilterProp="children"
-                placeholder={t('page.mdr.programmingTracker.form.datasetPlaceholder')}
+            <Spin spinning={adamDatasetsLoading}>
+              <Form.Item
+                label={t('page.mdr.programmingTracker.cols.dataset')}
+                name="dataset"
+                rules={[{ message: t('page.mdr.programmingTracker.form.validateMsg.datasetRequired'), required: true }]}
               >
-                {adamDatasets.map(d => (
-                  <Select.Option
-                    key={d.dataset}
-                    value={d.dataset}
+                <Select
+                  showSearch
+                  optionFilterProp="children"
+                  placeholder={t('page.mdr.programmingTracker.form.datasetPlaceholder')}
+                  onChange={() => setCustomDataset('')}
+                >
+                  {adamDatasetOptions.map(d => (
+                    <Select.Option
+                      key={d.dataset}
+                      value={d.dataset}
+                    >
+                      {d.isCustom ? (
+                        <Tag color="gold">{d.label}</Tag>
+                      ) : (
+                        <><Tag color="green">{d.dataset}</Tag> - {d.label}</>
+                      )}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Spin>
+            {/* Custom Dataset Input - shows when __CUSTOM__ is selected */}
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldValue }) => {
+                const datasetValue = getFieldValue('dataset');
+                return datasetValue === '__CUSTOM__' ? (
+                  <Form.Item
+                    label={t('page.mdr.programmingTracker.form.customDatasetName')}
+                    name="customDatasetName"
+                    rules={[
+                      { message: t('page.mdr.programmingTracker.form.validateMsg.customDatasetRequired'), required: true },
+                      { pattern: /^AD[A-Z]{1,3}$/, message: t('page.mdr.programmingTracker.form.validateMsg.datasetNameFormat') }
+                    ]}
                   >
-                    <Tag color="green">{d.dataset}</Tag> - {d.label}
-                  </Select.Option>
-                ))}
-              </Select>
+                    <Input
+                      placeholder="e.g., ADSL, ADAE, ADLB"
+                      onChange={e => setCustomDataset(e.target.value.toUpperCase())}
+                    />
+                  </Form.Item>
+                ) : null;
+              }}
             </Form.Item>
             <Form.Item
               label={t('page.mdr.programmingTracker.cols.label')}
@@ -379,8 +531,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
       default:
         return renderCommonFields();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskCategory, form.getFieldValue('category'), t]);
+  }, [currentCategory, t]);
 
   const modalTitle =
     operateType === 'add'
@@ -399,9 +550,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
   };
 
   // 监听分类变化，动态显示字段
-  const handleCategoryChange = () => {
-    // 触发重新渲染分类字段
-    form.validateFields(['category']);
+  const handleCategoryChange = (value: TaskCategory) => {
+    // Update state to trigger re-render of category fields
+    setCurrentCategory(value);
   };
 
   return (
