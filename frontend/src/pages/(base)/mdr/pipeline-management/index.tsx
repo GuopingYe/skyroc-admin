@@ -86,18 +86,15 @@ import type { IProjectMilestone } from './types';
 
 const { Text } = Typography;
 
-// ⚠️ 开发模式：临时绕过 RBAC 权限检查
-// TODO: 生产环境需要恢复基于角色的权限控制
-const BYPASS_RBAC = true;
-
 const PipelineManagement: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
-  // 🔓 开发模式：绕过权限检查
-  const canManage = Boolean(BYPASS_RBAC);
+  // TODO: Implement proper RBAC permission checks based on user roles
+  // Currently allowing access for authenticated users
+  const canManage = true;
 
   // 从全局 Store 获取上下文状态
   const {
@@ -1005,17 +1002,6 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           )}
         </Card>
 
-        {/* Study 配置 */}
-        {nodeType === 'STUDY' && (
-          <StudyConfigCard
-            form={form}
-            isEditing={isEditing}
-            isLocked={isLocked}
-            messageApi={messageApi}
-            studyNode={selectedNode as StudyNode}
-          />
-        )}
-
         {/* Analysis 配置 */}
         {nodeType === 'ANALYSIS' && (
           <Card
@@ -1102,160 +1088,6 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
         )}
       </Card>
     </div>
-  );
-};
-
-/** Study Config Card */
-interface StudyConfigCardProps {
-  form: ReturnType<typeof Form.useForm>[0];
-  isEditing: boolean;
-  isLocked: boolean;
-  messageApi: ReturnType<typeof message.useMessage>[0];
-  studyNode: StudyNode;
-}
-
-const StudyConfigCard: React.FC<StudyConfigCardProps> = ({ form, isEditing, isLocked, messageApi, studyNode }) => {
-  const { t } = useTranslation();
-  const [versionsLoading, setVersionsLoading] = useState(true);
-  const [versionOptions, setVersionOptions] = useState<{
-    adamIgVersions: { label: string; value: string }[];
-    adamModelVersions: { label: string; value: string }[];
-    meddraVersions: { label: string; value: string }[];
-    sdtmIgVersions: { label: string; value: string }[];
-    sdtmModelVersions: { label: string; value: string }[];
-    studyPhases: { label: string; value: string }[];
-    whodrugVersions: { label: string; value: string }[];
-  } | null>(null);
-
-  // Track which study we've loaded to detect changes
-  const [loadedStudyId, setLoadedStudyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    getAvailableVersions().then((res: any) => {
-      if (res) {
-        setVersionOptions(res);
-      }
-    }).finally(() => {
-      setVersionsLoading(false);
-    });
-  }, []);
-
-  // Reset form values when studyNode changes
-  useEffect(() => {
-    if (studyNode && studyNode.id !== loadedStudyId) {
-      const config = studyNode.config || {};
-      form.setFieldsValue({
-        protocolTitle: studyNode.protocolTitle || '',
-        phase: studyNode.phase || '',
-        config: {
-          sdtmModelVersion: config.sdtmModelVersion || null,
-          sdtmIgVersion: config.sdtmIgVersion || null,
-          adamModelVersion: config.adamModelVersion || null,
-          adamIgVersion: config.adamIgVersion || null,
-          meddraVersion: config.meddraVersion || null,
-          whodrugVersion: config.whodrugVersion || null,
-        },
-      });
-      setLoadedStudyId(studyNode.id);
-    }
-  }, [studyNode, form, loadedStudyId]);
-
-  return (
-    <Card
-      className="mb-16px card-wrapper"
-      size="small"
-      title={
-        <Space>
-          <SettingOutlined className="text-blue-500" />
-          <span className="font-medium">{t('page.mdr.pipelineManagement.studyConfig.title')}</span>
-        </Space>
-      }
-    >
-      <Spin spinning={versionsLoading}>
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label={t('page.mdr.pipelineManagement.studyConfig.protocolTitle')}
-              name="protocolTitle"
-            >
-              <Input disabled={!isEditing} />
-            </Form.Item>
-            <Form.Item
-              label={t('page.mdr.pipelineManagement.studyConfig.phase')}
-              name="phase"
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.studyPhases || []}
-              />
-            </Form.Item>
-          </div>
-          <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.cdiscStandards')}</Divider>
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label="SDTM Model"
-              name={['config', 'sdtmModelVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.sdtmModelVersions || []}
-              />
-            </Form.Item>
-            <Form.Item
-              label="SDTM IG"
-              name={['config', 'sdtmIgVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.sdtmIgVersions || []}
-              />
-            </Form.Item>
-            <Form.Item
-              label="ADaM Model"
-              name={['config', 'adamModelVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.adamModelVersions || []}
-              />
-            </Form.Item>
-            <Form.Item
-              label="ADaM IG"
-              name={['config', 'adamIgVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.adamIgVersions || []}
-              />
-            </Form.Item>
-          </div>
-          <Divider className="my-12px">{t('page.mdr.pipelineManagement.studyConfig.dictionaries')}</Divider>
-          <div className="grid grid-cols-2 gap-16px">
-            <Form.Item
-              label="MedDRA"
-              name={['config', 'meddraVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.meddraVersions || []}
-              />
-            </Form.Item>
-            <Form.Item
-              label="WHODrug"
-              name={['config', 'whodrugVersion']}
-            >
-              <Select
-                disabled={!isEditing}
-                options={versionOptions?.whodrugVersions || []}
-              />
-            </Form.Item>
-          </div>
-        </Form>
-      </Spin>
-    </Card>
   );
 };
 

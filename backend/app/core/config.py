@@ -3,6 +3,8 @@
 """
 from functools import lru_cache
 from typing import Literal
+import secrets
+import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,8 +25,9 @@ class Settings(BaseSettings):
     # Database (defaults match docker-compose.yml)
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres123@localhost:15432/clinical_mdr"
 
-    # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    # Security - SECRET_KEY must be set via environment variable in production
+    # Generate a secure key: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    SECRET_KEY: str = ""  # No default - must be explicitly set
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -35,10 +38,29 @@ class Settings(BaseSettings):
     CDISC_LIBRARY_API_KEY: str = ""
     CDISC_API_BASE_URL: str = "https://library.cdisc.org/api"
 
-    # Default Admin Credentials (for seed data)
+    # Default Admin Credentials (for seed data only - should be changed after initial setup)
     DEFAULT_ADMIN_USERNAME: str = "admin"
-    DEFAULT_ADMIN_PASSWORD: str = "admin123"
+    DEFAULT_ADMIN_PASSWORD: str = ""  # No default - must be explicitly set
     DEFAULT_ADMIN_EMAIL: str = "admin@pharma.com"
+
+    # Rate Limiting
+    RATE_LIMIT_REQUESTS: int = 100  # Max requests per window
+    RATE_LIMIT_WINDOW_SECONDS: int = 60  # Window in seconds
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Validate critical security settings
+        if not self.SECRET_KEY:
+            if self.ENVIRONMENT == "production":
+                raise ValueError(
+                    "SECRET_KEY environment variable must be set in production! "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+            else:
+                # Generate a temporary key for development only
+                self.SECRET_KEY = secrets.token_urlsafe(32)
+                print("⚠️  WARNING: Using auto-generated SECRET_KEY for development. "
+                      "Set SECRET_KEY environment variable for production.")
 
 
 @lru_cache

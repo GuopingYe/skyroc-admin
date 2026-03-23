@@ -9,10 +9,7 @@ import type { RequestInstanceState } from './type';
 
 export const request = createRequest<App.Service.Response, RequestInstanceState>(
   {
-    baseURL: globalConfig.serviceBaseURL,
-    headers: {
-      apifoxToken: 'XL299LiMEDZ0H5h3A29PxwQXdMJqWyY2'
-    }
+    baseURL: globalConfig.serviceBaseURL
   },
   {
     isBackendSuccess(response) {

@@ -9,14 +9,17 @@
 from datetime import datetime, timezone
 from typing import Annotated, Any, Generic, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, get_current_user
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -29,6 +32,9 @@ from app.database import get_db_session
 from app.models import Permission, Role, User, UserScopeRole
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+# Rate limiter for authentication endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ============================================================
@@ -97,19 +103,23 @@ def success_response(data: Any) -> dict:
 
 
 @router.post("/login")
+@limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/{settings.RATE_LIMIT_WINDOW_SECONDS}seconds")
 async def login(
-    request: LoginRequest,
+    request: Request,  # Required by slowapi for rate limiting
+    login_request: LoginRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """
     用户登录
 
     验证用户名密码，返回 Access Token 和 Refresh Token
+
+    Rate limited to prevent brute force attacks.
     """
     # 查询用户
     result = await db.execute(
         select(User).where(
-            User.username == request.userName,
+            User.username == login_request.userName,
             User.is_deleted == False,
         )
     )
@@ -125,7 +135,7 @@ async def login(
 
     # 验证密码
     if user.password_hash is None or not verify_password(
-        request.password, user.password_hash
+        login_request.password, user.password_hash
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -218,14 +228,18 @@ async def get_user_info(
 
 
 @router.post("/refreshToken")
+@limiter.limit(f"{settings.RATE_LIMIT_REQUESTS}/{settings.RATE_LIMIT_WINDOW_SECONDS}seconds")
 async def refresh_token(
-    request: RefreshTokenRequest,
+    http_request: Request,  # Required by slowapi for rate limiting
+    token_request: RefreshTokenRequest,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """
     刷新 Token
 
     使用 Refresh Token 获取新的 Access Token
+
+    Rate limited to prevent abuse.
     """
     # 登出错误响应（不触发前端刷新，直接跳转登录页）
     def logout_response(msg: str):
@@ -239,7 +253,7 @@ async def refresh_token(
         )
 
     # 验证 Refresh Token
-    payload = verify_refresh_token(request.refreshToken)
+    payload = verify_refresh_token(token_request.refreshToken)
     if payload is None:
         return logout_response("Invalid refresh token")
 

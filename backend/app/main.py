@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 from app.database import async_session_factory, engine
@@ -19,6 +20,51 @@ from app.models import Base, register_audit_listeners
 ERROR_CODE_SUCCESS = "0000"
 ERROR_CODE_TOKEN_EXPIRED = "9999"  # Token 过期
 ERROR_CODE_UNAUTHORIZED = "8888"  # 未授权/需要登录
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """添加安全响应头中间件"""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # XSS Protection (legacy browsers)
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Referrer Policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Content Security Policy - basic policy
+        # Adjust as needed for your application
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Adjust for your needs
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none';"
+        )
+
+        # Permissions Policy (formerly Feature Policy)
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), "
+            "camera=(), "
+            "geolocation=(), "
+            "gyroscope=(), "
+            "magnetometer=(), "
+            "microphone=(), "
+            "payment=(), "
+            "usb=()"
+        )
+
+        return response
 
 
 def error_response(code: str, msg: str, status_code: int = 200) -> JSONResponse:
@@ -93,6 +139,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security Headers 中间件
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Rate Limiting - Initialize slowapi state
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # ============================================================
 # Exception Handlers
@@ -155,6 +213,8 @@ from app.api.routers import (
     pipeline_router,
     pull_requests_router,
     rbac_router,
+    study_spec_router,
+    tfl_router,
     tracker_router,
 )
 
@@ -200,5 +260,15 @@ app.include_router(
 
 app.include_router(
     pipeline_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    study_spec_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    tfl_router,
     prefix="/api/v1",
 )
