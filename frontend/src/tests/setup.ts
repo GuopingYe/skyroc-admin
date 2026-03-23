@@ -16,12 +16,23 @@ afterEach(() => {
   cleanup();
 });
 
-// Mock localStorage
+// Mock localStorage with actual storage behavior
+const localStorageStore: Record<string, string> = {};
 const localStorageMock = {
-  clear: vi.fn(),
-  getItem: vi.fn(),
-  removeItem: vi.fn(),
-  setItem: vi.fn()
+  clear: vi.fn(() => {
+    Object.keys(localStorageStore).forEach(key => delete localStorageStore[key]);
+  }),
+  getItem: vi.fn((key: string) => localStorageStore[key] ?? null),
+  key: vi.fn((index: number) => Object.keys(localStorageStore)[index] ?? null),
+  get length() {
+    return Object.keys(localStorageStore).length;
+  },
+  removeItem: vi.fn((key: string) => {
+    delete localStorageStore[key];
+  }),
+  setItem: vi.fn((key: string, value: string) => {
+    localStorageStore[key] = value;
+  })
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
