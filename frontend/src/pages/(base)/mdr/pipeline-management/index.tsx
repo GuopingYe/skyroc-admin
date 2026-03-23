@@ -53,6 +53,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useClinicalContext } from '@/features/clinical-context';
+import { useAuth } from '@/features/auth/auth';
 import {
   archivePipelineNode,
   createPipelineMilestone,
@@ -92,9 +93,14 @@ const PipelineManagement: React.FC = () => {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
-  // TODO: Implement proper RBAC permission checks based on user roles
-  // Currently allowing access for authenticated users
-  const canManage = true;
+  // RBAC permission checks
+  const { hasAuth, isStaticSuper } = useAuth();
+
+  // Permission checks for pipeline management operations
+  const canManageTA = isStaticSuper || hasAuth(['ta:create', 'ta:delete']);
+  const canManageStudy = isStaticSuper || hasAuth(['study:create', 'study:delete', 'study:lock']);
+  const canArchiveNode = isStaticSuper || hasAuth('node:archive');
+  const canManage = canManageTA || canManageStudy || canArchiveNode;
 
   // 从全局 Store 获取上下文状态
   const {
@@ -391,7 +397,7 @@ const PipelineManagement: React.FC = () => {
             >
               {t('page.mdr.pipelineManagement.view')}
             </Button>
-            {canManage && (
+            {canArchiveNode && (
               <Popconfirm
                 title={t('page.mdr.pipelineManagement.archiveConfirm')}
                 onConfirm={() => handleArchive(record.id)}
@@ -411,7 +417,7 @@ const PipelineManagement: React.FC = () => {
         width: 120
       }
     ],
-    [t, handleArchive, form, canManage]
+    [t, handleArchive, form, canArchiveNode]
   );
 
   const childNodes = useMemo(
@@ -432,7 +438,10 @@ const PipelineManagement: React.FC = () => {
         children: (
           <PortfolioAdminTab
             allowedChildType={allowedChildType}
+            canArchiveNode={canArchiveNode}
             canManage={canManage}
+            canManageStudy={canManageStudy}
+            canManageTA={canManageTA}
             childColumns={childColumns}
             childNodes={childNodes}
             form={form}
@@ -533,6 +542,9 @@ const PipelineManagement: React.FC = () => {
       selectedNode,
       isEditing,
       canManage,
+      canManageTA,
+      canManageStudy,
+      canArchiveNode,
       childColumns,
       childNodes,
       allowedChildType,
@@ -619,7 +631,10 @@ const PipelineManagement: React.FC = () => {
 /** Portfolio Admin Tab */
 interface PortfolioAdminTabProps {
   allowedChildType: NodeType | null;
+  canArchiveNode: boolean;
   canManage: boolean;
+  canManageStudy: boolean;
+  canManageTA: boolean;
   childColumns: ColumnsType<PipelineNode>;
   childNodes: PipelineNode[];
   form: ReturnType<typeof Form.useForm>[0];
@@ -643,7 +658,10 @@ interface PortfolioAdminTabProps {
 
 const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   allowedChildType,
+  canArchiveNode,
   canManage,
+  canManageStudy,
+  canManageTA,
   childColumns,
   childNodes,
   form,
@@ -796,7 +814,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
                 onClick={handleToggleExpand}
               />
             </Tooltip>
-            {canManage && (
+            {canManageTA && (
               <Button
                 className="flex-1"
                 icon={<PlusOutlined />}
@@ -863,7 +881,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
               onClick={handleToggleExpand}
             />
           </Tooltip>
-          {canManage && (
+          {canManageTA && (
             <Button
               className="flex-1"
               icon={<PlusOutlined />}
@@ -917,7 +935,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
               >
                 {isEditing ? t('page.mdr.pipelineManagement.cancelEdit') : t('page.mdr.pipelineManagement.edit')}
               </Button>
-              {canManage && (
+              {canArchiveNode && (
                 <Popconfirm
                   disabled={isLocked}
                   title={t('page.mdr.pipelineManagement.archiveConfirm')}
@@ -1060,14 +1078,16 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             className="card-wrapper"
             size="small"
             extra={
-              <Button
-                icon={<PlusOutlined />}
-                size="small"
-                type="primary"
-                onClick={() => onOpenCreate(allowedChildType)}
-              >
-                {t('page.mdr.pipelineManagement.createChild', { type: nodeTypeConfig[allowedChildType].label })}
-              </Button>
+              (canManageStudy || (allowedChildType === 'TA' && canManageTA)) && (
+                <Button
+                  icon={<PlusOutlined />}
+                  size="small"
+                  type="primary"
+                  onClick={() => onOpenCreate(allowedChildType)}
+                >
+                  {t('page.mdr.pipelineManagement.createChild', { type: nodeTypeConfig[allowedChildType].label })}
+                </Button>
+              )
             }
             title={
               <Space>
