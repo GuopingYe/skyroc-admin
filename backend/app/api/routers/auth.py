@@ -12,14 +12,13 @@ from typing import Annotated, Any, Generic, TypeVar
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, get_current_user
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -32,9 +31,6 @@ from app.database import get_db_session
 from app.models import Permission, Role, User, UserScopeRole
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-# Rate limiter for authentication endpoints
-limiter = Limiter(key_func=get_remote_address)
 
 
 # ============================================================

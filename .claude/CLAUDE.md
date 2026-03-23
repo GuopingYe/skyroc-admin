@@ -15,6 +15,8 @@
 - Always prefer direct code fixes over lengthy explanations
 - Run TypeScript type check after making changes: `npx tsc --noEmit`
 - Verify changes work before marking complete
+- Frontend uses feature-based architecture: `features/[feature]/` for reusable, `pages/[page]/` for page-specific
+- Zustand stores colocated with features or pages
 
 ## Testing & Verification
 - After bug fixes: verify the fix works by running the app or relevant tests
@@ -25,8 +27,11 @@
 - Frontend runs on port 5173, backend on port 8080
 - Check if servers are running before debugging connection issues
 - API prefix is /api/v1 (not just /api)
+- Use `pnpm` as package manager for frontend (Vite)
+- Frontend path alias: `@/` maps to `frontend/src/`
 
 ## Git Workflow
 - Commit frequently with descriptive messages
 - Run linting and type checks before committing
 - For multi-component changes, commit frontend and backend separately
+- Clean up `.tmp` and `sed*` temp files before committing

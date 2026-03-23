@@ -96,11 +96,18 @@ const PipelineManagement: React.FC = () => {
   // RBAC permission checks
   const { hasAuth, isStaticSuper } = useAuth();
 
-  // Permission checks for pipeline management operations
-  const canManageTA = isStaticSuper || hasAuth(['ta:create', 'ta:delete']);
-  const canManageStudy = isStaticSuper || hasAuth(['study:create', 'study:delete', 'study:lock']);
-  const canArchiveNode = isStaticSuper || hasAuth('node:archive');
-  const canManage = canManageTA || canManageStudy || canArchiveNode;
+  // Memoized permission checks for pipeline management operations
+  const { canManage, canArchiveNode, canManageStudy, canManageTA } = useMemo(() => {
+    const ta = isStaticSuper || hasAuth(['ta:create', 'ta:delete']);
+    const study = isStaticSuper || hasAuth(['study:create', 'study:delete', 'study:lock']);
+    const archive = isStaticSuper || hasAuth('node:archive');
+    return {
+      canArchiveNode: archive,
+      canManage: ta || study || archive,
+      canManageStudy: study,
+      canManageTA: ta
+    };
+  }, [hasAuth, isStaticSuper]);
 
   // 从全局 Store 获取上下文状态
   const {

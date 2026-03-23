@@ -18,8 +18,31 @@ from app.models import Base, register_audit_listeners
 
 # 错误代码常量（与前端 .env 配置对应）
 ERROR_CODE_SUCCESS = "0000"
-ERROR_CODE_TOKEN_EXPIRED = "9999"  # Token 过期
-ERROR_CODE_UNAUTHORIZED = "8888"  # 未授权/需要登录
+ERROR_CODE_TOKEN_EXPIRED = "9999"
+ERROR_CODE_UNAUTHORIZED = "8888"
+
+
+# Pre-computed security header values (avoid string construction on every request)
+_CSP_HEADER = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none';"
+)
+
+_PERMISSIONS_POLICY_HEADER = (
+    "accelerometer=(), "
+    "camera=(), "
+    "geolocation=(), "
+    "gyroscope=(), "
+    "magnetometer=(), "
+    "microphone=(), "
+    "payment=(), "
+    "usb=()"
+)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -28,41 +51,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Prevent MIME type sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
-
-        # Prevent clickjacking
         response.headers["X-Frame-Options"] = "DENY"
-
-        # XSS Protection (legacy browsers)
         response.headers["X-XSS-Protection"] = "1; mode=block"
-
-        # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
-        # Content Security Policy - basic policy
-        # Adjust as needed for your application
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "  # Adjust for your needs
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none';"
-        )
-
-        # Permissions Policy (formerly Feature Policy)
-        response.headers["Permissions-Policy"] = (
-            "accelerometer=(), "
-            "camera=(), "
-            "geolocation=(), "
-            "gyroscope=(), "
-            "magnetometer=(), "
-            "microphone=(), "
-            "payment=(), "
-            "usb=()"
-        )
+        response.headers["Content-Security-Policy"] = _CSP_HEADER
+        response.headers["Permissions-Policy"] = _PERMISSIONS_POLICY_HEADER
 
         return response
 
@@ -143,11 +137,10 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate Limiting - Initialize slowapi state
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
-limiter = Limiter(key_func=get_remote_address)
+from app.core.limiter import limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
