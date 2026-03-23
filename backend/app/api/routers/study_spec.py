@@ -21,6 +21,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps import CurrentUser
 from app.database import get_db_session
 from app.models import ScopeNode, Specification, TargetDataset, TargetVariable
 from app.models.mapping_enums import DatasetClass, DataType, OriginType, OverrideType, SpecStatus, SpecType, VariableCore
@@ -194,6 +195,7 @@ class StudySpecListParams(BaseModel):
 """,
 )
 async def get_study_specs(
+    user: CurrentUser,
     scope_node_id: int | None = Query(None, description="ScopeNode ID"),
     scope_node_code: str | None = Query(None, description="ScopeNode code"),
     spec_type: str | None = Query(None, description="规范类型：SDTM/ADaM/QRS"),
@@ -312,6 +314,7 @@ async def get_study_specs(
 )
 async def get_study_spec_detail(
     spec_id: int,
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """获取 Study Spec 详情"""
@@ -397,6 +400,7 @@ async def get_study_spec_detail(
 )
 async def get_study_datasets(
     spec_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词"),
     class_type: str | None = Query(None, description="数据集分类"),
     limit: int = Query(50, ge=1, le=200, description="分页大小"),
@@ -497,6 +501,7 @@ async def get_study_datasets(
 )
 async def get_dataset_variables(
     dataset_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词"),
     core: str | None = Query(None, description="核心性：Req/Exp/Perm"),
     origin_type: str | None = Query(None, description="来源类型"),
@@ -658,8 +663,8 @@ class CreateFromGlobalLibraryResponse(BaseModel):
 )
 async def create_study_spec_from_global_library(
     request: CreateFromGlobalLibraryRequest,
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(lambda: {"id": "system"}),
 ) -> dict:
     """从 Global Library 初始化 Study Spec"""
     # 1. 验证基线 Specification 存在
@@ -828,8 +833,8 @@ class AddDatasetFromGlobalLibraryResponse(BaseModel):
 async def add_dataset_from_global_library(
     spec_id: int,
     request: AddDatasetFromGlobalLibraryRequest,
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(lambda: {"id": "system"}),
 ) -> dict:
     """从 Global Library 添加 Dataset"""
     # 1. 验证 Study Spec 存在
@@ -1047,8 +1052,8 @@ STANDARD_VARIABLES = [
 async def create_custom_dataset(
     spec_id: int,
     request: CreateCustomDatasetRequest,
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
-    current_user: dict = Depends(lambda: {"id": "system"}),
 ) -> dict:
     """创建自定义 Domain 数据集"""
     # 1. 验证 Study Spec 存在

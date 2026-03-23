@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import CurrentUser
 from app.database import get_db_session
 from app.models import Codelist, CodelistTerm, ScopeNode, Specification, TargetDataset, TargetVariable
 from app.models.enums import NodeType
@@ -256,6 +257,7 @@ CDISC (根节点)
     },
 )
 async def get_cdisc_tree(
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
 ) -> list[TreeNode]:
     """
@@ -519,6 +521,7 @@ async def get_cdisc_tree(
 )
 async def get_version_datasets(
     version_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词（匹配名称或描述）", min_length=1, max_length=100),
     limit: int = Query(50, ge=1, le=500, description="每页数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
@@ -669,6 +672,7 @@ CDISC_VARIABLE_PRIORITY = {
 )
 async def get_dataset_variables(
     dataset_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词（匹配变量名或标签）", min_length=1, max_length=100),
     core: str | None = Query(None, description="核心属性过滤：Req/Perm/Exp"),
     limit: int = Query(100, ge=1, le=500, description="每页数量"),
@@ -906,20 +910,24 @@ async def get_dataset_variables(
     """,
 )
 async def get_specifications_list(
-    spec_type: str | None = Query(None, description="按规范类型过滤：SDTM/ADaM/QRS"),
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),
+    spec_type: str | None = Query(None, description="按规范类型过滤：SDTM/ADaM/QRS"),
 ) -> list[dict[str, Any]]:
     """
     获取所有可用规范列表
 
     用于下拉选择器等场景
     """
-    # 验证 spec_type 参数
+    # 验证 spec_type 参数 (case-insensitive matching)
     spec_type_enum: SpecType | None = None
     if spec_type:
-        try:
-            spec_type_enum = SpecType(spec_type.upper())
-        except ValueError:
+        spec_type_lower = spec_type.lower()
+        for st in SpecType:
+            if st.value.lower() == spec_type_lower:
+                spec_type_enum = st
+                break
+        if spec_type_enum is None:
             valid_types = [e.value for e in SpecType]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1295,6 +1303,7 @@ SDTM_MODEL_COLUMNS: list[ColumnSchema] = [
 )
 async def get_table_schema(
     standard_type: str,
+    user: CurrentUser,
 ) -> TableSchema:
     """
     获取表格 Schema
@@ -1350,6 +1359,7 @@ async def get_table_schema(
 )
 async def get_ct_codelists(
     scope_node_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词（匹配名称或Codelist ID）", min_length=1, max_length=100),
     limit: int = Query(50, ge=1, le=500, description="每页数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
@@ -1470,6 +1480,7 @@ async def get_ct_codelists(
 )
 async def get_codelist_terms(
     codelist_id: int,
+    user: CurrentUser,
     search: str | None = Query(None, description="搜索关键词（匹配名称或术语值）", min_length=1, max_length=100),
     limit: int = Query(100, ge=1, le=500, description="每页数量"),
     offset: int = Query(0, ge=0, description="偏移量"),

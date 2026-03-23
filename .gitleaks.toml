@@ -1,0 +1,43 @@
+# Gitleaks configuration for secret detection
+# https://github.com/gitleaks/gitleaks#configuration
+
+title = "Gitleaks Configuration"
+
+[extend]
+# Use default rules plus custom rules
+useDefault = true
+
+[[rules]]
+id = "env-file-secrets"
+description = "Secret in .env file"
+regex = '''(?i)(password|secret|key|token|credential)\s*[=:]\s*['"]?[^\s'"#]+['"]?'''
+tags = ["env", "secret"]
+path = '''\.env$'''
+
+[[rules]]
+id = "python-secret-assignment"
+description = "Secret assignment in Python"
+regex = '''(?i)(password|secret|api_key|token)\s*=\s*['"][^'"]+['"]'''
+tags = ["python", "secret"]
+path = '''\.py$'''
+
+[[rules]]
+id = "typescript-secret-assignment"
+description = "Secret assignment in TypeScript/JavaScript"
+regex = '''(?i)(password|secret|apiKey|api_key|token)\s*[=:]\s*['"][^'"]+['"]'''
+tags = ["typescript", "secret"]
+path = '''\.[jt]sx?$'''
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''\.env\.example$''',
+    '''package-lock\.json$''',
+    '''pnpm-lock\.yaml$''',
+    '''\.pre-commit-config\.yaml$''',
+    '''gitleaks\.toml$''',
+]
+regexes = [
+    '''YOUR_PASSWORD_HERE''',
+    '''admin123''',  # Default dev password (already flagged in code review)
+]

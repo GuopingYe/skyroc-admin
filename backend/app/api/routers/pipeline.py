@@ -79,6 +79,7 @@ _STUDY_PHASES = [
 
 @router.get("/available-versions", summary="Get available versions for Study Config dropdowns")
 async def get_available_versions(
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session)
 ):
     """Return all version options for study configuration dropdowns.
@@ -267,7 +268,10 @@ async def get_pipeline_tree(
 
 
 @router.get("/therapeutic-areas", summary="List therapeutic areas")
-async def list_therapeutic_areas(db: AsyncSession = Depends(get_db_session)):
+async def list_therapeutic_areas(
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session)
+):
     res = await db.execute(
         select(ScopeNode)
         .where(
@@ -353,6 +357,7 @@ def _parse_id(id_str: str | None) -> int | None:
 
 @router.get("/products", summary="List products")
 async def list_products(
+    user: CurrentUser,
     ta_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db_session)
 ):
@@ -371,6 +376,7 @@ async def list_products(
 
 @router.get("/studies", summary="List studies")
 async def list_studies(
+    user: CurrentUser,
     product_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db_session)
 ):
@@ -390,6 +396,7 @@ async def list_studies(
 @router.get("/studies/{study_id}/config", summary="Get study configuration")
 async def get_study_config(
     study_id: str,
+    user: CurrentUser,
     db: AsyncSession = Depends(get_db_session)
 ):
     study_id_int = _parse_id(study_id)
@@ -460,6 +467,7 @@ async def update_study_config(
 
 @router.get("/analyses", summary="List analyses")
 async def list_analyses(
+    user: CurrentUser,
     study_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db_session)
 ):
@@ -607,6 +615,7 @@ def _get_milestone_node(study_id: int, analysis_id: int | None, db: AsyncSession
 
 @router.get("/milestones", summary="List milestones")
 async def list_milestones(
+    user: CurrentUser,
     study_id: str = Query(..., description="Study ID (required)"),
     analysis_id: str | None = Query(None, description="Analysis ID (optional filter)"),
     db: AsyncSession = Depends(get_db_session)
@@ -754,6 +763,7 @@ async def delete_milestone(
 
 @router.get("/execution-jobs", summary="List execution jobs")
 async def list_execution_jobs(
+    user: CurrentUser,
     analysis_id: str = Query(..., description="Analysis ID (required)"),
     db: AsyncSession = Depends(get_db_session)
 ):
