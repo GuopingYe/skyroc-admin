@@ -59,6 +59,11 @@ def pytest_configure(config):
 
     Base.metadata.create_all(sync_engine, checkfirst=True)
     sync_engine.dispose()
+
+    # Register audit listeners for tests
+    from app.models import register_audit_listeners
+    register_audit_listeners(Base)
+
     _tables_created = True
 
 

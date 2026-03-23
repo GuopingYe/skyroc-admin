@@ -71,7 +71,7 @@ class TestAuthLogin:
         """Test login with disabled account."""
         # Disable user
         test_user.is_active = False
-        await db_session.commit()
+        await db_session.flush()
 
         response = await client.post(
             "/api/v1/auth/login",

@@ -190,7 +190,6 @@ async def get_user_info(
             .join(Role, UserScopeRole.role_id == Role.id)
             .where(
                 UserScopeRole.user_id == current_user.id,
-                UserScopeRole.is_deleted == False,
                 Role.is_deleted == False,
             )
             .distinct()
@@ -205,7 +204,6 @@ async def get_user_info(
             .join(Role.permissions)
             .where(
                 UserScopeRole.user_id == current_user.id,
-                UserScopeRole.is_deleted == False,
                 Role.is_deleted == False,
             )
             .distinct()
