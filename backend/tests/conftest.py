@@ -8,6 +8,8 @@ Provides:
 - Audit context for compliance testing
 """
 import asyncio
+import os
+import tempfile
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Generator
 
@@ -28,8 +30,46 @@ from app.models import Base, User, set_audit_context
 # Test Database Configuration
 # ============================================================
 
-# Use in-memory SQLite for tests (faster, isolated)
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Use file-based SQLite for tests
+# Close the temp file immediately to avoid Windows file locking issues
+TEST_DB_FILE = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+TEST_DB_PATH = TEST_DB_FILE.name
+TEST_DB_FILE.close()  # Close file handle on Windows to allow deletion
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+
+# Global state
+_test_engine = None
+_tables_created = False
+
+
+def pytest_configure(config):
+    """Set up test database once before any tests run."""
+    global _test_engine, _tables_created
+
+    if _tables_created:
+        return
+
+    # Delete existing db file if it exists (cleanup from previous run)
+    if os.path.exists(TEST_DB_PATH):
+        os.unlink(TEST_DB_PATH)
+
+    # Create sync engine just for table creation
+    from sqlalchemy import create_engine as sync_create_engine
+    sync_url = TEST_DATABASE_URL.replace("+aiosqlite", "")
+    sync_engine = sync_create_engine(sync_url, echo=False)
+
+    Base.metadata.create_all(sync_engine, checkfirst=True)
+    sync_engine.dispose()
+    _tables_created = True
+
+
+def pytest_unconfigure(config):
+    """Clean up test database after all tests."""
+    try:
+        if os.path.exists(TEST_DB_PATH):
+            os.unlink(TEST_DB_PATH)
+    except (FileNotFoundError, PermissionError, OSError):
+        pass
 
 
 @pytest.fixture(scope="session")
@@ -42,39 +82,29 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
-    """Create test database engine (session-scoped for efficiency)."""
-    from sqlalchemy.ext.asyncio import create_async_engine
-
+    """Create test database engine (session-scoped singleton)."""
     engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
         future=True,
+        connect_args={"check_same_thread": False},
     )
-
-    async with engine.begin() as conn:
-        # checkfirst=True skips tables that already exist
-        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-
     yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
     await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create database session for tests."""
-    async_session = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
-    async with async_session() as session:
-        yield session
-        await session.rollback()  # Rollback to isolate tests
+    """Create database session for tests with transaction rollback."""
+    async with test_engine.connect() as connection:
+        transaction = await connection.begin()
+        async with AsyncSession(
+            bind=connection,
+            expire_on_commit=False,
+        ) as session:
+            yield session
+        # Rollback the transaction (session was bound to this connection)
+        await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -115,7 +145,7 @@ async def test_user(db_session: AsyncSession) -> User:
         is_superuser=False,
     )
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()  # Flush instead of commit (within savepoint)
     await db_session.refresh(user)
     return user
 
@@ -134,7 +164,7 @@ async def admin_user(db_session: AsyncSession) -> User:
         is_superuser=True,
     )
     db_session.add(user)
-    await db_session.commit()
+    await db_session.flush()  # Flush instead of commit
     await db_session.refresh(user)
     return user
 

@@ -285,7 +285,6 @@ class Permission(Base, TimestampMixin):
     # 表级约束
     # ============================================================
     __table_args__ = (
-        Index("ix_permissions_category", "category"),
         {"comment": "权限表"},
     )
 
