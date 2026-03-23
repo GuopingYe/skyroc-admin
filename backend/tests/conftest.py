@@ -37,14 +37,13 @@ TEST_DB_PATH = TEST_DB_FILE.name
 TEST_DB_FILE.close()  # Close file handle on Windows to allow deletion
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
 
-# Global state
-_test_engine = None
+# Global state for table creation (used by pytest_configure)
 _tables_created = False
 
 
 def pytest_configure(config):
     """Set up test database once before any tests run."""
-    global _test_engine, _tables_created
+    global _tables_created
 
     if _tables_created:
         return
@@ -227,7 +226,7 @@ class TestDataFactory:
             parent_id=parent_id,
         )
         db_session.add(node)
-        await db_session.commit()
+        await db_session.flush()
         await db_session.refresh(node)
         return node
 
@@ -246,7 +245,7 @@ class TestDataFactory:
             description=f"Test role: {name}",
         )
         db_session.add(role)
-        await db_session.commit()
+        await db_session.flush()
         await db_session.refresh(role)
         return role
 
