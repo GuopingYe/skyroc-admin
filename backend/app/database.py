@@ -5,15 +5,26 @@
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
+
+# 连接池配置
+# - pool_size: 常驻连接数，适合中等并发
+# - max_overflow: 允许超出 pool_size 的临时连接数
+# - pool_pre_ping: 每次使用前检查连接是否有效，防止连接断开
+# - pool_recycle: 连接回收时间（秒），防止 PostgreSQL 连接超时
+POOL_CONFIG = {
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,  # 30 minutes
+} if settings.ENVIRONMENT != "test" else {}
 
 # 异步引擎
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.ENVIRONMENT == "development",
-    poolclass=NullPool,  # 适合 serverless 或容器化环境
+    **POOL_CONFIG,
 )
 
 # 异步会话工厂
