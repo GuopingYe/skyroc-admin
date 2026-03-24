@@ -186,9 +186,6 @@ export default defineConfig(configEnv => {
           './src/pages/(base)/**/*.tsx'
         ]
       }
-    },
-    fs: {
-      cachedChecks: true
     }
   };
 });
