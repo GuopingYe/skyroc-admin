@@ -78,15 +78,73 @@ export default defineConfig(configEnv => {
 
             return 'js/[name]-[hash].js'; // 默认处理方式
           },
-          manualChunks: {
-            animate: ['motion'],
-            antd: ['antd', '@ant-design/v5-patch-for-react-19'],
-            axios: ['axios'],
-            il8n: ['react-i18next', 'i18next'],
-            react: ['react', 'react-dom', 'react-error-boundary'],
-            reactRouter: ['react-router-dom'],
-            redux: ['react-redux', '@reduxjs/toolkit'],
-            sa: ['@sa/axios', '@sa/color', '@sa/hooks', '@sa/materials', '@sa/utils']
+          manualChunks: (id) => {
+            // React 核心
+            if (id.includes('node_modules/react/') ||
+                id.includes('node_modules/react-dom/') ||
+                id.includes('node_modules/scheduler/')) {
+              return 'react-core';
+            }
+
+            // React 生态
+            if (id.includes('node_modules/react-router-dom/') ||
+                id.includes('node_modules/@tanstack/')) {
+              return 'react-ecosystem';
+            }
+
+            // Ant Design（包含所有 rc-* 组件）
+            if (id.includes('node_modules/antd/') ||
+                id.includes('node_modules/@ant-design/') ||
+                id.includes('node_modules/rc-')) {
+              return 'antd';
+            }
+
+            // 图表库
+            if (id.includes('node_modules/echarts/') ||
+                id.includes('node_modules/zrender/')) {
+              return 'echarts';
+            }
+
+            // 动画库
+            if (id.includes('node_modules/motion/')) {
+              return 'animation';
+            }
+
+            // 工具库
+            if (id.includes('node_modules/lodash-es/') ||
+                id.includes('node_modules/lodash/')) {
+              return 'lodash';
+            }
+
+            if (id.includes('node_modules/dayjs/')) {
+              return 'dayjs';
+            }
+
+            // i18n
+            if (id.includes('node_modules/i18next/') ||
+                id.includes('node_modules/react-i18next/')) {
+              return 'i18n';
+            }
+
+            // 状态管理
+            if (id.includes('node_modules/zustand/')) {
+              return 'zustand';
+            }
+
+            if (id.includes('node_modules/@reduxjs/') ||
+                id.includes('node_modules/react-redux/')) {
+              return 'redux';
+            }
+
+            // @sa 系列工具
+            if (id.includes('node_modules/@sa/')) {
+              return 'sa-utils';
+            }
+
+            // 其他 node_modules
+            if (id.includes('node_modules/')) {
+              return 'vendor';
+            }
           }
         }
       }
