@@ -6,6 +6,21 @@ import { defineConfig, loadEnv } from 'vite';
 import { createViteProxy, getBuildTime } from './build/config';
 import { setupVitePlugins } from './build/plugins';
 
+/** Vendor chunk configuration for bundle splitting */
+const VENDOR_CHUNKS: Array<{ modules: string[]; name: string }> = [
+  { modules: ['react/', 'react-dom/', 'scheduler/'], name: 'react-core' },
+  { modules: ['react-router-dom/', '@tanstack/'], name: 'react-ecosystem' },
+  { modules: ['antd/', '@ant-design/', 'rc-'], name: 'antd' },
+  { modules: ['echarts/', 'zrender/'], name: 'echarts' },
+  { modules: ['motion/'], name: 'animation' },
+  { modules: ['lodash-es/', 'lodash/'], name: 'lodash' },
+  { modules: ['dayjs/'], name: 'dayjs' },
+  { modules: ['i18next/', 'react-i18next/'], name: 'i18n' },
+  { modules: ['zustand/'], name: 'zustand' },
+  { modules: ['@reduxjs/', 'react-redux/'], name: 'redux' },
+  { modules: ['@sa/'], name: 'sa-utils' }
+];
+
 // https://vitejs.dev/config/
 export default defineConfig(configEnv => {
   const viteEnv = loadEnv(configEnv.mode, process.cwd()) as unknown as Env.ImportMeta;
@@ -79,69 +94,11 @@ export default defineConfig(configEnv => {
             return 'js/[name]-[hash].js'; // 默认处理方式
           },
           manualChunks: (id) => {
-            // React 核心
-            if (id.includes('node_modules/react/') ||
-                id.includes('node_modules/react-dom/') ||
-                id.includes('node_modules/scheduler/')) {
-              return 'react-core';
+            for (const { modules, name } of VENDOR_CHUNKS) {
+              if (modules.some(m => id.includes(`node_modules/${m}`))) {
+                return name;
+              }
             }
-
-            // React 生态
-            if (id.includes('node_modules/react-router-dom/') ||
-                id.includes('node_modules/@tanstack/')) {
-              return 'react-ecosystem';
-            }
-
-            // Ant Design（包含所有 rc-* 组件）
-            if (id.includes('node_modules/antd/') ||
-                id.includes('node_modules/@ant-design/') ||
-                id.includes('node_modules/rc-')) {
-              return 'antd';
-            }
-
-            // 图表库
-            if (id.includes('node_modules/echarts/') ||
-                id.includes('node_modules/zrender/')) {
-              return 'echarts';
-            }
-
-            // 动画库
-            if (id.includes('node_modules/motion/')) {
-              return 'animation';
-            }
-
-            // 工具库
-            if (id.includes('node_modules/lodash-es/') ||
-                id.includes('node_modules/lodash/')) {
-              return 'lodash';
-            }
-
-            if (id.includes('node_modules/dayjs/')) {
-              return 'dayjs';
-            }
-
-            // i18n
-            if (id.includes('node_modules/i18next/') ||
-                id.includes('node_modules/react-i18next/')) {
-              return 'i18n';
-            }
-
-            // 状态管理
-            if (id.includes('node_modules/zustand/')) {
-              return 'zustand';
-            }
-
-            if (id.includes('node_modules/@reduxjs/') ||
-                id.includes('node_modules/react-redux/')) {
-              return 'redux';
-            }
-
-            // @sa 系列工具
-            if (id.includes('node_modules/@sa/')) {
-              return 'sa-utils';
-            }
-
-            // 其他 node_modules
             if (id.includes('node_modules/')) {
               return 'vendor';
             }
