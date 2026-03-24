@@ -13,27 +13,26 @@ import { filterAuthRoutesByRoles, mergeValuesByParent, transformBackendRoutesToR
 export async function initAuthRoutes(addRoutes: (parent: string | null, route: RouteObject[]) => void) {
   const authRouteMode = import.meta.env.VITE_AUTH_ROUTE_MODE;
 
-  // 开发模式自动登录
+  // 开发模式自动登录（保持串行，必须先完成认证）
   await devAutoLogin();
 
   const reactAuthRoutes = mergeValuesByParent(authRoutes);
 
-  const userInfo = await queryClient.ensureQueryData<Api.Auth.UserInfo>({
-    queryFn: fetchGetUserInfo,
-    queryKey: QUERY_KEYS.AUTH.USER_INFO
-  });
-
-  const isSuper = userInfo?.roles.includes(import.meta.env.VITE_STATIC_SUPER_ROLE);
-
   // 静态模式
   if (authRouteMode === 'static') {
-    // 超级管理员
+    // 静态模式：只获取用户信息
+    const userInfo = await queryClient.ensureQueryData<Api.Auth.UserInfo>({
+      queryFn: fetchGetUserInfo,
+      queryKey: QUERY_KEYS.AUTH.USER_INFO
+    });
+
+    const isSuper = userInfo?.roles.includes(import.meta.env.VITE_STATIC_SUPER_ROLE);
+
     if (isSuper) {
       reactAuthRoutes.forEach(route => {
         addRoutes(route.parent, route.route);
       });
     } else {
-      // 非超级管理员
       const filteredRoutes = filterAuthRoutesByRoles(reactAuthRoutes, userInfo?.roles || []);
 
       filteredRoutes.forEach(({ parent, route }) => {
@@ -41,14 +40,35 @@ export async function initAuthRoutes(addRoutes: (parent: string | null, route: R
       });
     }
   } else {
-    // 动态模式
+    // 动态模式：并行获取用户信息和路由
     try {
-      const data = await queryClient.ensureQueryData<Api.Route.BackendRouteResponse>({
-        gcTime: Infinity,
-        queryFn: fetchGetBackendRoutes,
-        queryKey: QUERY_KEYS.ROUTE.USER_ROUTES,
-        staleTime: Infinity
-      });
+      const [userInfoResult, routesResult] = await Promise.allSettled([
+        queryClient.ensureQueryData<Api.Auth.UserInfo>({
+          queryFn: fetchGetUserInfo,
+          queryKey: QUERY_KEYS.AUTH.USER_INFO
+        }),
+        queryClient.ensureQueryData<Api.Route.BackendRouteResponse>({
+          gcTime: Infinity,
+          queryFn: fetchGetBackendRoutes,
+          queryKey: QUERY_KEYS.ROUTE.USER_ROUTES,
+          staleTime: Infinity
+        })
+      ]);
+
+      // 处理用户信息获取结果
+      if (userInfoResult.status === 'rejected') {
+        console.error('Failed to fetch user info:', userInfoResult.reason);
+        // 用户信息获取失败，但可以继续尝试加载路由
+      }
+
+      // 处理路由获取结果
+      if (routesResult.status === 'rejected') {
+        console.error('Failed to fetch backend routes:', routesResult.reason);
+        window.$message?.error('路由初始化失败，请刷新页面重试');
+        return;
+      }
+
+      const data = routesResult.value;
 
       store.dispatch(setHomePath(data.home));
 
@@ -80,8 +100,6 @@ export async function initAuthRoutes(addRoutes: (parent: string | null, route: R
         }
       });
     } catch (error) {
-      // 路由初始化失败是严重错误，需要记录日志
-
       console.error('Failed to initialize auth routes:', error);
       window.$message?.error('路由初始化失败，请刷新页面重试');
     }
