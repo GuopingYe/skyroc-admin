@@ -99,8 +99,19 @@ export default defineConfig(configEnv => {
       port: 9527,
       proxy: createViteProxy(viteEnv, enableProxy),
       warmup: {
-        clientFiles: ['./index.html', './src/{pages,components}/*']
+        clientFiles: [
+          './index.html',
+          './src/main.tsx',
+          './src/App.tsx',
+          './src/store/index.ts',
+          './src/plugins/**/*.ts',
+          './src/features/router/**/*.tsx',
+          './src/pages/(base)/**/*.tsx'
+        ]
       }
+    },
+    fs: {
+      cachedChecks: true
     }
   };
 });
