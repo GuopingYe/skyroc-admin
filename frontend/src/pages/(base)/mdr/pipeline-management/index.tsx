@@ -167,10 +167,11 @@ const PipelineManagement: React.FC = () => {
       if (node) {
         setSelectedNodeId(studyId);
         setSelectedNode(node);
-        if (node) form.setFieldsValue(node);
+        // Note: form.setFieldsValue is called in PortfolioAdminTab when the Form is rendered
+        // to avoid "useForm not connected to Form" warning
       }
     }
-  }, [studyId, treeData, form]);
+  }, [studyId, treeData]);
 
   // Fetch milestones from API when study/analysis changes
   const fetchMilestones = useCallback(async () => {
@@ -248,7 +249,7 @@ const PipelineManagement: React.FC = () => {
         setSelectedNodeId(nodeId);
         setSelectedNode(node);
         setIsEditing(false);
-        if (node) form.setFieldsValue(node);
+        // Note: form.setFieldsValue is handled in PortfolioAdminTab when editing mode is activated
 
         // 同步更新全局上下文（带名称对象）
         if (node) {
@@ -289,7 +290,7 @@ const PipelineManagement: React.FC = () => {
         }
       }
     },
-    [treeData, form, selectProduct, selectStudy, selectAnalysis]
+    [treeData, selectProduct, selectStudy, selectAnalysis]
   );
 
   const handleArchive = useCallback(
@@ -399,7 +400,7 @@ const PipelineManagement: React.FC = () => {
               onClick={() => {
                 setSelectedNodeId(record.id);
                 setSelectedNode(record);
-                form.setFieldsValue(record);
+                // Note: form values will be set when entering editing mode in PortfolioAdminTab
               }}
             >
               {t('page.mdr.pipelineManagement.view')}
@@ -424,7 +425,7 @@ const PipelineManagement: React.FC = () => {
         width: 120
       }
     ],
-    [t, handleArchive, form, canArchiveNode]
+    [t, handleArchive, canArchiveNode]
   );
 
   const childNodes = useMemo(
@@ -753,7 +754,12 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
     }
   }, [allExpanded, handleExpandAll, handleCollapseAll]);
 
-
+  // Populate form when entering editing mode
+  useEffect(() => {
+    if (isEditing && selectedNode) {
+      form.setFieldsValue(selectedNode);
+    }
+  }, [isEditing, selectedNode, form]);
 
   // Filter tree nodes by search query
   const filteredTreeNodes = useMemo(() => {
