@@ -594,7 +594,7 @@ const GlobalLibrary: React.FC = () => {
   // ========== 从树数据解析选项 ==========
   // 过滤掉没有数据的标准类型 (ADaM Model 没有实际 datasets)
   const standardTypeOptions = useMemo(() => {
-    if (!treeData || treeData.length === 0) return [];
+    if (!treeData || !Array.isArray(treeData) || treeData.length === 0) return [];
     return treeData
       .filter(node => node.key !== 'adam') // ADaM Model 没有数据，隐藏
       .map(node => ({
@@ -1199,7 +1199,7 @@ const GlobalLibrary: React.FC = () => {
           variant="borderless"
         >
           <Empty
-            description="无法连接到后端服务，请检查服务是否在端口 9000 运行"
+            description="无法连接到后端服务，请检查服务是否在端口 8080 运行"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </Card>

@@ -308,7 +308,7 @@ const page: App.I18n.Schema['translation']['page'] = {
       },
       conceptId: 'Concept ID',
 
-      connectionError: 'Unable to connect to backend. Please check if the service is running on port 9000',
+      connectionError: 'Unable to connect to backend. Please check if the service is running on port 8080',
       core: 'Core',
       coreFilter: 'Core Filter',
       crfPrompt: 'CRF Prompt',

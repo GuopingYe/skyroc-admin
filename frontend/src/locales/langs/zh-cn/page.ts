@@ -312,7 +312,7 @@ const page: App.I18n.Schema['translation']['page'] = {
       },
       conceptId: '概念ID',
 
-      connectionError: '无法连接到后端服务，请检查服务是否在端口 9000 运行',
+      connectionError: '无法连接到后端服务，请检查服务是否在端口 8080 运行',
       core: 'Core',
       coreFilter: 'Core 过滤',
       crfPrompt: 'CRF 提示',
