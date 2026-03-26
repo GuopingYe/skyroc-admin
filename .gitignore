@@ -321,3 +321,12 @@ alembic/versions/__pycache__/
 
 # Cursor IDE
 .cursor/
+
+# Local agent/runtime state
+.omx/
+.superpowers/
+
+# Local generated outputs
+output/
+test-screenshots/
+tmp/

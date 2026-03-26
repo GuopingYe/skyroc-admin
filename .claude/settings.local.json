@@ -50,7 +50,14 @@
       "mcp__zai-mcp-server__analyze_image",
       "Skill(update-config)",
       "Bash(rm -f /tmp/*.db)",
-      "Bash(rm -f D:/github/clinical-mdr/backend/*.db)"
+      "Bash(rm -f D:/github/clinical-mdr/backend/*.db)",
+      "Bash(tmux list-panes:*)",
+      "Bash(tmux kill-pane:*)",
+      "Bash(for i:*)",
+      "Bash(done)",
+      "Bash(pip install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)"
     ]
   }
 }
