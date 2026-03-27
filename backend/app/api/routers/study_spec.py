@@ -85,7 +85,6 @@ class StudyDatasetListItem(BaseModel):
     # 继承信息
     base_id: int | None = None
     override_type: str
-    origin_type: str
     # 统计
     variable_count: int = 0
     # 审计
@@ -480,7 +479,6 @@ async def get_study_datasets(
                 sort_order=dataset.sort_order,
                 base_id=dataset.base_id,
                 override_type=dataset.override_type.value,
-                origin_type=dataset.origin_type.value,
                 variable_count=var_counts.get(dataset.id, 0),
                 created_by=dataset.created_by,
                 created_at=dataset.created_at.isoformat() if dataset.created_at else "",
@@ -742,7 +740,6 @@ async def create_study_spec_from_global_library(
             sort_order=base_dataset.sort_order,
             base_id=base_dataset.id,
             override_type=OverrideType.NONE,
-            origin_type=base_dataset.origin_type,
             created_by=current_user.get("id", "system"),
         )
         db.add(new_dataset)
@@ -890,7 +887,6 @@ async def add_dataset_from_global_library(
         class_type=base_dataset.class_type,
         sort_order=999,  # 放到最后
         base_id=base_dataset.id,
-        origin_type=base_dataset.origin_type,
         override_type=OverrideType.NONE,
         created_by=current_user.get("id", "system"),
     )
@@ -1101,7 +1097,6 @@ async def create_custom_dataset(
         class_type=class_type,
         sort_order=999,
         base_id=None,
-        origin_type=OriginType.STUDY_CUSTOM,
         override_type=OverrideType.NONE,
         created_by=current_user.get("id", "system"),
     )

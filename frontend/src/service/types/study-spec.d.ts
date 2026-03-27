@@ -69,7 +69,6 @@ declare namespace Api.StudySpec {
     sort_order: number;
     base_id: number | null;
     override_type: 'Added' | 'Deleted' | 'Modified' | 'None';
-    origin_type: 'CDISC' | 'Sponsor_Standard' | 'Study_Custom' | 'TA_Standard';
     variable_count: number;
     created_by: string;
     created_at: string;
