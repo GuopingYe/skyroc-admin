@@ -8,6 +8,7 @@
     "dev": "pnpm --filter skyroc-admin dev",
     "build": "pnpm --filter skyroc-admin build",
     "typecheck": "pnpm --filter skyroc-admin typecheck",
+    "e2e": "pnpm --filter skyroc-admin e2e",
     "lint": "pnpm --filter skyroc-admin lint",
     "lint-staged": "cd frontend && pnpm lint-staged",
     "sa": "cd frontend && pnpm sa"

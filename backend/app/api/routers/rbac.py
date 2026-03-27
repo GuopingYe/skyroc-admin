@@ -397,7 +397,21 @@ async def list_roles(
 
     result = await db.execute(query)
     roles = result.scalars().all()
-    return [RoleSchema.model_validate(role) for role in roles]
+    if include_permissions:
+        return [RoleSchema.model_validate(role) for role in roles]
+
+    return [
+        RoleSchema(
+            id=role.id,
+            code=role.code,
+            name=role.name,
+            description=role.description,
+            is_system=role.is_system,
+            color=role.color,
+            permissions=[],
+        )
+        for role in roles
+    ]
 
 
 @rbac_router.put("/roles/{role_id}/permissions", response_model=RoleSchema)

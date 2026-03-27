@@ -392,6 +392,7 @@ const PipelineManagement: React.FC = () => {
           <Space size={4}>
             {record.nodeType === 'STUDY' && record.dbId && hasPermission('pipeline:assign-team', record.dbId) && (
               <Button
+                data-testid={`assign-team-button-${record.id}`}
                 icon={<TeamOutlined />}
                 size="small"
                 type="link"
@@ -701,6 +702,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   selectedNode,
   selectedNodeId,
   setIsEditing,
+  treeData,
   treeDataNodes,
   treeLoading,
   treeError,
@@ -784,22 +786,37 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   const filteredTreeNodes = useMemo(() => {
     if (!treeSearchQuery) return treeDataNodes;
     const query = treeSearchQuery.toLowerCase();
-    const filterNodes = (nodes: DataNode[]): DataNode[] => {
+    const filterNodes = (nodes: PipelineNode[]): PipelineNode[] => {
       return nodes
         .map(node => {
-          const titleStr = typeof node.title === 'string' ? node.title : '';
           const childMatches = node.children ? filterNodes(node.children) : [];
-          // Check if the node key contains the query (study code, TA name, etc)
-          const keyMatch = String(node.key).toLowerCase().includes(query);
-          if (childMatches.length > 0 || keyMatch) {
-            return { ...node, children: childMatches.length > 0 ? childMatches : node.children };
+          const searchableFields = [node.id, node.title];
+
+          if (node.nodeType === 'STUDY') {
+            const studyNode = node as StudyNode;
+            searchableFields.push(studyNode.protocolTitle ?? '');
           }
+
+          if (node.nodeType === 'ANALYSIS') {
+            const analysisNode = node as AnalysisNode;
+            searchableFields.push(analysisNode.description ?? '');
+          }
+
+          const nodeMatches = searchableFields.some(value => String(value ?? '').toLowerCase().includes(query));
+
+          if (nodeMatches || childMatches.length > 0) {
+            return {
+              ...node,
+              children: childMatches.length > 0 ? childMatches : node.children
+            };
+          }
+
           return null;
         })
-        .filter(Boolean) as DataNode[];
+        .filter(Boolean) as PipelineNode[];
     };
-    return filterNodes(treeDataNodes);
-  }, [treeDataNodes, treeSearchQuery]);
+    return convertToTreeData(filterNodes(treeData));
+  }, [treeData, treeDataNodes, treeSearchQuery]);
 
   if (treeError) {
     return (
@@ -831,6 +848,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           <Input
             allowClear
             className="mb-8px"
+            data-testid="pipeline-tree-search"
             placeholder="Search nodes..."
             prefix={<SearchOutlined className="text-gray-400" />}
             size="small"
@@ -898,6 +916,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
         <Input
           allowClear
           className="mb-8px"
+          data-testid="pipeline-tree-search"
           placeholder="Search nodes..."
           prefix={<SearchOutlined className="text-gray-400" />}
           size="small"

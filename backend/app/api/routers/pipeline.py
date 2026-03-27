@@ -593,6 +593,7 @@ async def create_node(
             node.depth = 0
 
         await db.commit()
+        await db.refresh(node)
 
         return _ok(_format_node(node))
     except Exception as e:

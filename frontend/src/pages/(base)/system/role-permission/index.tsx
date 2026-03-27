@@ -234,6 +234,7 @@ const RolePermission: React.FC = () => {
               dataSource={rolesData || []}
               renderItem={role => (
                 <List.Item
+                  data-testid={`role-item-${role.code}`}
                   className={`cursor-pointer px-12px py-8px rounded-lg transition-colors ${
                     selectedRoleId === role.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
                   }`}
@@ -269,6 +270,7 @@ const RolePermission: React.FC = () => {
           selectedRoleId && (
             <Tooltip title={isSuperAdminSelected ? 'SUPER_ADMIN permissions are immutable' : undefined}>
               <Button
+                data-testid="role-permission-save"
                 disabled={isSuperAdminSelected || isSaving}
                 icon={isSuperAdminSelected ? <LockOutlined /> : undefined}
                 loading={isSaving}
@@ -327,6 +329,7 @@ const RolePermission: React.FC = () => {
                         const permInfo = getPermissionInfo(permission, t);
                         return (
                           <Checkbox
+                            data-testid={`permission-checkbox-${permission.code.replaceAll(':', '-')}`}
                             checked={isPermissionChecked(permission.code)}
                             key={permission.id}
                             onChange={() => togglePermission(permission.code)}

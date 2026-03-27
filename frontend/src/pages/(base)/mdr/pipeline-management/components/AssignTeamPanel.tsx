@@ -17,8 +17,8 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
   const [messageApi, contextHolder] = message.useMessage();
   const [form] = Form.useForm();
 
-  const { data: allUsers, isLoading: usersLoading } = useUsers({ is_active: true });
-  const { data: allRoles, isLoading: rolesLoading } = useRoles(false);
+  const { data: allUsers, isLoading: usersLoading, refetch: refetchUsers } = useUsers({ is_active: true });
+  const { data: allRoles, isLoading: rolesLoading } = useRoles();
   const { mutate: assignTeam, isPending: isAssigning } = useAssignTeam();
   const { mutate: revokePermission, isPending: isRevoking } = useRevokePermission();
 
@@ -37,7 +37,8 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
         onError: (error: any) => {
           messageApi.error(error?.response?.data?.detail ?? 'Assignment failed');
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+          await refetchUsers();
           messageApi.success('Team member assigned successfully');
           form.resetFields();
         }
@@ -52,7 +53,8 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
         onError: (error: any) => {
           messageApi.error(error?.response?.data?.detail ?? 'Revoke failed');
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+          await refetchUsers();
           messageApi.success('Team member removed');
         }
       }
@@ -126,6 +128,7 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
           rules={[{ required: true }]}
         >
           <Select
+            data-testid="assign-team-user-select"
             filterOption={(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())}
             loading={usersLoading}
             options={(allUsers || []).map(user => ({
@@ -143,6 +146,7 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
           rules={[{ required: true }]}
         >
           <Select
+            data-testid="assign-team-role-select"
             loading={rolesLoading}
             options={(allRoles || []).map(role => ({ label: role.name, value: role.id }))}
             placeholder="Select role"
@@ -151,6 +155,7 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
 
         <Button
           block
+          data-testid="assign-team-submit"
           htmlType="submit"
           loading={isAssigning}
           type="primary"

@@ -1,9 +1,9 @@
-import { request } from '../request';
+import { rbacRequest } from '../request/rbac';
 import { RBAC_URLS } from '../urls';
 
 /** 获取当前用户权限 */
 export function fetchGetMyPermissions(includeTree = false) {
-  return request<Api.RBAC.UserPermissionsResponse>({
+  return rbacRequest<Api.RBAC.UserPermissionsResponse>({
     method: 'get',
     params: { include_tree: includeTree },
     url: RBAC_URLS.GET_MY_PERMISSIONS
@@ -12,7 +12,7 @@ export function fetchGetMyPermissions(includeTree = false) {
 
 /** 获取所有角色 */
 export function fetchGetRoles(includePermissions = true) {
-  return request<Api.RBAC.Role[]>({
+  return rbacRequest<Api.RBAC.Role[]>({
     method: 'get',
     params: { include_permissions: includePermissions },
     url: RBAC_URLS.GET_ROLES
@@ -21,7 +21,7 @@ export function fetchGetRoles(includePermissions = true) {
 
 /** 获取所有权限 */
 export function fetchGetPermissions(category?: string) {
-  return request<Api.RBAC.Permission[]>({
+  return rbacRequest<Api.RBAC.Permission[]>({
     method: 'get',
     params: category ? { category } : undefined,
     url: RBAC_URLS.GET_PERMISSIONS
@@ -30,7 +30,7 @@ export function fetchGetPermissions(category?: string) {
 
 /** 获取作用域树 */
 export function fetchGetScopeTree(nodeType?: Api.RBAC.ScopeNodeType) {
-  return request<Api.RBAC.ScopeTreeNode[]>({
+  return rbacRequest<Api.RBAC.ScopeTreeNode[]>({
     method: 'get',
     params: nodeType ? { node_type: nodeType } : undefined,
     url: RBAC_URLS.GET_SCOPE_TREE
@@ -39,7 +39,7 @@ export function fetchGetScopeTree(nodeType?: Api.RBAC.ScopeNodeType) {
 
 /** 分配权限 */
 export function fetchGrantPermission(data: Api.RBAC.GrantPermissionRequest) {
-  return request<Api.RBAC.GrantPermissionResponse>({
+  return rbacRequest<Api.RBAC.GrantPermissionResponse>({
     data,
     method: 'post',
     url: RBAC_URLS.GRANT_PERMISSION
@@ -48,7 +48,7 @@ export function fetchGrantPermission(data: Api.RBAC.GrantPermissionRequest) {
 
 /** 撤销权限 */
 export function fetchRevokePermission(params: Api.RBAC.RevokePermissionRequest) {
-  return request<void>({
+  return rbacRequest<void>({
     method: 'delete',
     params,
     url: RBAC_URLS.REVOKE_PERMISSION
@@ -57,7 +57,7 @@ export function fetchRevokePermission(params: Api.RBAC.RevokePermissionRequest) 
 
 /** 获取用户角色列表 */
 export function fetchGetUserRoles(userId: number) {
-  return request<Api.RBAC.UserScopeRole[]>({
+  return rbacRequest<Api.RBAC.UserScopeRole[]>({
     method: 'get',
     url: RBAC_URLS.GET_USER_ROLES(userId)
   });
@@ -65,7 +65,7 @@ export function fetchGetUserRoles(userId: number) {
 
 /** 获取用户列表 */
 export function fetchGetUsers(params?: { is_active?: boolean; search?: string }) {
-  return request<Api.RBAC.UserListItem[]>({
+  return rbacRequest<Api.RBAC.UserListItem[]>({
     method: 'get',
     params,
     url: RBAC_URLS.GET_USERS
@@ -74,7 +74,7 @@ export function fetchGetUsers(params?: { is_active?: boolean; search?: string })
 
 /** 更新角色权限 */
 export function fetchUpdateRolePermissions(roleId: number, permissionIds: number[]) {
-  return request<Api.RBAC.Role>({
+  return rbacRequest<Api.RBAC.Role>({
     data: { permission_ids: permissionIds },
     method: 'put',
     url: RBAC_URLS.UPDATE_ROLE_PERMISSIONS(roleId)
@@ -83,7 +83,7 @@ export function fetchUpdateRolePermissions(roleId: number, permissionIds: number
 
 /** 创建用户 */
 export function fetchCreateUser(data: Api.RBAC.CreateUserRequest) {
-  return request<Api.RBAC.UserDetail>({
+  return rbacRequest<Api.RBAC.UserDetail>({
     data,
     method: 'post',
     url: RBAC_URLS.CREATE_USER
@@ -92,7 +92,7 @@ export function fetchCreateUser(data: Api.RBAC.CreateUserRequest) {
 
 /** 更新用户 */
 export function fetchUpdateUser(userId: number, data: Api.RBAC.UpdateUserRequest) {
-  return request<Api.RBAC.UserDetail>({
+  return rbacRequest<Api.RBAC.UserDetail>({
     data,
     method: 'put',
     url: RBAC_URLS.UPDATE_USER(userId)
@@ -101,7 +101,7 @@ export function fetchUpdateUser(userId: number, data: Api.RBAC.UpdateUserRequest
 
 /** 更新用户状态 */
 export function fetchUpdateUserStatus(userId: number, isActive: boolean) {
-  return request<Api.RBAC.UserDetail>({
+  return rbacRequest<Api.RBAC.UserDetail>({
     data: { is_active: isActive },
     method: 'patch',
     url: RBAC_URLS.UPDATE_USER_STATUS(userId)
@@ -110,7 +110,7 @@ export function fetchUpdateUserStatus(userId: number, isActive: boolean) {
 
 /** 委派团队分配 */
 export function fetchAssignTeam(data: Api.RBAC.AssignTeamRequest) {
-  return request<Api.RBAC.GrantPermissionResponse>({
+  return rbacRequest<Api.RBAC.GrantPermissionResponse>({
     data,
     method: 'post',
     url: RBAC_URLS.ASSIGN_TEAM
@@ -119,7 +119,7 @@ export function fetchAssignTeam(data: Api.RBAC.AssignTeamRequest) {
 
 /** LDAP 同步 */
 export function fetchSyncLdap() {
-  return request<unknown>({
+  return rbacRequest<unknown>({
     method: 'post',
     url: RBAC_URLS.SYNC_LDAP
   });

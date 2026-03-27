@@ -555,6 +555,7 @@ const UserManagement: React.FC = () => {
           <Space>
             <Input.Search
               allowClear
+              data-testid="user-search-input"
               placeholder={t('system.userManagement.searchPlaceholder')}
               size="small"
               style={{ width: 200 }}
@@ -573,6 +574,7 @@ const UserManagement: React.FC = () => {
               onChange={setFilterStatus}
             />
             <Button
+              data-testid="user-create-button"
               icon={<PlusOutlined />}
               size="small"
               type="primary"
@@ -581,6 +583,7 @@ const UserManagement: React.FC = () => {
               {t('system.userManagement.addUser')}
             </Button>
             <Button
+              data-testid="user-sync-ldap-button"
               loading={isSyncing}
               size="small"
               onClick={handleSyncLdap}
@@ -616,6 +619,7 @@ const UserManagement: React.FC = () => {
       </Card>
 
       <Modal
+        data-testid="create-user-modal"
         confirmLoading={isCreating}
         open={createModalOpen}
         title="Create User"
@@ -773,6 +777,7 @@ const UserManagement: React.FC = () => {
 
       {/* 编辑用户 Modal */}
       <Modal
+        data-testid="edit-user-modal"
         cancelText={t('system.userManagement.editModal.cancel')}
         confirmLoading={isUpdating}
         okText={t('system.userManagement.editModal.save')}

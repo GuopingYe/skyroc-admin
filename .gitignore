@@ -330,3 +330,7 @@ alembic/versions/__pycache__/
 output/
 test-screenshots/
 tmp/
+
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
