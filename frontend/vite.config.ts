@@ -43,8 +43,7 @@ export default defineConfig(configEnv => {
         '@tanstack/react-query',
         'zustand',
         'lodash-es',
-        'clsx',
-        'tailwind-merge'
+        'clsx'
       ],
       exclude: [],
       force: false

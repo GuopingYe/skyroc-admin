@@ -93,6 +93,7 @@ declare global {
   const copy: typeof import('../hooks/common/copy')['default']
   const createRef: typeof import('react')['createRef']
   const forwardRef: typeof import('react')['forwardRef']
+  const internal: typeof import('../components/Skeleton/internal')['default']
   const lazy: typeof import('react')['lazy']
   const memo: typeof import('react')['memo']
   const startTransition: typeof import('react')['startTransition']

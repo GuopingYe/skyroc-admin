@@ -1,2 +1,4 @@
 // frontend/src/components/Skeleton/index.ts
-export { DataSkeleton, TableSkeleton } from './DataSkeleton';
+import skeletonComponents from './internal';
+
+export const { DataSkeleton, TableSkeleton } = skeletonComponents;

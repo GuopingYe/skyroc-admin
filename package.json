@@ -5,7 +5,7 @@
   "description": "Clinical MDR Platform - CDISC/SDTM/ADaM standards management, TFL drag-and-drop rendering, and PR approval workflow",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter skyroc-admin dev",
+    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev.ps1",
     "build": "pnpm --filter skyroc-admin build",
     "typecheck": "pnpm --filter skyroc-admin typecheck",
     "e2e": "pnpm --filter skyroc-admin e2e",
