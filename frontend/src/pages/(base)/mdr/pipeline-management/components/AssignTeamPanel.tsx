@@ -2,7 +2,7 @@ import { DeleteOutlined, TeamOutlined } from '@ant-design/icons';
 import { Avatar, Button, Divider, Drawer, Form, List, Popconfirm, Select, Space, Spin, Tag, Typography, message } from 'antd';
 import React, { useMemo } from 'react';
 
-import { useAssignTeam, useRevokePermission, useRoles, useUsers } from '@/service/hooks';
+import { useAssignTeam, usePermissionCheck, useRevokePermission, useRoles, useUsers } from '@/service/hooks';
 
 const { Text } = Typography;
 
@@ -21,6 +21,7 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
   const { data: allRoles, isLoading: rolesLoading } = useRoles();
   const { mutate: assignTeam, isPending: isAssigning } = useAssignTeam();
   const { mutate: revokePermission, isPending: isRevoking } = useRevokePermission();
+  const { isSuperuser } = usePermissionCheck();
 
   const currentTeam = useMemo(() => {
     return (allUsers || []).flatMap(user =>
@@ -90,18 +91,20 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
             renderItem={({ assignment, user }) => (
               <List.Item
                 actions={[
-                  <Popconfirm
-                    key="revoke"
-                    title="Remove this team assignment?"
-                    onConfirm={() => handleRevoke(user.id, assignment.role.id)}
-                  >
-                    <Button
-                      danger
-                      icon={<DeleteOutlined />}
-                      loading={isRevoking}
-                      size="small"
-                    />
-                  </Popconfirm>
+                  isSuperuser ? (
+                    <Popconfirm
+                      key="revoke"
+                      title="Remove this team assignment?"
+                      onConfirm={() => handleRevoke(user.id, assignment.role.id)}
+                    >
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={isRevoking}
+                        size="small"
+                      />
+                    </Popconfirm>
+                  ) : null
                 ]}
               >
                 <List.Item.Meta

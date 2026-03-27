@@ -113,7 +113,8 @@ const UserManagement: React.FC = () => {
   const grantMutation = useGrantPermission();
   const revokeMutation = useRevokePermission();
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
-  const { mutate: updateUserStatus, isPending: isUpdatingStatus } = useUpdateUserStatus();
+  const { mutate: updateUserStatus } = useUpdateUserStatus();
+  const [updatingStatusUserId, setUpdatingStatusUserId] = useState<number | null>(null);
   const { mutate: syncLdap, isPending: isSyncing } = useSyncLdap();
 
   // 搜索和筛选状态
@@ -278,13 +279,16 @@ const UserManagement: React.FC = () => {
 
   const handleToggleUserStatus = useCallback(
     (user: Api.RBAC.UserListItem) => {
+      setUpdatingStatusUserId(user.id);
       updateUserStatus(
         { isActive: !user.is_active, userId: user.id },
         {
           onError: (error: any) => {
+            setUpdatingStatusUserId(null);
             messageApi.error(error?.response?.data?.detail ?? 'Failed to update status');
           },
           onSuccess: updatedUser => {
+            setUpdatingStatusUserId(null);
             auditLog(
               AuditActions.UPDATE,
               EntityTypes.USER,
@@ -486,7 +490,7 @@ const UserManagement: React.FC = () => {
               <Button
                 danger={record.is_active}
                 icon={<DeleteOutlined />}
-                loading={isUpdatingStatus}
+                loading={updatingStatusUserId === record.id}
                 size="small"
                 type="link"
               >
@@ -499,7 +503,7 @@ const UserManagement: React.FC = () => {
         width: 180
       }
     ],
-    [t, openPermissionModal, openEditModal, rolesData, handleRevokePermission, handleToggleUserStatus, isUpdatingStatus]
+    [t, openPermissionModal, openEditModal, rolesData, handleRevokePermission, handleToggleUserStatus, updatingStatusUserId]
   );
 
   return (

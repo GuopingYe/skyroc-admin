@@ -656,9 +656,12 @@ async def update_user(
         if duplicate_email.scalar_one_or_none() is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
 
-    user.display_name = request.display_name
-    user.email = request.email or user.email
-    user.department = request.department
+    if request.display_name is not None:
+        user.display_name = request.display_name
+    if request.email is not None:
+        user.email = request.email
+    if request.department is not None:
+        user.department = request.department
 
     await db.flush()
     await db.refresh(user)
@@ -681,6 +684,13 @@ async def update_user_status(
     )
 
     user = await _get_user_or_404(db, user_id)
+
+    if user.is_superuser and not request.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot deactivate a superuser account",
+        )
+
     user.is_active = request.is_active
 
     await db.flush()
