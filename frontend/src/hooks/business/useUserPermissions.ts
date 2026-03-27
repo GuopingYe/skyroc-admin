@@ -1,63 +1,69 @@
-/** User Permissions Hook 检查用户权限的自定义 Hook */
+/** User Permissions Hook */
 import { useMemo } from 'react';
 
-import {
-  type PermissionType,
-  type RoleType,
-  isSuperAdmin as checkIsSuperAdmin
-} from '@/pages/(base)/system/user-management/mockData';
-import { useUserInfo } from '@/service/hooks/useAuth';
+import { useMyPermissions, usePermissionCheck, useUserInfo } from '@/service/hooks';
 
-/** 用户权限 Hook 提供权限检查功能 */
+/** 用户权限 Hook，统一读取真实 RBAC 数据 */
 export function useUserPermissions() {
   const { data: userInfo } = useUserInfo();
+  const { data: myPermissions } = useMyPermissions(true);
+  const { hasAllPermissions, hasAnyPermission, hasPermission: checkPermission, isSuperuser } = usePermissionCheck();
 
-  // 检查用户是否为超级管理员
-  const isSuperAdmin = useMemo(() => {
-    if (!userInfo?.roles) return false;
-    return userInfo.roles.includes('Super Admin' as RoleType);
-  }, [userInfo?.roles]);
+  const roleIdentifiers = useMemo(() => {
+    if (myPermissions?.assigned_roles?.length) {
+      return [
+        ...new Set(
+          myPermissions.assigned_roles.flatMap(assignment => [assignment.role.code, assignment.role.name])
+        )
+      ];
+    }
+    return userInfo?.roles || [];
+  }, [myPermissions?.assigned_roles, userInfo?.roles]);
 
-  // 检查用户是否拥有指定角色
   const hasRole = useMemo(() => {
-    return (role: RoleType) => {
-      if (!userInfo?.roles) return false;
-      return userInfo.roles.includes(role);
+    return (role: string) => {
+      if (isSuperuser) return true;
+      return roleIdentifiers.includes(role);
     };
-  }, [userInfo?.roles]);
+  }, [isSuperuser, roleIdentifiers]);
 
-  // 检查用户是否拥有指定权限
   const hasPermission = useMemo(() => {
-    return (permission: PermissionType) => {
-      // Super Admin 拥有所有权限
-      if (isSuperAdmin) return true;
-
-      // TODO: 根据用户角色检查具体权限
-      // 目前简化实现，后续可扩展
-      return false;
+    return (permission: string, scopeId?: number | null) => {
+      if (isSuperuser) return true;
+      if (scopeId == null) {
+        return Object.values(myPermissions?.scope_permissions || {}).some(scopePermissions =>
+          scopePermissions.includes(permission)
+        );
+      }
+      return checkPermission(permission, scopeId);
     };
-  }, [isSuperAdmin]);
+  }, [checkPermission, isSuperuser, myPermissions?.scope_permissions]);
 
-  // 检查用户是否拥有任一指定权限
-  const hasAnyPermission = useMemo(() => {
-    return (permissions: PermissionType[]) => {
-      return permissions.some(p => hasPermission(p));
+  const hasAnyPermissionSafe = useMemo(() => {
+    return (permissions: string[], scopeId?: number | null) => {
+      if (scopeId == null) {
+        return permissions.some(permission => hasPermission(permission, scopeId));
+      }
+      return hasAnyPermission(permissions, scopeId);
     };
-  }, [hasPermission]);
+  }, [hasAnyPermission, hasPermission]);
 
-  // 检查用户是否拥有所有指定权限
-  const hasAllPermissions = useMemo(() => {
-    return (permissions: PermissionType[]) => {
-      return permissions.every(p => hasPermission(p));
+  const hasAllPermissionsSafe = useMemo(() => {
+    return (permissions: string[], scopeId?: number | null) => {
+      if (scopeId == null) {
+        return permissions.every(permission => hasPermission(permission, scopeId));
+      }
+      return hasAllPermissions(permissions, scopeId);
     };
-  }, [hasPermission]);
+  }, [hasAllPermissions, hasPermission]);
 
   return {
-    hasAllPermissions,
-    hasAnyPermission,
+    hasAllPermissions: hasAllPermissionsSafe,
+    hasAnyPermission: hasAnyPermissionSafe,
     hasPermission,
     hasRole,
-    isSuperAdmin,
+    isSuperAdmin: isSuperuser,
+    myPermissions,
     userInfo
   };
 }

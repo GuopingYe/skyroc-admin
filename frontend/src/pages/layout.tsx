@@ -1,10 +1,12 @@
 import type { RoutePath } from '@soybean-react/vite-plugin-react-router';
 import { Outlet, matchRoutes } from 'react-router-dom';
 
+import type { IClinicalContextState } from '@/features/clinical-context';
+import { canAccessRoute, getEffectiveMenuPermissions } from '@/features/router/routeGuard';
 import { usePrevious, useRoute } from '@/features/router';
 import { allRoutes } from '@/router';
 import { fetchGetUserInfo } from '@/service/api/auth.ts';
-import { useUserInfo } from '@/service/hooks';
+import { useMyPermissions, useUserInfo } from '@/service/hooks';
 import { QUERY_KEYS } from '@/service/keys/index.ts';
 import { queryClient } from '@/service/queryClient';
 import { localStg } from '@/utils/storage';
@@ -83,19 +85,33 @@ const RootLayout = () => {
 
   const previousRoute = usePrevious(route);
 
-  const { handle, id, pathname } = route;
-
-  const routeId = useRef<string>(null);
-
-  const location = useRef<string | { path: string; replace: boolean } | null>(null);
+  const { handle, pathname } = route;
 
   const { i18nKey, title } = handle;
 
   const { data: userInfo } = useUserInfo();
+  const hasToken = Boolean(localStg.get('token'));
+  const { data: myPermissions } = useMyPermissions(true, hasToken);
+  const clinicalContext = useAppSelector((state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context);
 
   const roles = userInfo?.roles || [];
 
   const isSuper = userInfo?.roles.includes(import.meta.env.VITE_STATIC_SUPER_ROLE);
+  const currentScopeNodeId =
+    clinicalContext.analysis?.scopeNodeId ?? clinicalContext.study?.scopeNodeId ?? clinicalContext.product?.scopeNodeId ?? null;
+  const pagePermissionAllowed =
+    !myPermissions ||
+    canAccessRoute(pathname, getEffectiveMenuPermissions(myPermissions, currentScopeNodeId));
+  const guardedLocation = useMemo(() => {
+    const nextLocation = createRouteGuard(route, roles, isSuper || false, previousRoute);
+    if (nextLocation) {
+      return nextLocation;
+    }
+    if (!pagePermissionAllowed) {
+      return '/403';
+    }
+    return null;
+  }, [isSuper, pagePermissionAllowed, previousRoute, roles, route]);
 
   const { t } = useTranslation();
 
@@ -111,20 +127,14 @@ const RootLayout = () => {
     };
   }, [pathname]);
 
-  if (routeId.current !== id) {
-    routeId.current = id;
-
-    location.current = createRouteGuard(route, roles, isSuper || false, previousRoute);
-  }
-
   // eslint-disable-next-line no-nested-ternary
-  return location.current ? (
-    typeof location.current === 'string' ? (
-      <Navigate to={location.current} />
+  return guardedLocation ? (
+    typeof guardedLocation === 'string' ? (
+      <Navigate to={guardedLocation} />
     ) : (
       <Navigate
-        replace={location.current.replace}
-        to={location.current.path}
+        replace={guardedLocation.replace}
+        to={guardedLocation.path}
       />
     )
   ) : (

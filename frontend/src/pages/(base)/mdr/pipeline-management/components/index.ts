@@ -1,3 +1,4 @@
+export { default as AssignTeamPanel } from './AssignTeamPanel';
 export { default as ContextInfoPanel } from './ContextInfoPanel';
 export { default as ExecutionJobsTable } from './ExecutionJobsTable';
 export { default as MilestoneTimeline } from './MilestoneTimeline';

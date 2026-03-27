@@ -8,14 +8,68 @@ Tests verify:
 - Superuser privileges
 """
 import pytest
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    User,
-    Role,
     Permission,
+    Role,
+    ScopeNode,
+    User,
     UserScopeRole,
 )
+from app.models.enums import LifecycleStatus, NodeType
+from app.api.deps import get_current_user
+from app.main import app
+
+
+async def create_scope_node(
+    db_session: AsyncSession,
+    *,
+    code: str,
+    name: str,
+    node_type: NodeType,
+    created_by: str,
+    parent: ScopeNode | None = None,
+) -> ScopeNode:
+    node = ScopeNode(
+        code=code,
+        name=name,
+        node_type=node_type,
+        lifecycle_status=LifecycleStatus.ONGOING,
+        created_by=created_by,
+        parent_id=parent.id if parent else None,
+        depth=(parent.depth + 1) if parent else 0,
+    )
+    db_session.add(node)
+    await db_session.flush()
+    node.path = f"{parent.path}{node.id}/" if parent and parent.path else f"/{node.id}/"
+    await db_session.flush()
+    await db_session.refresh(node)
+    return node
+
+
+async def create_user(
+    db_session: AsyncSession,
+    *,
+    username: str,
+    email: str,
+    is_superuser: bool = False,
+) -> User:
+    from app.core.security import hash_password
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=hash_password("testpassword123"),
+        display_name=username,
+        is_active=True,
+        is_superuser=is_superuser,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    await db_session.refresh(user)
+    return user
 
 
 @pytest.mark.asyncio
@@ -171,3 +225,222 @@ class TestPermissionChecking:
         permissions = [row[0] for row in result.fetchall()]
 
         assert "manage_users" in permissions
+
+
+@pytest.mark.asyncio
+class TestAssignTeamEndpoint:
+    async def test_assign_team_allows_descendant_scope_assignment(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        manager_permission = Permission(
+            code="pipeline:assign-team",
+            name="Assign Team",
+            category="project",
+        )
+        manager_role = Role(code="line_manager", name="Line Manager", sort_order=65)
+        manager_role.permissions.append(manager_permission)
+
+        study_role = Role(code="study_prog", name="Study Programmer", sort_order=40)
+        db_session.add_all([manager_permission, manager_role, study_role])
+        await db_session.flush()
+
+        ta_scope = await create_scope_node(
+            db_session,
+            code="TA-001",
+            name="TA One",
+            node_type=NodeType.TA,
+            created_by=test_user.username,
+        )
+        study_scope = await create_scope_node(
+            db_session,
+            code="STUDY-001",
+            name="Study One",
+            node_type=NodeType.STUDY,
+            created_by=test_user.username,
+            parent=ta_scope,
+        )
+
+        manager_assignment = UserScopeRole(
+            user_id=test_user.id,
+            role_id=manager_role.id,
+            scope_node_id=ta_scope.id,
+            granted_by="system",
+        )
+        db_session.add(manager_assignment)
+        await db_session.flush()
+
+        target_user = await create_user(
+            db_session,
+            username="targetuser",
+            email="target@example.com",
+        )
+
+        async def override_get_current_user():
+            return test_user
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        try:
+            response = await client.post(
+                "/api/v1/rbac/assign-team",
+                json={
+                    "user_id": target_user.id,
+                    "scope_node_id": study_scope.id,
+                    "role_id": study_role.id,
+                },
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["success"] is True
+        assert data["assignment"]["scope_node"]["id"] == study_scope.id
+        assert data["assignment"]["role"]["id"] == study_role.id
+
+    async def test_assign_team_rejects_outside_caller_scope(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        manager_permission = Permission(
+            code="pipeline:assign-team",
+            name="Assign Team",
+            category="project",
+        )
+        manager_role = Role(code="scope_manager", name="Scope Manager", sort_order=65)
+        manager_role.permissions.append(manager_permission)
+        study_role = Role(code="viewer_role", name="Viewer", sort_order=10)
+        db_session.add_all([manager_permission, manager_role, study_role])
+        await db_session.flush()
+
+        ta_scope_a = await create_scope_node(
+            db_session,
+            code="TA-A",
+            name="TA A",
+            node_type=NodeType.TA,
+            created_by=test_user.username,
+        )
+        ta_scope_b = await create_scope_node(
+            db_session,
+            code="TA-B",
+            name="TA B",
+            node_type=NodeType.TA,
+            created_by=test_user.username,
+        )
+        outside_study_scope = await create_scope_node(
+            db_session,
+            code="STUDY-B",
+            name="Study B",
+            node_type=NodeType.STUDY,
+            created_by=test_user.username,
+            parent=ta_scope_b,
+        )
+
+        db_session.add(
+            UserScopeRole(
+                user_id=test_user.id,
+                role_id=manager_role.id,
+                scope_node_id=ta_scope_a.id,
+                granted_by="system",
+            )
+        )
+        await db_session.flush()
+
+        target_user = await create_user(
+            db_session,
+            username="outsideuser",
+            email="outside@example.com",
+        )
+
+        async def override_get_current_user():
+            return test_user
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        try:
+            response = await client.post(
+                "/api/v1/rbac/assign-team",
+                json={
+                    "user_id": target_user.id,
+                    "scope_node_id": outside_study_scope.id,
+                    "role_id": study_role.id,
+                },
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] in ["8888", "403"]
+
+    async def test_assign_team_rejects_privilege_escalation(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        manager_permission = Permission(
+            code="pipeline:assign-team",
+            name="Assign Team",
+            category="project",
+        )
+        manager_role = Role(code="manager_role", name="Manager", sort_order=65)
+        manager_role.permissions.append(manager_permission)
+        higher_role = Role(code="ta_head_role", name="TA Head", sort_order=80)
+        db_session.add_all([manager_permission, manager_role, higher_role])
+        await db_session.flush()
+
+        ta_scope = await create_scope_node(
+            db_session,
+            code="TA-ROOT",
+            name="TA Root",
+            node_type=NodeType.TA,
+            created_by=test_user.username,
+        )
+        study_scope = await create_scope_node(
+            db_session,
+            code="STUDY-CHILD",
+            name="Study Child",
+            node_type=NodeType.STUDY,
+            created_by=test_user.username,
+            parent=ta_scope,
+        )
+
+        db_session.add(
+            UserScopeRole(
+                user_id=test_user.id,
+                role_id=manager_role.id,
+                scope_node_id=ta_scope.id,
+                granted_by="system",
+            )
+        )
+        await db_session.flush()
+
+        target_user = await create_user(
+            db_session,
+            username="escalationuser",
+            email="escalation@example.com",
+        )
+
+        async def override_get_current_user():
+            return test_user
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        try:
+            response = await client.post(
+                "/api/v1/rbac/assign-team",
+                json={
+                    "user_id": target_user.id,
+                    "scope_node_id": study_scope.id,
+                    "role_id": higher_role.id,
+                },
+            )
+        finally:
+            app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] in ["8888", "403"]

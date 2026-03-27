@@ -12,8 +12,14 @@ export const RBAC_URLS = {
   GET_USER_ROLES: (userId: number) => `/api/v1/rbac/users/${userId}/roles`,
 
   GET_USERS: '/api/v1/rbac/users',
+  CREATE_USER: '/api/v1/rbac/users',
+  UPDATE_USER: (userId: number) => `/api/v1/rbac/users/${userId}`,
+  UPDATE_USER_STATUS: (userId: number) => `/api/v1/rbac/users/${userId}/status`,
   // 管理员接口
   GRANT_PERMISSION: '/api/v1/rbac/admin/grant',
+  ASSIGN_TEAM: '/api/v1/rbac/assign-team',
+  SYNC_LDAP: '/api/v1/rbac/admin/sync-ldap',
+  UPDATE_ROLE_PERMISSIONS: (roleId: number) => `/api/v1/rbac/roles/${roleId}/permissions`,
 
   REVOKE_PERMISSION: '/api/v1/rbac/admin/revoke'
 } as const;

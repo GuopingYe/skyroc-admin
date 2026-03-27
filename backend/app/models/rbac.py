@@ -15,7 +15,7 @@ RBAC 模型 - 分层级、分作用域的角色访问控制
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from app.models.base import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -69,6 +69,13 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         unique=True,
         index=True,
         comment="外部系统 ID（LDAP/SSO）",
+    )
+    auth_provider: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="LOCAL",
+        server_default="LOCAL",
+        comment="Auth provider: LOCAL | LDAP",
     )
 
     # 状态
@@ -333,7 +340,7 @@ class RolePermission(Base):
         return f"<RolePermission(role_id={self.role_id}, permission_id={self.permission_id})>"
 
 
-class UserScopeRole(Base, TimestampMixin):
+class UserScopeRole(Base, TimestampMixin, SoftDeleteMixin):
     """
     用户-作用域-角色关联表（核心三方关联）
 
@@ -422,8 +429,8 @@ class UserScopeRole(Base, TimestampMixin):
     # 表级约束
     # ============================================================
     __table_args__ = (
-        # 同一用户在同一作用域上不能重复分配同一角色
-        UniqueConstraint("user_id", "scope_node_id", "role_id", name="uq_user_scope_role"),
+        # Uniqueness enforced via partial index uq_user_scope_role_active (WHERE is_deleted=FALSE)
+        # See migration 2026-03-26_001_rbac_seed
         Index("ix_user_scope_roles_user_scope", "user_id", "scope_node_id"),
         {"comment": "用户-作用域-角色关联表"},
     )

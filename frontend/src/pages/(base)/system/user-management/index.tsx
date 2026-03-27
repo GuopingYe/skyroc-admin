@@ -33,7 +33,17 @@ import type { DataNode } from 'antd/es/tree';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { useGrantPermission, useRevokePermission, useRoles, useScopeTree, useUsers } from '@/service/hooks';
+import {
+  useCreateUser,
+  useGrantPermission,
+  useRevokePermission,
+  useRoles,
+  useScopeTree,
+  useSyncLdap,
+  useUpdateUser,
+  useUpdateUserStatus,
+  useUsers
+} from '@/service/hooks';
 import auditLog, { AuditActions, EntityTypes } from '@/utils/audit-logger';
 
 const { Text, Title } = Typography;
@@ -99,12 +109,20 @@ const UserManagement: React.FC = () => {
   const { data: scopeTreeData, isLoading: scopeTreeLoading } = useScopeTree();
 
   // Mutations
+  const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const grantMutation = useGrantPermission();
   const revokeMutation = useRevokePermission();
+  const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
+  const { mutate: updateUserStatus, isPending: isUpdatingStatus } = useUpdateUserStatus();
+  const { mutate: syncLdap, isPending: isSyncing } = useSyncLdap();
 
   // 搜索和筛选状态
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState<UserStatus | 'all'>('all');
+
+  // 创建 Modal
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm] = Form.useForm();
 
   // 编辑 Modal
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -178,34 +196,119 @@ const UserManagement: React.FC = () => {
       setEditingUser(user);
       editForm.setFieldsValue({
         department: user.department,
-        displayName: user.display_name,
+        display_name: user.display_name,
         email: user.email,
-        status: getUserStatus(user)
       });
       setEditModalOpen(true);
     },
     [editForm]
   );
 
-  // 保存编辑
-  const handleEditSave = useCallback(() => {
-    editForm.validateFields().then(() => {
-      if (editingUser) {
-        auditLog(
-          AuditActions.UPDATE,
-          EntityTypes.USER,
-          String(editingUser.id),
-          editingUser.display_name || editingUser.username,
-          undefined,
-          JSON.stringify(editForm.getFieldsValue()),
-          'User profile updated'
-        );
+  const handleCreateUser = useCallback(
+    (values: Record<string, string>) => {
+      createUser(
+        {
+          username: values.username,
+          email: values.email,
+          display_name: values.display_name || null,
+          department: values.department || null,
+          password: values.password
+        },
+        {
+          onError: (error: any) => {
+            messageApi.error(error?.response?.data?.detail ?? 'Failed to create user');
+          },
+          onSuccess: createdUser => {
+            auditLog(
+              AuditActions.CREATE,
+              EntityTypes.USER,
+              String(createdUser.id),
+              createdUser.display_name || createdUser.username,
+              undefined,
+              JSON.stringify(createdUser),
+              'Local user created'
+            );
+            messageApi.success('User created successfully');
+            setCreateModalOpen(false);
+            createForm.resetFields();
+          }
+        }
+      );
+    },
+    [createForm, createUser, messageApi]
+  );
+
+  const handleEditUser = useCallback(
+    (values: Record<string, string>) => {
+      if (!editingUser) return;
+
+      updateUser(
+        {
+          data: {
+            display_name: values.display_name || null,
+            email: values.email || null,
+            department: values.department || null
+          },
+          userId: editingUser.id
+        },
+        {
+          onError: (error: any) => {
+            messageApi.error(error?.response?.data?.detail ?? 'Failed to update user');
+          },
+          onSuccess: updatedUser => {
+            auditLog(
+              AuditActions.UPDATE,
+              EntityTypes.USER,
+              String(updatedUser.id),
+              updatedUser.display_name || updatedUser.username,
+              undefined,
+              JSON.stringify(updatedUser),
+              'User profile updated'
+            );
+            messageApi.success(t('system.userManagement.editModal.saveSuccess'));
+            setEditModalOpen(false);
+            setEditingUser(null);
+            editForm.resetFields();
+          }
+        }
+      );
+    },
+    [editForm, editingUser, messageApi, t, updateUser]
+  );
+
+  const handleToggleUserStatus = useCallback(
+    (user: Api.RBAC.UserListItem) => {
+      updateUserStatus(
+        { isActive: !user.is_active, userId: user.id },
+        {
+          onError: (error: any) => {
+            messageApi.error(error?.response?.data?.detail ?? 'Failed to update status');
+          },
+          onSuccess: updatedUser => {
+            auditLog(
+              AuditActions.UPDATE,
+              EntityTypes.USER,
+              String(updatedUser.id),
+              updatedUser.display_name || updatedUser.username,
+              undefined,
+              JSON.stringify({ is_active: updatedUser.is_active }),
+              'User status updated'
+            );
+            messageApi.success(user.is_active ? 'User deactivated' : 'User activated');
+          }
+        }
+      );
+    },
+    [messageApi, updateUserStatus]
+  );
+
+  const handleSyncLdap = useCallback(() => {
+    syncLdap(undefined, {
+      onError: () => {
+        messageApi.info('LDAP sync is not yet configured. Coming soon.');
       }
-      messageApi.success(t('system.userManagement.editModal.saveSuccess'));
-      setEditModalOpen(false);
-      setEditingUser(null);
     });
-  }, [editForm, editingUser, messageApi, t]);
+  }, [messageApi, syncLdap]);
 
   // 分配权限
   const handleAssignPermission = useCallback(async () => {
@@ -377,12 +480,13 @@ const UserManagement: React.FC = () => {
               {t('system.userManagement.edit')}
             </Button>
             <Popconfirm
-              title={t('system.userManagement.deleteConfirm')}
-              onConfirm={() => messageApi.success(t('system.userManagement.deleteSuccess'))}
+              title={record.is_active ? 'Deactivate this user?' : 'Activate this user?'}
+              onConfirm={() => handleToggleUserStatus(record)}
             >
               <Button
-                danger
+                danger={record.is_active}
                 icon={<DeleteOutlined />}
+                loading={isUpdatingStatus}
                 size="small"
                 type="link"
               >
@@ -395,7 +499,7 @@ const UserManagement: React.FC = () => {
         width: 180
       }
     ],
-    [t, openPermissionModal, openEditModal, messageApi, rolesData, handleRevokePermission]
+    [t, openPermissionModal, openEditModal, rolesData, handleRevokePermission, handleToggleUserStatus, isUpdatingStatus]
   );
 
   return (
@@ -472,8 +576,16 @@ const UserManagement: React.FC = () => {
               icon={<PlusOutlined />}
               size="small"
               type="primary"
+              onClick={() => setCreateModalOpen(true)}
             >
               {t('system.userManagement.addUser')}
+            </Button>
+            <Button
+              loading={isSyncing}
+              size="small"
+              onClick={handleSyncLdap}
+            >
+              Sync from LDAP
             </Button>
           </Space>
         }
@@ -502,6 +614,57 @@ const UserManagement: React.FC = () => {
           />
         </Spin>
       </Card>
+
+      <Modal
+        confirmLoading={isCreating}
+        open={createModalOpen}
+        title="Create User"
+        onCancel={() => {
+          setCreateModalOpen(false);
+          createForm.resetFields();
+        }}
+        onOk={() => createForm.submit()}
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={handleCreateUser}
+        >
+          <Form.Item
+            label="Username"
+            name="username"
+            rules={[{ min: 3, required: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[{ required: true, type: 'email' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Display Name"
+            name="display_name"
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Department"
+            name="department"
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Password"
+            name="password"
+            rules={[{ min: 8, required: true }]}
+          >
+            <Input.Password />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* 权限分配 Modal */}
       <Modal
@@ -611,6 +774,7 @@ const UserManagement: React.FC = () => {
       {/* 编辑用户 Modal */}
       <Modal
         cancelText={t('system.userManagement.editModal.cancel')}
+        confirmLoading={isUpdating}
         okText={t('system.userManagement.editModal.save')}
         open={editModalOpen}
         width={500}
@@ -621,20 +785,22 @@ const UserManagement: React.FC = () => {
             {editingUser && <Tag color="blue">{editingUser.display_name || editingUser.username}</Tag>}
           </Space>
         }
-        onOk={handleEditSave}
+        onOk={() => editForm.submit()}
         onCancel={() => {
           setEditModalOpen(false);
           setEditingUser(null);
+          editForm.resetFields();
         }}
       >
         <Form
           className="mt-16px"
           form={editForm}
           layout="vertical"
+          onFinish={handleEditUser}
         >
           <Form.Item
             label={t('system.userManagement.editModal.displayName')}
-            name="displayName"
+            name="display_name"
             rules={[{ message: t('system.userManagement.editModal.displayNameRequired'), required: true }]}
           >
             <Input />
@@ -654,18 +820,6 @@ const UserManagement: React.FC = () => {
             name="department"
           >
             <Input />
-          </Form.Item>
-          <Form.Item
-            label={t('system.userManagement.editModal.status')}
-            name="status"
-          >
-            <Select
-              options={[
-                { label: t('system.userManagement.status.Active'), value: 'Active' },
-                { label: t('system.userManagement.status.Inactive'), value: 'Inactive' },
-                { label: t('system.userManagement.status.Locked'), value: 'Locked' }
-              ]}
-            />
           </Form.Item>
         </Form>
       </Modal>

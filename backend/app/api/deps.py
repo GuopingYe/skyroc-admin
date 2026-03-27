@@ -147,6 +147,7 @@ async def get_user_permissions_for_scope(
         )
         .where(
             UserScopeRole.user_id == user.id,
+            UserScopeRole.is_deleted == False,
             or_(
                 UserScopeRole.valid_from.is_(None),
                 UserScopeRole.valid_from <= now,

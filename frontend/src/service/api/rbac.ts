@@ -71,3 +71,56 @@ export function fetchGetUsers(params?: { is_active?: boolean; search?: string })
     url: RBAC_URLS.GET_USERS
   });
 }
+
+/** 更新角色权限 */
+export function fetchUpdateRolePermissions(roleId: number, permissionIds: number[]) {
+  return request<Api.RBAC.Role>({
+    data: { permission_ids: permissionIds },
+    method: 'put',
+    url: RBAC_URLS.UPDATE_ROLE_PERMISSIONS(roleId)
+  });
+}
+
+/** 创建用户 */
+export function fetchCreateUser(data: Api.RBAC.CreateUserRequest) {
+  return request<Api.RBAC.UserDetail>({
+    data,
+    method: 'post',
+    url: RBAC_URLS.CREATE_USER
+  });
+}
+
+/** 更新用户 */
+export function fetchUpdateUser(userId: number, data: Api.RBAC.UpdateUserRequest) {
+  return request<Api.RBAC.UserDetail>({
+    data,
+    method: 'put',
+    url: RBAC_URLS.UPDATE_USER(userId)
+  });
+}
+
+/** 更新用户状态 */
+export function fetchUpdateUserStatus(userId: number, isActive: boolean) {
+  return request<Api.RBAC.UserDetail>({
+    data: { is_active: isActive },
+    method: 'patch',
+    url: RBAC_URLS.UPDATE_USER_STATUS(userId)
+  });
+}
+
+/** 委派团队分配 */
+export function fetchAssignTeam(data: Api.RBAC.AssignTeamRequest) {
+  return request<Api.RBAC.GrantPermissionResponse>({
+    data,
+    method: 'post',
+    url: RBAC_URLS.ASSIGN_TEAM
+  });
+}
+
+/** LDAP 同步 */
+export function fetchSyncLdap() {
+  return request<unknown>({
+    method: 'post',
+    url: RBAC_URLS.SYNC_LDAP
+  });
+}

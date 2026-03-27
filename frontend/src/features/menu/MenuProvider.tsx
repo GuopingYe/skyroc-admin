@@ -1,5 +1,8 @@
 import type { FC, PropsWithChildren } from 'react';
 
+import type { IClinicalContextState } from '@/features/clinical-context';
+import { canAccessRoute, filterMenuItems, getEffectiveMenuPermissions } from '@/features/router/routeGuard';
+import { useMyPermissions } from '@/service/hooks';
 import { selectActiveFirstLevelMenuKey, setActiveFirstLevelMenuKey } from '@/features/tab/tabStore';
 
 import { useLang } from '../lang';
@@ -19,11 +22,20 @@ const MenuProvider: FC<PropsWithChildren> = ({ children }) => {
   const { locale } = useLang();
 
   const activeFirstLevelMenuKey = useAppSelector(selectActiveFirstLevelMenuKey);
+  const clinicalContext = useAppSelector((state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context);
+  const currentScopeNodeId =
+    clinicalContext.analysis?.scopeNodeId ?? clinicalContext.study?.scopeNodeId ?? clinicalContext.product?.scopeNodeId ?? null;
+  const { data: myPermissions } = useMyPermissions(true);
 
-  const menus = useMemo(
+  const rawMenus = useMemo(
     () => filterRoutesToMenus(getBaseChildrenRoutes(router.reactRouter.routes)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [router.reactRouter.routes, locale]
+  );
+
+  const menus = useMemo(
+    () => filterMenuItems(rawMenus, myPermissions, currentScopeNodeId),
+    [rawMenus, myPermissions, currentScopeNodeId]
   );
 
   const firstLevelMenu = menus.map(menu => {
@@ -52,6 +64,15 @@ const MenuProvider: FC<PropsWithChildren> = ({ children }) => {
     selectKey,
     setActiveFirstLevelMenuKey: changeActiveFirstLevelMenuKey
   };
+
+  useEffect(() => {
+    if (!myPermissions) return;
+
+    const effectivePermissions = getEffectiveMenuPermissions(myPermissions, currentScopeNodeId);
+    if (!canAccessRoute(route.pathname, effectivePermissions)) {
+      router.navigate('/403', { replace: true });
+    }
+  }, [currentScopeNodeId, myPermissions, route.pathname, router]);
 
   return <MixMenuContext value={mixMenuContext}>{children}</MixMenuContext>;
 };

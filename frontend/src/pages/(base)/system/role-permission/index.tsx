@@ -1,10 +1,10 @@
 /** Role Permission Configuration - 角色权限配置 超级管理员配置角色功能权限矩阵 */
-import { CheckOutlined, SafetyCertificateOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, Card, Checkbox, Divider, Empty, List, Space, Spin, Tag, Typography, message } from 'antd';
+import { CheckOutlined, LockOutlined, SafetyCertificateOutlined, SettingOutlined } from '@ant-design/icons';
+import { Button, Card, Checkbox, Divider, Empty, List, Space, Spin, Tag, Tooltip, Typography, message } from 'antd';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { usePermissions, useRoles } from '@/service/hooks';
+import { usePermissions, useRoles, useUpdateRolePermissions } from '@/service/hooks';
 import auditLog, { AuditActions, EntityTypes } from '@/utils/audit-logger';
 
 const { Text, Title } = Typography;
@@ -49,6 +49,7 @@ const RolePermission: React.FC = () => {
   // API Hooks
   const { data: rolesData, isLoading: rolesLoading } = useRoles(true);
   const { data: permissionsData, isLoading: permissionsLoading } = usePermissions();
+  const { mutate: updateRolePermissions, isPending: isSaving } = useUpdateRolePermissions();
 
   // 当前选中的角色 ID
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
@@ -81,6 +82,8 @@ const RolePermission: React.FC = () => {
     if (!rolesData || !selectedRoleId) return null;
     return rolesData.find(r => r.id === selectedRoleId) || null;
   }, [rolesData, selectedRoleId]);
+
+  const isSuperAdminSelected = useMemo(() => selectedRole?.code === 'SUPER_ADMIN', [selectedRole]);
 
   // 当前选中角色的权限代码列表
   const currentPermissions = useMemo(() => {
@@ -142,22 +145,50 @@ const RolePermission: React.FC = () => {
   // 保存权限配置
   const handleSave = useCallback(() => {
     if (!selectedRole || !selectedRoleId) return;
+    if (isSuperAdminSelected) return;
 
-    // TODO: 调用 API 更新角色权限
-    // 目前只是本地状态更新和审计日志
+    const permissionIds = (permissionsData || [])
+      .filter(permission => currentPermissions.includes(permission.code))
+      .map(permission => permission.id);
 
-    auditLog(
-      AuditActions.UPDATE,
-      EntityTypes.ROLE,
-      String(selectedRoleId),
-      selectedRole.name,
-      undefined,
-      JSON.stringify(currentPermissions),
-      'Role permissions updated'
+    updateRolePermissions(
+      { permissionIds, roleId: selectedRoleId },
+      {
+        onError: (error: any) => {
+          const detail = error?.response?.data?.detail ?? 'Save failed';
+          messageApi.error(detail);
+        },
+        onSuccess: () => {
+          setModifiedPermissions(prev => {
+            const next = { ...prev };
+            delete next[selectedRoleId];
+            return next;
+          });
+
+          auditLog(
+            AuditActions.UPDATE,
+            EntityTypes.ROLE,
+            String(selectedRoleId),
+            selectedRole.name,
+            undefined,
+            JSON.stringify(permissionIds),
+            'Role permissions updated via API'
+          );
+
+          messageApi.success(t('system.userManagement.rolePermission.saveSuccess'));
+        }
+      }
     );
-
-    messageApi.success(t('system.userManagement.rolePermission.saveSuccess'));
-  }, [selectedRole, selectedRoleId, currentPermissions, messageApi, t]);
+  }, [
+    currentPermissions,
+    isSuperAdminSelected,
+    messageApi,
+    permissionsData,
+    selectedRole,
+    selectedRoleId,
+    t,
+    updateRolePermissions
+  ]);
 
   // 检查分类是否全选
   const isCategoryAllChecked = useCallback(
@@ -236,13 +267,18 @@ const RolePermission: React.FC = () => {
         variant="borderless"
         extra={
           selectedRoleId && (
-            <Button
-              size="small"
-              type="primary"
-              onClick={handleSave}
-            >
-              {t('system.userManagement.rolePermission.save')}
-            </Button>
+            <Tooltip title={isSuperAdminSelected ? 'SUPER_ADMIN permissions are immutable' : undefined}>
+              <Button
+                disabled={isSuperAdminSelected || isSaving}
+                icon={isSuperAdminSelected ? <LockOutlined /> : undefined}
+                loading={isSaving}
+                size="small"
+                type="primary"
+                onClick={handleSave}
+              >
+                {t('system.userManagement.rolePermission.save')}
+              </Button>
+            </Tooltip>
           )
         }
         title={

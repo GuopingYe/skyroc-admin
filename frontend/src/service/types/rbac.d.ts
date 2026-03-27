@@ -154,6 +154,8 @@ declare namespace Api {
 
     /** 用户 */
     interface User {
+      /** 认证来源 */
+      auth_provider: string;
       /** 创建时间 */
       created_at: string;
       /** 部门 */
@@ -178,6 +180,8 @@ declare namespace Api {
     interface UserListItem {
       /** 角色分配列表 */
       assignments: UserScopeRole[];
+      /** 认证来源 */
+      auth_provider: string;
       /** 创建时间 */
       created_at: string;
       /** 部门 */
@@ -196,6 +200,46 @@ declare namespace Api {
       last_login_at: string | null;
       /** 用户名 */
       username: string;
+    }
+
+    interface UserDetail {
+      auth_provider: string;
+      created_at: string;
+      department: string | null;
+      display_name: string | null;
+      email: string;
+      id: number;
+      is_active: boolean;
+      is_superuser: boolean;
+      username: string;
+    }
+
+    interface UpdateRolePermissionsRequest {
+      permission_ids: number[];
+    }
+
+    interface CreateUserRequest {
+      department?: string | null;
+      display_name?: string | null;
+      email: string;
+      password: string;
+      username: string;
+    }
+
+    interface UpdateUserRequest {
+      department?: string | null;
+      display_name?: string | null;
+      email?: string | null;
+    }
+
+    interface UpdateUserStatusRequest {
+      is_active: boolean;
+    }
+
+    interface AssignTeamRequest {
+      role_id: number;
+      scope_node_id: number;
+      user_id: number;
     }
   }
 }

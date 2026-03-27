@@ -21,7 +21,8 @@ import {
   PlusSquareOutlined,
   ReloadOutlined,
   SearchOutlined,
-  SettingOutlined
+  SettingOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import {
   Button,
@@ -53,7 +54,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useClinicalContext } from '@/features/clinical-context';
-import { useAuth } from '@/features/auth/auth';
 import {
   archivePipelineNode,
   createPipelineMilestone,
@@ -66,8 +66,9 @@ import {
   updatePipelineMilestone,
   updatePipelineStudyConfig
 } from '@/service/api/mdr';
+import { usePermissionCheck } from '@/service/hooks';
 
-import { ExecutionJobsTable, MilestoneTimeline, MilestoneTrackerTable } from './components';
+import { AssignTeamPanel, ExecutionJobsTable, MilestoneTimeline, MilestoneTrackerTable } from './components';
 import { getMilestoneStats } from './milestoneData';
 import {
   type AnalysisNode,
@@ -92,22 +93,6 @@ const PipelineManagement: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-
-  // RBAC permission checks
-  const { hasAuth, isStaticSuper } = useAuth();
-
-  // Memoized permission checks for pipeline management operations
-  const { canManage, canArchiveNode, canManageStudy, canManageTA } = useMemo(() => {
-    const ta = isStaticSuper || hasAuth(['ta:create', 'ta:delete']);
-    const study = isStaticSuper || hasAuth(['study:create', 'study:delete', 'study:lock']);
-    const archive = isStaticSuper || hasAuth('node:archive');
-    return {
-      canArchiveNode: archive,
-      canManage: ta || study || archive,
-      canManageStudy: study,
-      canManageTA: ta
-    };
-  }, [hasAuth, isStaticSuper]);
 
   // 从全局 Store 获取上下文状态
   const {
@@ -138,6 +123,17 @@ const PipelineManagement: React.FC = () => {
   const [milestonesLoading, setMilestonesLoading] = useState(false);
   const [executionJobs, setExecutionJobs] = useState<any[]>([]);
   const [executionJobsLoading, setExecutionJobsLoading] = useState(false);
+  const [assignPanelOpen, setAssignPanelOpen] = useState(false);
+  const [assignTargetScope, setAssignTargetScope] = useState<{ id: number; label: string } | null>(null);
+
+  // RBAC permission checks
+  const { hasPermission, isSuperuser } = usePermissionCheck();
+  const activePipelineScopeNodeId =
+    selectedNode?.dbId ?? context.analysis?.scopeNodeId ?? context.study?.scopeNodeId ?? context.product?.scopeNodeId ?? null;
+  const canManage = isSuperuser || (activePipelineScopeNodeId != null && hasPermission('pipeline:edit', activePipelineScopeNodeId));
+  const canArchiveNode = canManage;
+  const canManageStudy = canManage;
+  const canManageTA = isSuperuser;
 
   // Fetch pipeline tree from API
   const fetchTree = useCallback(async () => {
@@ -394,6 +390,19 @@ const PipelineManagement: React.FC = () => {
         key: 'action',
         render: (_: unknown, record: PipelineNode) => (
           <Space size={4}>
+            {record.nodeType === 'STUDY' && record.dbId && hasPermission('pipeline:assign-team', record.dbId) && (
+              <Button
+                icon={<TeamOutlined />}
+                size="small"
+                type="link"
+                onClick={() => {
+                  setAssignTargetScope({ id: record.dbId!, label: record.title });
+                  setAssignPanelOpen(true);
+                }}
+              >
+                Assign Team
+              </Button>
+            )}
             <Button
               size="small"
               type="link"
@@ -405,7 +414,7 @@ const PipelineManagement: React.FC = () => {
             >
               {t('page.mdr.pipelineManagement.view')}
             </Button>
-            {canArchiveNode && (
+            {(isSuperuser || (record.dbId != null && hasPermission('pipeline:edit', record.dbId))) && (
               <Popconfirm
                 title={t('page.mdr.pipelineManagement.archiveConfirm')}
                 onConfirm={() => handleArchive(record.id)}
@@ -425,7 +434,7 @@ const PipelineManagement: React.FC = () => {
         width: 120
       }
     ],
-    [t, handleArchive, canArchiveNode]
+    [t, handleArchive, canArchiveNode, hasPermission]
   );
 
   const childNodes = useMemo(
@@ -482,6 +491,7 @@ const PipelineManagement: React.FC = () => {
       {
         children: (
           <StudyConfigTab
+            canEdit={canManage}
             isEditing={isEditing}
             isStudyReady={isStudyReady}
             messageApi={messageApi}
@@ -630,6 +640,15 @@ const PipelineManagement: React.FC = () => {
           )}
         </Form>
       </Modal>
+
+      {assignTargetScope && (
+        <AssignTeamPanel
+          open={assignPanelOpen}
+          scopeLabel={assignTargetScope.label}
+          scopeNodeId={assignTargetScope.id}
+          onClose={() => setAssignPanelOpen(false)}
+        />
+      )}
     </div>
   );
 };
@@ -939,15 +958,17 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           size="small"
           extra={
             <Space>
-              <Button
-                disabled={isLocked}
-                icon={<EditOutlined />}
-                size="small"
-                type="text"
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? t('page.mdr.pipelineManagement.cancelEdit') : t('page.mdr.pipelineManagement.edit')}
-              </Button>
+              {canManage && (
+                <Button
+                  disabled={isLocked}
+                  icon={<EditOutlined />}
+                  size="small"
+                  type="text"
+                  onClick={() => setIsEditing(!isEditing)}
+                >
+                  {isEditing ? t('page.mdr.pipelineManagement.cancelEdit') : t('page.mdr.pipelineManagement.edit')}
+                </Button>
+              )}
               {canArchiveNode && (
                 <Popconfirm
                   disabled={isLocked}
@@ -997,16 +1018,18 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
                 <Input />
               </Form.Item>
               <div className="flex justify-end">
-                <Button
-                  disabled={isLocked}
-                  type="primary"
-                  onClick={() => {
-                    messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
-                    setIsEditing(false);
-                  }}
-                >
-                  {t('page.mdr.pipelineManagement.save')}
-                </Button>
+                {canManage && (
+                  <Button
+                    disabled={isLocked}
+                    type="primary"
+                    onClick={() => {
+                      messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
+                      setIsEditing(false);
+                    }}
+                  >
+                    {t('page.mdr.pipelineManagement.save')}
+                  </Button>
+                )}
               </div>
             </Form>
           ) : (
@@ -1126,6 +1149,7 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
 
 /** Study Configuration Tab - 仅依赖 Study 级别 */
 interface StudyConfigTabProps {
+  canEdit: boolean;
   isEditing: boolean;
   isStudyReady: boolean;
   messageApi: ReturnType<typeof message.useMessage>[0];
@@ -1136,6 +1160,7 @@ interface StudyConfigTabProps {
 }
 
 const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
+  canEdit,
   isEditing,
   isStudyReady,
   messageApi,
@@ -1277,13 +1302,15 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
         className="card-wrapper"
         size="small"
         extra={
-          <Button
-            icon={<EditOutlined />}
-            type={isEditing ? 'default' : 'primary'}
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? t('page.mdr.pipelineManagement.cancelEdit') : t('page.mdr.pipelineManagement.edit')}
-          </Button>
+          canEdit ? (
+            <Button
+              icon={<EditOutlined />}
+              type={isEditing ? 'default' : 'primary'}
+              onClick={() => setIsEditing(!isEditing)}
+            >
+              {isEditing ? t('page.mdr.pipelineManagement.cancelEdit') : t('page.mdr.pipelineManagement.edit')}
+            </Button>
+          ) : null
         }
         title={
           <Space>
@@ -1391,7 +1418,7 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
               </Form.Item>
             </div>
 
-            {isEditing && (
+            {isEditing && canEdit && (
               <div className="mt-16px flex justify-end">
                 <Button
                   loading={saving}

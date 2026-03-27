@@ -47,6 +47,19 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 100  # Max requests per window
     RATE_LIMIT_WINDOW_SECONDS: int = 60  # Window in seconds
 
+    # LDAP (optional — app starts normally when unset)
+    LDAP_URL: str | None = None
+    LDAP_BASE_DN: str | None = None
+    LDAP_BIND_DN: str | None = None
+    LDAP_BIND_PASSWORD: str | None = None
+    LDAP_USER_FILTER: str = "(objectClass=person)"
+    LDAP_ATTR_MAP: dict = {
+        "uid": "username",
+        "mail": "email",
+        "cn": "display_name",
+        "department": "department",
+    }
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Validate critical security settings

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  fetchAssignTeam,
+  fetchCreateUser,
   fetchGetMyPermissions,
   fetchGetPermissions,
   fetchGetRoles,
@@ -8,7 +10,11 @@ import {
   fetchGetUserRoles,
   fetchGetUsers,
   fetchGrantPermission,
-  fetchRevokePermission
+  fetchRevokePermission,
+  fetchSyncLdap,
+  fetchUpdateRolePermissions,
+  fetchUpdateUser,
+  fetchUpdateUserStatus
 } from '../api';
 import { QUERY_KEYS } from '../keys';
 
@@ -18,8 +24,9 @@ import { QUERY_KEYS } from '../keys';
  * @example
  *   const { data: permissions, isLoading } = useMyPermissions();
  */
-export function useMyPermissions(includeTree = false) {
+export function useMyPermissions(includeTree = false, enabled = true) {
   return useQuery({
+    enabled,
     queryFn: () => fetchGetMyPermissions(includeTree),
     queryKey: QUERY_KEYS.RBAC.MY_PERMISSIONS(includeTree)
   });
@@ -127,6 +134,73 @@ export function useRevokePermission() {
     mutationFn: fetchRevokePermission,
     onSuccess: () => {
       // 刷新相关缓存
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useUpdateRolePermissions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ permissionIds, roleId }: { permissionIds: number[]; roleId: number }) =>
+      fetchUpdateRolePermissions(roleId, permissionIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: fetchCreateUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ data, userId }: { data: Api.RBAC.UpdateUserRequest; userId: number }) => fetchUpdateUser(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useUpdateUserStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ isActive, userId }: { isActive: boolean; userId: number }) => fetchUpdateUserStatus(userId, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useAssignTeam() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: fetchAssignTeam,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rbac'] });
+    }
+  });
+}
+
+export function useSyncLdap() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: fetchSyncLdap,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rbac'] });
     }
   });
