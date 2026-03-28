@@ -281,7 +281,7 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
                   popupMatchSelectWidth={false}
                   showSearch
                   size="small"
-                  value={context.studyId}
+                  value={context.productId ? context.studyId : undefined}
                   onChange={handleStudyChange}
                 />
               </div>
@@ -300,7 +300,7 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
                   popupMatchSelectWidth={false}
                   showSearch
                   size="small"
-                  value={context.analysisId}
+                  value={context.studyId ? context.analysisId : undefined}
                   onChange={handleAnalysisChange}
                 />
               </div>
