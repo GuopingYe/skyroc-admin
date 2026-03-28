@@ -49,7 +49,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { DataNode } from 'antd/es/tree';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -1202,8 +1202,8 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
   } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Track the studyId for which we have loaded data
-  const [loadedStudyId, setLoadedStudyId] = useState<string | null>(null);
+  // Track the studyId for which we have loaded data (ref avoids race condition with state)
+  const loadedStudyIdRef = useRef<string | null>(null);
 
   // Fetch available versions from API
   useEffect(() => {
@@ -1218,30 +1218,30 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
     });
   }, [messageApi, t]);
 
-  // Reset form when switching to a different study
+  // Populate form from selectedNode (runs when node changes or tree refreshes)
   useEffect(() => {
-    if (selectedNode && selectedNode.id !== loadedStudyId) {
-      // Reset form completely before setting new values
-      form.resetFields();
+    if (!selectedNode) return;
 
-      // CRITICAL: Must explicitly set ALL config fields to prevent stale values
-      // from previous study appearing in the new study's form
-      const config = selectedNode.config || {};
-      form.setFieldsValue({
-        protocolTitle: selectedNode.protocolTitle || '',
-        phase: selectedNode.phase || '',
-        config: {
-          sdtmModelVersion: config.sdtmModelVersion || null,
-          sdtmIgVersion: config.sdtmIgVersion || null,
-          adamModelVersion: config.adamModelVersion || null,
-          adamIgVersion: config.adamIgVersion || null,
-          meddraVersion: config.meddraVersion || null,
-          whodrugVersion: config.whodrugVersion || null,
-        },
-      });
-      setLoadedStudyId(selectedNode.id);
+    // Reset form completely when switching to a different study
+    if (selectedNode.id !== loadedStudyIdRef.current) {
+      form.resetFields();
     }
-  }, [selectedNode, form, loadedStudyId]);
+
+    const config = selectedNode.config || {};
+    form.setFieldsValue({
+      protocolTitle: selectedNode.protocolTitle || '',
+      phase: selectedNode.phase || '',
+      config: {
+        sdtmModelVersion: config.sdtmModelVersion || null,
+        sdtmIgVersion: config.sdtmIgVersion || null,
+        adamModelVersion: config.adamModelVersion || null,
+        adamIgVersion: config.adamIgVersion || null,
+        meddraVersion: config.meddraVersion || null,
+        whodrugVersion: config.whodrugVersion || null,
+      },
+    });
+    loadedStudyIdRef.current = selectedNode.id;
+  }, [selectedNode, form]);
 
   const handleSave = async () => {
     // CRITICAL: Use selectedNode.id to ensure we save to the correct study
@@ -1275,9 +1275,6 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
       console.log('[StudyConfigTab] Save successful, refreshing tree...');
       messageApi.success(t('page.mdr.pipelineManagement.saveSuccess'));
       setIsEditing(false);
-
-      // Reset loadedStudyId so the form will reload data from the refreshed tree
-      setLoadedStudyId(null);
 
       // Refresh tree data to reflect the changes
       if (onConfigSaved) {
