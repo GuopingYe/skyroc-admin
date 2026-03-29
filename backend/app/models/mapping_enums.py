@@ -261,3 +261,4 @@ class PRItemType(str, enum.Enum):
     TFL = "TFL"  # TFL 模板
     MAPPING = "Mapping"  # 映射规则
     SPEC = "Spec"  # 数据集规格
+    SHELL_TEMPLATE_UPDATE = "ShellTemplateUpdate"  # Shell 模板更新

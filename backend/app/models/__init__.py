@@ -36,6 +36,7 @@ Pull Request 模型：
 """
 
 from app.models.ars import ARSDataBinding, ARSDisplay, ARSDisplaySection, ARSTemplateBlock
+from app.models.ars_study import StatisticsItem, StatisticsSet, StudyDefaults, StudyTemplate
 from app.models.audit_log import AuditLog
 from app.models.audit_listener import (
     clear_audit_context,
@@ -134,6 +135,11 @@ __all__ = [
     "ARSTemplateBlock",
     "ARSDisplaySection",
     "ARSDataBinding",
+    # ARS Study-Level Models
+    "StatisticsSet",
+    "StatisticsItem",
+    "StudyDefaults",
+    "StudyTemplate",
     # Tracker Models
     "ProgrammingTracker",
     "TrackerIssue",
