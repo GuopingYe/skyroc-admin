@@ -90,6 +90,7 @@ import {
   InteractiveOutputEditor,
   DecimalDefaultsEditor,
   DecimalSettingsTab,
+  StudyTemplateLibrary,
   useTFLDesignerData,
 } from '@/features/tfl-designer';
 import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
@@ -1712,7 +1713,7 @@ const TflDesigner: React.FC = () => {
               {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
               {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
-              {studySettingsTab === 'shellTemplates' && <Card size="small"><Text type="secondary">Shell Template Library (coming soon)</Text></Card>}
+              {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}
             </div>
           ) : tableStore.currentTable
             ? renderTableEditor()

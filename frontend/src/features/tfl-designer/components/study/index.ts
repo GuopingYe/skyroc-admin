@@ -6,3 +6,4 @@ export { default as PopulationManager } from './PopulationManager';
 export { default as HeaderStyleSelector } from './HeaderStyleSelector';
 export { default as ColumnHeaderSetEditor } from './ColumnHeaderSetEditor';
 export { default as DecimalDefaultsEditor } from './DecimalDefaultsEditor';
+export { default as StudyTemplateLibrary } from './StudyTemplateLibrary';
