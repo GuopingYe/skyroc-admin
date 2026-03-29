@@ -123,7 +123,7 @@ type SidebarView = 'items' | 'settings';
 
 const TflDesigner: React.FC = () => {
   const { t } = useTranslation();
-  const { isReady } = useClinicalContext();
+  const { isReady, isStudyReady, isAnalysisReady } = useClinicalContext();
   
   // Get current user for audit trail
   const { data: userInfo } = useUserInfo();
@@ -1469,17 +1469,17 @@ const TflDesigner: React.FC = () => {
           flex-wrap: nowrap !important;
         }
       `}</style>
-      {/* Context not ready — show only the prompt, no shell content */}
-      {!isReady && (
+      {/* No study selected — prompt to select */}
+      {!isStudyReady && (
         <div className="flex flex-1 items-center justify-center">
           <Empty
             description={
               <Space direction="vertical" align="center" size={8}>
                 <Text type="secondary" className="text-14px">
-                  {t('page.mdr.tflDesigner.context.selectAnalysisForTfl')}
+                  Select a study to start designing
                 </Text>
                 <Text type="secondary" className="text-12px">
-                  Select a study and analysis from the global context above to start designing outputs.
+                  Choose a product and study from the global context above.
                 </Text>
               </Space>
             }
@@ -1488,8 +1488,55 @@ const TflDesigner: React.FC = () => {
         </div>
       )}
 
-      {/* Only render workspace when context is ready */}
-      {isReady && (
+      {/* Study selected but no analysis — show study-level settings */}
+      {isStudyReady && !isAnalysisReady && (
+        <Card className="flex-1 overflow-hidden" size="small" variant="borderless">
+          <div className="h-full flex gap-8px overflow-hidden">
+            {/* Study settings sidebar */}
+            <div className="w-260px flex-shrink-0 border-r border-gray-200 pr-8px overflow-y-auto">
+              <div className="mb-8px text-12px font-medium text-gray-500">
+                Study-Level Configuration
+              </div>
+              {[
+                { key: 'treatmentArms', icon: <TeamOutlined />, label: 'Treatment Arms' },
+                { key: 'populations', icon: <TeamOutlined />, label: 'Populations' },
+                { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Layout' },
+                { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
+                { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
+                { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
+                { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
+              ].map(tab => (
+                <div
+                  key={tab.key}
+                  className="flex items-center gap-8px px-8px py-6px rounded cursor-pointer text-12px transition-colors"
+                  style={{
+                    background: studySettingsTab === tab.key ? '#e6f4ff' : 'transparent',
+                    color: studySettingsTab === tab.key ? '#1890ff' : '#666',
+                  }}
+                  onClick={() => setStudySettingsTab(tab.key)}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Settings content */}
+            <div className="flex-1 overflow-y-auto py-4px">
+              {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
+              {studySettingsTab === 'populations' && <PopulationManager />}
+              {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
+              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
+              {studySettingsTab === 'statistics' && <StatisticsSetManager />}
+              {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
+              {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Analysis selected — show full TFL workspace */}
+      {isAnalysisReady && (
         <>
       {/* Toolbar */}
       <Card className="card-wrapper flex-shrink-0" size="small" variant="borderless" styles={{ body: { padding: '6px 16px', borderBottom: '1px solid #f0f0f0' } }}>

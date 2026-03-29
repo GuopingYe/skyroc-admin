@@ -292,6 +292,7 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
               <div className="flex items-center gap-4px">
                 <AuditOutlined className="text-purple-500" />
                 <Select
+                  allowClear
                   disabled={!context.studyId}
                   labelRender={analysisLabelRender}
                   onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'analysis')}
