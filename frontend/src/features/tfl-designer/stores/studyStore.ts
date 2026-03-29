@@ -6,8 +6,8 @@
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Study, TreatmentArmSet, TreatmentArm, PopulationSet, StatisticsSet, ColumnHeaderSet, ColumnHeaderGroup, HeaderFontStyle } from '../types';
-import { generateId, DEFAULT_HEADER_FONT_STYLE } from '../types';
+import type { Study, TreatmentArmSet, TreatmentArm, PopulationSet, StatisticsSet, ColumnHeaderSet, ColumnHeaderGroup, HeaderFontStyle, StudyTemplate, StudyDefaults, DecimalConfig } from '../types';
+import { generateId, DEFAULT_HEADER_FONT_STYLE, DEFAULT_DECIMAL_RULES } from '../types';
 
 // ==================== State Interface ====================
 
@@ -19,6 +19,20 @@ interface StudyState {
   statisticsSets: StatisticsSet[];
   columnHeaderSets: ColumnHeaderSet[];
   headerFontStyle: HeaderFontStyle;
+
+  // Study Templates + Defaults
+  studyTemplates: StudyTemplate[];
+  studyDefaults: StudyDefaults | null;
+
+  // Study Template CRUD
+  setStudyTemplates: (templates: StudyTemplate[]) => void;
+  addStudyTemplate: (template: StudyTemplate) => void;
+  updateStudyTemplate: (id: string | number, updates: Partial<StudyTemplate>) => void;
+  deleteStudyTemplate: (id: string | number) => void;
+
+  // Study Defaults
+  setStudyDefaults: (defaults: StudyDefaults) => void;
+  updateDecimalRules: (rules: DecimalConfig) => void;
 
   // Column Header Set CRUD
 
@@ -353,6 +367,8 @@ export const useStudyStore = create<StudyState>()(
     statisticsSets: mockStatisticsSets,
     columnHeaderSets: mockColumnHeaderSets,
     headerFontStyle: DEFAULT_HEADER_FONT_STYLE,
+    studyTemplates: [],
+    studyDefaults: null,
 
     // Study CRUD
     addStudy: (study) =>
@@ -475,6 +491,43 @@ export const useStudyStore = create<StudyState>()(
     setHeaderFontStyle: (style) =>
       set((state) => {
         state.headerFontStyle = style;
+      }),
+
+    // Study Template CRUD
+    setStudyTemplates: (templates) =>
+      set((state) => {
+        state.studyTemplates = templates;
+      }),
+
+    addStudyTemplate: (template) =>
+      set((state) => {
+        state.studyTemplates.push(template);
+      }),
+
+    updateStudyTemplate: (id, updates) =>
+      set((state) => {
+        const index = state.studyTemplates.findIndex((t) => t.id === id);
+        if (index !== -1) {
+          Object.assign(state.studyTemplates[index], updates);
+        }
+      }),
+
+    deleteStudyTemplate: (id) =>
+      set((state) => {
+        state.studyTemplates = state.studyTemplates.filter((t) => t.id !== id);
+      }),
+
+    // Study Defaults
+    setStudyDefaults: (defaults) =>
+      set((state) => {
+        state.studyDefaults = defaults;
+      }),
+
+    updateDecimalRules: (rules) =>
+      set((state) => {
+        if (state.studyDefaults) {
+          state.studyDefaults.decimalRules = rules;
+        }
       }),
 
     // Column Header Set CRUD

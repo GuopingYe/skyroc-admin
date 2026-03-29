@@ -6,7 +6,7 @@
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { TableShell, TableRow, TableFooter } from '../types';
+import type { TableShell, TableRow, TableFooter, DecimalConfig } from '../types';
 import { generateId } from '../types';
 
 // ==================== State Interface ====================
@@ -43,6 +43,9 @@ interface TableState {
 
   // Footer
   updateFooter: (footer: Partial<TableFooter>) => void;
+
+  // Decimal override
+  updateDecimalOverride: (overrides: DecimalConfig) => void;
 
   // Dirty tracking
   markClean: () => void;
@@ -290,6 +293,14 @@ export const useTableStore = create<TableState>()(
 
         Object.assign(state.currentTable.footer, footer);
         state.isDirty = true;
+      }),
+
+    updateDecimalOverride: (overrides) =>
+      set((state) => {
+        if (state.currentTable) {
+          state.currentTable.decimalOverride = overrides;
+          state.isDirty = true;
+        }
       }),
 
     markClean: () =>
