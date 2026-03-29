@@ -31,6 +31,7 @@ import {
   LayoutOutlined,
   LoadingOutlined,
   ReloadOutlined,
+  NumberOutlined,
 } from '@ant-design/icons';
 import {
   Tabs,
@@ -87,6 +88,8 @@ import {
   HeaderStyleSelector,
   ColumnHeaderSetEditor,
   InteractiveOutputEditor,
+  DecimalDefaultsEditor,
+  DecimalSettingsTab,
   useTFLDesignerData,
 } from '@/features/tfl-designer';
 import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
@@ -147,6 +150,13 @@ const TflDesigner: React.FC = () => {
   const populationOptions = useMemo(
     () => populationSets.map((p) => ({ value: p.name, label: p.name })),
     [populationSets]
+  );
+
+  // Statistics Set options from study store (for metadata dropdown)
+  const statisticsSets = useStudyStore((s) => s.statisticsSets);
+  const statisticsSetOptions = useMemo(
+    () => statisticsSets.map((s) => ({ value: s.id, label: s.name })),
+    [statisticsSets]
   );
 
   // Header font style from study store
@@ -753,6 +763,17 @@ const TflDesigner: React.FC = () => {
                               options={datasetOptions}
                             />
                           </div>
+                          <div>
+                            <Text type="secondary" className="text-11px">Statistics Set</Text>
+                            <Select
+                              className="mt-4px w-full"
+                              size="small"
+                              value={table.statisticsSetId || undefined}
+                              onChange={(v) => tableStore.updateMetadata({ statisticsSetId: v })}
+                              options={statisticsSetOptions}
+                              placeholder="Select statistics set"
+                            />
+                          </div>
                         </div>
                       </Card>
                       <Card size="small" title={t('page.mdr.tflDesigner.tableMeta.treatmentArms')}>
@@ -847,6 +868,11 @@ const TflDesigner: React.FC = () => {
                     </div>
                   ),
                 },
+                {
+                  key: 'decimals',
+                  label: 'Decimals',
+                  children: <DecimalSettingsTab />,
+                },
               ]}
             />
           </Card>
@@ -879,6 +905,10 @@ const TflDesigner: React.FC = () => {
               headerStyle={headerFontStyle}
               columnHeaders={activeArmHeaders}
               onColumnHeadersChange={handleColumnHeadersChange}
+              decimalConfig={{
+                shellDefaults: table.decimalOverride,
+                studyDefaults: studyStore.studyDefaults?.decimalRules,
+              }}
             />
           </Card>
         </div>
@@ -1577,6 +1607,8 @@ const TflDesigner: React.FC = () => {
                   { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Layout' },
                   { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
                   { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
+                  { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
+                  { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
                 ].map(tab => (
                   <div
                     key={tab.key}
@@ -1679,6 +1711,8 @@ const TflDesigner: React.FC = () => {
               {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
               {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
+              {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
+              {studySettingsTab === 'shellTemplates' && <Card size="small"><Text type="secondary">Shell Template Library (coming soon)</Text></Card>}
             </div>
           ) : tableStore.currentTable
             ? renderTableEditor()

@@ -35,6 +35,7 @@ export { default as TreatmentArmEditor } from './components/table/TreatmentArmEd
 export { default as TemplateSelector } from './components/table/TemplateSelector';
 export { default as HeaderEditor } from './components/table/HeaderEditor';
 export { default as ColumnSourceEditor } from './components/table/ColumnSourceEditor';
+export { default as DecimalSettingsTab } from './components/table/DecimalSettingsTab';
 export { default as FigurePreview } from './components/figure/FigurePreview';
 export { default as ChartTypeSelector } from './components/figure/ChartTypeSelector';
 export { default as AxesConfig } from './components/figure/AxesConfig';
@@ -48,6 +49,7 @@ export { default as PopulationManager } from './components/study/PopulationManag
 export { default as HeaderStyleSelector } from './components/study/HeaderStyleSelector';
 export { default as StatisticsSetManager } from './components/study/StatisticsSetManager';
 export { default as ColumnHeaderSetEditor } from './components/study/ColumnHeaderSetEditor';
+export { default as DecimalDefaultsEditor } from './components/study/DecimalDefaultsEditor';
 export { default as ExportModal } from './components/common/ExportModal';
 export { default as TemplateEditor } from './components/shared/TemplateEditor';
 export { default as InteractiveOutputEditor } from './components/shared/InteractiveOutputEditor';
