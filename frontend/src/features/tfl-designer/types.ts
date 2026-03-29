@@ -71,6 +71,55 @@ export interface StatisticItem {
   format?: string;       // e.g. "XX.X (X.XX)"
 }
 
+// ==================== Decimal Config ====================
+
+export type StatTypeKey = 'n' | 'mean' | 'sd' | 'median' | 'min' | 'max' | 'percent' | 'range';
+
+export interface DecimalConfig {
+  n?: number;
+  mean?: number;
+  sd?: number;
+  median?: number;
+  min?: number;
+  max?: number;
+  percent?: number;
+  range?: number;
+}
+
+export const DEFAULT_DECIMAL_RULES: DecimalConfig = {
+  n: 0,
+  mean: 2,
+  sd: 3,
+  median: 1,
+  min: 1,
+  max: 1,
+  percent: 2,
+};
+
+// ==================== Study Template ====================
+
+export interface StudyTemplate {
+  id: string | number;
+  scopeNodeId: string | number;
+  category: AnalysisCategory;
+  templateName: string;
+  displayType: 'Table' | 'Figure' | 'Listing';
+  shellSchema: TableShell | FigureShell | ListingShell;
+  statisticsSetId?: string | number;
+  decimalOverride?: DecimalConfig;
+  version: number;
+  createdBy?: string;
+  updatedAt?: string;
+}
+
+export interface StudyDefaults {
+  id: string | number;
+  scopeNodeId: string | number;
+  defaultStatisticsSetId?: string | number;
+  decimalRules: DecimalConfig;
+  headerStyle?: Record<string, unknown>;
+}
+
 // ==================== Column Header Set ====================
 
 export interface ColumnHeaderGroup {
@@ -155,6 +204,7 @@ export interface TableShell {
   dataset: string;
   treatmentArmSetId: string;
   statisticsSetId: string;
+  decimalOverride?: DecimalConfig;
   columnHeaderSetId?: string; // study-level column header grouping (overrides arms)
   headerLayers?: TableHeaderLayer[];
   rows: TableRow[];
