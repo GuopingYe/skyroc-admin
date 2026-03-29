@@ -23,8 +23,10 @@ import {
 import type {
   Template, TableShell, ListingShell, FigureShell,
   TableRow, ListingColumn, HeaderFontStyle, ColumnHeaderGroup, LabelColumn,
+  DecimalConfig,
 } from '../../types';
-import { generateId } from '../../types';
+import { generateId, DEFAULT_DECIMAL_RULES } from '../../types';
+import { formatPlaceholder, buildDecimalsMap } from '../../utils/placeholderFormatter';
 
 /* ------------------------------------------------------------------ */
 /*  Tiny types                                                  */
@@ -49,6 +51,11 @@ export interface InteractiveEditorProps {
   columnHeaders?: ColumnHeaderGroup[];
   /** Callback when column headers are edited (rename, add, delete, reorder) */
   onColumnHeadersChange?: (headers: ColumnHeaderGroup[]) => void;
+  /** Decimal config for resolving placeholder precision */
+  decimalConfig?: {
+    shellDefaults?: DecimalConfig;
+    studyDefaults?: DecimalConfig;
+  };
 }
 
 export interface InteractiveOutputEditorRef {
@@ -388,7 +395,7 @@ function deleteHeaderFromTree(headers: ColumnHeaderGroup[], nodeId: string): Col
 
 const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, InteractiveEditorProps>(
   function InteractiveOutputEditor({
-    template, onTemplateChange, editable = true, compact = false, headerStyle, columnHeaders, onColumnHeadersChange,
+    template, onTemplateChange, editable = true, compact = false, headerStyle, columnHeaders, onColumnHeadersChange, decimalConfig,
   }, ref) {
   const [sel, setSel] = useState<string | null>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -1352,10 +1359,25 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
                           </td>
                         ))}
                         {/* Data column cells */}
-                        {leafCols.length === 0 && <td className="px-2 py-1 text-center text-gray-400">-</td>}
-                        {leafCols.map(c => (
-                          <td key={c.id} className="px-2 py-1 text-center text-gray-400" style={{ minWidth: c.width || 80 }}>-</td>
-                        ))}
+                        {(() => {
+                          const statTypes = (row.stats ?? []).map(s => s.type);
+                          const hasStats = statTypes.length > 0 && !statTypes.includes('header');
+                          const placeholder = hasStats
+                            ? formatPlaceholder(
+                                statTypes,
+                                buildDecimalsMap(row.stats!, decimalConfig?.shellDefaults, decimalConfig?.studyDefaults, DEFAULT_DECIMAL_RULES),
+                              )
+                            : null;
+                          return leafCols.length === 0
+                            ? <td className="px-2 py-1 text-center text-gray-400">-</td>
+                            : leafCols.map(c => (
+                              <td key={c.id} className="px-2 py-1 text-center" style={{ minWidth: c.width || 80 }}>
+                                {placeholder
+                                  ? <span style={{ color: '#1890ff', fontStyle: 'italic' }}>{placeholder}</span>
+                                  : <span className="text-gray-400">-</span>}
+                              </td>
+                            ));
+                        })()}
                       </tr>
                       <RowInsertGap onInsert={() => addRow(idx)} tooltip={`Insert row after "${row.label.slice(0, 20)}"`} />
                     </React.Fragment>
