@@ -51,6 +51,8 @@ export { default as StatisticsSetManager } from './components/study/StatisticsSe
 export { default as ColumnHeaderSetEditor } from './components/study/ColumnHeaderSetEditor';
 export { default as DecimalDefaultsEditor } from './components/study/DecimalDefaultsEditor';
 export { default as StudyTemplateLibrary } from './components/study/StudyTemplateLibrary';
+export { default as TemplatePickerModal } from './components/shared/TemplatePickerModal';
+export { default as PushToStudyModal } from './components/shared/PushToStudyModal';
 export { default as ExportModal } from './components/common/ExportModal';
 export { default as TemplateEditor } from './components/shared/TemplateEditor';
 export { default as InteractiveOutputEditor } from './components/shared/InteractiveOutputEditor';

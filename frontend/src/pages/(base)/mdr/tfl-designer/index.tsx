@@ -32,6 +32,7 @@ import {
   LoadingOutlined,
   ReloadOutlined,
   NumberOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import {
   Tabs,
@@ -91,6 +92,8 @@ import {
   DecimalDefaultsEditor,
   DecimalSettingsTab,
   StudyTemplateLibrary,
+  TemplatePickerModal,
+  PushToStudyModal,
   useTFLDesignerData,
 } from '@/features/tfl-designer';
 import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
@@ -232,6 +235,12 @@ const TflDesigner: React.FC = () => {
 
   // Template selector modal
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
+
+  // Template picker modal (from study templates)
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+
+  // Push to Study PR modal
+  const [pushToStudyOpen, setPushToStudyOpen] = useState(false);
 
   // Export modal
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -684,6 +693,14 @@ const TflDesigner: React.FC = () => {
             </Button>
             <Button size="small" icon={<RedoOutlined />} onClick={() => tableEditorRef.current?.redo()}>
               Redo
+            </Button>
+            <Button
+              size="small"
+              icon={<SendOutlined />}
+              style={{ color: '#722ed1', borderColor: '#722ed1' }}
+              onClick={() => setPushToStudyOpen(true)}
+            >
+              Push to Study
             </Button>
             <Button 
               size="small" 
@@ -1510,7 +1527,7 @@ const TflDesigner: React.FC = () => {
                     key: 'fromTemplate',
                     icon: <FileTextOutlined />,
                     label: t('page.mdr.tflDesigner.actions.fromTemplate'),
-                    onClick: () => setTemplateModalOpen(true),
+                    onClick: () => setTemplatePickerOpen(true),
                   },
                 ],
               }}
@@ -1732,6 +1749,12 @@ const TflDesigner: React.FC = () => {
 
       {/* Export Modal */}
       <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} document={exportDocument} />
+
+      {/* Template Picker from Study Templates */}
+      <TemplatePickerModal open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} />
+
+      {/* Push to Study PR Modal */}
+      <PushToStudyModal open={pushToStudyOpen} onClose={() => setPushToStudyOpen(false)} />
     </div>
   );
 };
