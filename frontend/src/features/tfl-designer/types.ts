@@ -249,7 +249,7 @@ export interface TableRow {
 }
 
 export interface RowStats {
-  type: string;
+  type: StatTypeKey | 'n_percent' | 'header' | string;
   decimals?: number;
   format?: string;
 }
@@ -661,3 +661,26 @@ export const populationOptions: { value: string; label: string }[] = [
   { value: 'PP', label: 'PP (Per-Protocol)' },
   { value: 'Efficacy', label: 'Efficacy Population' },
 ];
+
+// ==================== Stat Types for Decimal Config ====================
+
+export const STAT_TYPES: { key: StatTypeKey; label: string }[] = [
+  { key: 'n', label: 'n (Count)' },
+  { key: 'mean', label: 'Mean' },
+  { key: 'sd', label: 'SD' },
+  { key: 'median', label: 'Median' },
+  { key: 'min', label: 'Min' },
+  { key: 'max', label: 'Max' },
+  { key: 'percent', label: 'Percentage' },
+];
+
+// ==================== Display Type Colors ====================
+
+export const DISPLAY_TYPE_COLORS: Record<'Table' | 'Figure' | 'Listing', string> = {
+  Table: 'blue',
+  Figure: 'green',
+  Listing: 'orange',
+};
+
+export const getDisplayTypeColor = (type: 'Table' | 'Figure' | 'Listing'): string =>
+  DISPLAY_TYPE_COLORS[type];

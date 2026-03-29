@@ -1,5 +1,13 @@
 import type { DecimalConfig, StatTypeKey, RowStats } from '../types';
 
+/** Valid stat type keys for decimal lookup */
+const VALID_STAT_KEYS: Set<string> = new Set(['n', 'mean', 'sd', 'median', 'min', 'max', 'percent', 'range']);
+
+/** Check if a string is a valid StatTypeKey */
+function isValidStatKey(key: string): key is StatTypeKey {
+  return VALID_STAT_KEYS.has(key);
+}
+
 /**
  * Resolve decimal places for a stat type using the 3-level chain:
  * 1. Row-level override (highest priority)
@@ -31,7 +39,9 @@ export function buildDecimalsMap(
   const map: Record<string, number> = {};
   for (const s of stats) {
     // For combined stats like n_percent, use 'percent' key
-    const lookupKey: StatTypeKey = s.type === 'n_percent' ? 'percent' : (s.type as StatTypeKey);
+    const rawKey = s.type === 'n_percent' ? 'percent' : s.type;
+    // Validate the key before using it
+    const lookupKey: StatTypeKey = isValidStatKey(rawKey) ? rawKey : 'mean'; // fallback to 'mean' decimals
     map[lookupKey] = resolveDecimals(lookupKey, s.decimals, shellDefaults, studyDefaults, globalDefaults);
   }
   return map;

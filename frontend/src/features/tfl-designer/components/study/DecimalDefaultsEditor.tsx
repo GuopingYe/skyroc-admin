@@ -7,19 +7,9 @@
  */
 import { Card, InputNumber, Typography } from 'antd';
 import { useStudyStore } from '../../stores';
-import { DEFAULT_DECIMAL_RULES, type DecimalConfig, type StatTypeKey } from '../../types';
+import { DEFAULT_DECIMAL_RULES, STAT_TYPES, type DecimalConfig, type StatTypeKey } from '../../types';
 
 const { Text } = Typography;
-
-const STAT_TYPES: { key: StatTypeKey; label: string }[] = [
-  { key: 'n', label: 'n (Count)' },
-  { key: 'mean', label: 'Mean' },
-  { key: 'sd', label: 'SD' },
-  { key: 'percent', label: 'Percentage' },
-  { key: 'median', label: 'Median' },
-  { key: 'min', label: 'Min' },
-  { key: 'max', label: 'Max' },
-];
 
 export default function DecimalDefaultsEditor() {
   const decimalRules = useStudyStore((s) => s.studyDefaults?.decimalRules) ?? DEFAULT_DECIMAL_RULES;

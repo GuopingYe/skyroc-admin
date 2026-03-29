@@ -42,7 +42,7 @@ export default function PushToStudyModal({ open, onClose }: Props) {
   const currentTable = useTableStore((s) => s.currentTable);
 
   const [form] = Form.useForm();
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | number | undefined>(undefined);
+  const selectedTemplateId = Form.useWatch('targetTemplate', form);
   const [submitting, setSubmitting] = useState(false);
 
   const templateOptions = useMemo(
@@ -61,6 +61,8 @@ export default function PushToStudyModal({ open, onClose }: Props) {
   // Compute a simple text-based diff between current table and source template
   const diffs = useMemo<DiffEntry[]>(() => {
     if (!currentTable || !selectedTemplate) return [];
+    // Only diff if the template is a Table type
+    if (selectedTemplate.displayType !== 'Table') return [];
     const result: DiffEntry[] = [];
     const schema = selectedTemplate.shellSchema as TableShell;
 
@@ -123,7 +125,6 @@ export default function PushToStudyModal({ open, onClose }: Props) {
       });
       window.$message?.success('Push to Study request submitted (PR created)');
       form.resetFields();
-      setSelectedTemplateId(undefined);
       onClose();
     } catch {
       // validation error, form will show it
@@ -134,7 +135,6 @@ export default function PushToStudyModal({ open, onClose }: Props) {
 
   const handleClose = () => {
     form.resetFields();
-    setSelectedTemplateId(undefined);
     onClose();
   };
 
@@ -188,11 +188,6 @@ export default function PushToStudyModal({ open, onClose }: Props) {
               <Select
                 placeholder="Select study template to update"
                 options={templateOptions}
-                value={selectedTemplateId}
-                onChange={(val) => {
-                  setSelectedTemplateId(val);
-                  form.setFieldsValue({ targetTemplate: val });
-                }}
               />
             </Form.Item>
             <Form.Item name="title" label="PR Title" rules={[{ required: true, message: 'Enter a title' }]}>

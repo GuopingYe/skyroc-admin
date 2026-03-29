@@ -22,7 +22,7 @@ import {
   Segmented,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import type { StudyTemplate, TableShell, AnalysisCategory } from '../../types';
+import type { StudyTemplate, AnalysisCategory } from '../../types';
 import { generateId, categoryOptions } from '../../types';
 import { useStudyStore } from '../../stores';
 
@@ -62,19 +62,6 @@ export default function StudyTemplateLibrary() {
     () => (categoryFilter === 'All' ? studyTemplates : studyTemplates.filter((t) => t.category === categoryFilter)),
     [studyTemplates, categoryFilter],
   );
-
-  const emptyTableShell: TableShell = {
-    id: generateId('table'),
-    shellNumber: '',
-    title: '',
-    population: 'Safety',
-    category: 'Demographics',
-    dataset: 'ADSL',
-    treatmentArmSetId: '',
-    statisticsSetId: '',
-    rows: [],
-    footer: { source: '', notes: [] },
-  };
 
   const handleAdd = () => {
     setEditingTemplate(null);
@@ -116,7 +103,18 @@ export default function StudyTemplateLibrary() {
           category: values.category,
           templateName: values.templateName,
           displayType: values.displayType,
-          shellSchema: { ...emptyTableShell, category: values.category },
+          shellSchema: {
+            id: generateId('table'),
+            shellNumber: '',
+            title: '',
+            population: 'Safety',
+            category: values.category,
+            dataset: 'ADSL',
+            treatmentArmSetId: '',
+            statisticsSetId: '',
+            rows: [],
+            footer: { source: '', notes: [] },
+          },
           statisticsSetId: values.statisticsSetId,
           version: 1,
         };

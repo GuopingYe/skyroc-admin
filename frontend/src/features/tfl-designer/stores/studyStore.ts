@@ -525,7 +525,14 @@ export const useStudyStore = create<StudyState>()(
 
     updateDecimalRules: (rules) =>
       set((state) => {
-        if (state.studyDefaults) {
+        // Auto-initialize studyDefaults if not present
+        if (!state.studyDefaults) {
+          state.studyDefaults = {
+            id: generateId('sd'),
+            scopeNodeId: '',
+            decimalRules: rules,
+          };
+        } else {
           state.studyDefaults.decimalRules = rules;
         }
       }),
