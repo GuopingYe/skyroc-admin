@@ -125,10 +125,10 @@ function resolveDecimals(statType, row, shell, studyDefaults):
 ```typescript
 function formatPlaceholder(statTypes: string[], decimalsMap: Record<string, number>): string {
   // n → "XX"
-  if (statTypes === ['n']) return 'XX';
+  if (statTypes.length === 1 && statTypes[0] === 'n') return 'XX';
 
   // n_percent → "XX (XX.XX)" where percent decimals apply
-  if (statTypes === ['n_percent']) {
+  if (statTypes.length === 1 && statTypes[0] === 'n_percent') {
     const pct = decimalsMap.percent ?? 2;
     return `XX (${'XX.' + 'X'.repeat(pct)})`;
   }
@@ -250,19 +250,51 @@ The existing "Metadata" tab in the table editor gains a **Statistics Set** dropd
 | Body: | `{ "title": "...", "description": "...", "reviewers": [...] }` | |
 | `GET` | `/api/v1/ars/displays/{display_id}/diff-template` | Get diff between display and source template |
 
-## 5. Migration Plan
+## 5. Open Questions / Clarifications
+
+### 5.1 `statistics_sets` Backend Table
+
+Currently `StatisticsSet` exists only as a frontend TypeScript type with mock data in `studyStore.ts`. The backend has no `statistics_sets` table. This feature **must** create a backend `statistics_sets` table as a prerequisite. The migration plan below includes this.
+
+### 5.2 `statistics_set_id` vs `statistics_config` Relationship
+
+The existing `ARSDataBinding.statistics_config` JSONB field stores per-binding stat flags (e.g., `{'n': true, 'mean': true}`). The new `statistics_set_id` on `ARSDisplay` serves a different purpose:
+
+- **`statistics_set_id` (display-level):** Defines which statistic *items* (labels, types, format templates) apply to this shell. Used for rendering row labels and placeholder formatting.
+- **`statistics_config` (binding-level):** Defines which stats are computed for a specific data binding. Used at programming/execution time.
+
+They are complementary. The display-level set drives the shell UI; the binding-level config drives actual computation. No data migration needed.
+
+### 5.3 PR Propagation Direction
+
+The existing `MetadataPullRequest` model uses `source_scope_id` (lower scope) → `target_scope_id` (higher scope) for Study→Global propagation. Analysis→Study propagation goes in the same direction (child→parent), so the same model applies:
+
+- `source_scope_id` = the Analysis scope node
+- `target_scope_id` = the parent Study scope node
+- `change_type` = `"shell_template_update"` (new enum value)
+- `change_payload` = JSONB diff between analysis display and source template
+
+No new PR model needed — extend the existing one with a new `change_type`.
+
+### 5.4 `shell_schema` Structure
+
+`ars_study_templates.shell_schema` follows the **frontend `TableShell`/`FigureShell`/`ListingShell`** structure (not the backend section/block model). When cloning to an `ARSDisplay`, the backend converts `shell_schema` into the section/block structure. This keeps templates human-readable and aligned with the frontend model.
+
+## 6. Migration Plan
 
 ### Migration: `tfl_study_templates_001`
 
-1. Create `ars_study_defaults` table
-2. Create `ars_study_templates` table
-3. Add columns to `ars_displays`: `source_template_id`, `source_template_version`, `decimal_override`, `statistics_set_id`
-4. Seed initial data: for each existing study scope node, create a default `ars_study_defaults` row with sensible decimal rules
+1. Create `statistics_sets` table + `statistics_items` table (backend counterpart to frontend types)
+2. Create `ars_study_defaults` table
+3. Create `ars_study_templates` table
+4. Add columns to `ars_displays`: `source_template_id`, `source_template_version`, `decimal_override`, `statistics_set_id`
+5. Seed initial data: for each existing study scope node, create a default `ars_study_defaults` row with sensible decimal rules. Seed default statistics sets from current frontend mock data.
 
 ### Migration: `tfl_study_templates_002`
 
 1. Add FK constraints: `ars_displays.source_template_id → ars_study_templates.id`
-2. Add index on `ars_displays.statistics_set_id`
+2. Add FK constraint: `ars_displays.statistics_set_id → statistics_sets.id`
+3. Add index on `ars_displays.statistics_set_id`
 
 ## 6. Frontend File Changes
 
