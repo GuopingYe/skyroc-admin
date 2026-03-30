@@ -941,6 +941,7 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
   const colHeaderStyle: React.CSSProperties = hs ? {
     fontFamily: hs.columnHeaderFont,
     fontSize: (hs.columnHeaderSize || 10) * (compact ? 0.85 : 1),
+    backgroundColor: hs.columnHeaderBackground,
   } : {};
 
   /* ======================== SHARED TITLE BLOCK ======================== */

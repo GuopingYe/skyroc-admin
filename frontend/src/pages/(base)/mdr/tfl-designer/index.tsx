@@ -821,18 +821,11 @@ const TflDesigner: React.FC = () => {
                           </div>
                         </div>
                       </Card>
+                      <Card size="small" title="Decimal Settings">
+                        <DecimalSettingsTab />
+                      </Card>
                     </div>
                   ),
-                },
-                {
-                  key: 'rows',
-                  label: (
-                    <Space size={4}>
-                      {t('page.mdr.tflDesigner.tabs.rowStructure')}
-                      <Tag className="ml-4px">{table.rows.length}</Tag>
-                    </Space>
-                  ),
-                  children: <NestedRowEditor />,
                 },
                 {
                   key: 'footer',
@@ -863,16 +856,6 @@ const TflDesigner: React.FC = () => {
                   ),
                 },
                 {
-                  key: 'headerStyle',
-                  label: 'Header Override',
-                  children: (
-                    <HeaderStyleSelector
-                      value={headerFontStyle}
-                      onChange={updateHeaderStyle}
-                    />
-                  ),
-                },
-                {
                   key: 'programmingNotes',
                   label: t('page.mdr.tflDesigner.tabs.programmingNotes'),
                   children: (
@@ -886,11 +869,6 @@ const TflDesigner: React.FC = () => {
                       />
                     </div>
                   ),
-                },
-                {
-                  key: 'decimals',
-                  label: 'Decimals',
-                  children: <DecimalSettingsTab />,
                 },
               ]}
             />
@@ -1499,13 +1477,10 @@ const TflDesigner: React.FC = () => {
                 Study-Level Configuration
               </div>
               {[
-                { key: 'treatmentArms', icon: <TeamOutlined />, label: 'Treatment Arms' },
+                { key: 'treatmentColumns', icon: <ColumnWidthOutlined />, label: 'Treatment Columns' },
                 { key: 'populations', icon: <TeamOutlined />, label: 'Populations' },
-                { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
-                { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style (Default)' },
+                { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
                 { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
-                { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
-                { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
               ].map(tab => (
                 <div
                   key={tab.key}
@@ -1524,13 +1499,10 @@ const TflDesigner: React.FC = () => {
 
             {/* Settings content */}
             <div className="flex-1 overflow-y-auto py-4px">
-              {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
+              {studySettingsTab === 'treatmentColumns' && <ColumnHeaderSetEditor />}
               {studySettingsTab === 'populations' && <PopulationManager />}
-              {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
+              {studySettingsTab === 'headerFormatting' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
-              {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
-              {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}
             </div>
           </div>
         </Card>
@@ -1668,13 +1640,10 @@ const TflDesigner: React.FC = () => {
               <div className="flex flex-col gap-2px pt-4px">
                 {/* Study settings vertical tabs */}
                 {[
+                  { key: 'treatmentColumns', icon: <ColumnWidthOutlined />, label: 'Treatment Columns' },
                   { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
-                  { key: 'treatmentArms', icon: <ColumnWidthOutlined />, label: t('page.mdr.tflDesigner.tabs.treatmentArms') },
-                  { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
-                  { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style (Default)' },
+                  { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
                   { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
-                  { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
-                  { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
                 ].map(tab => (
                   <div
                     key={tab.key}
@@ -1773,12 +1742,10 @@ const TflDesigner: React.FC = () => {
           {sidebarView === 'settings' && !tableStore.currentTable && !figureStore.currentFigure && !listingStore.currentListing ? (
             <div className="h-full overflow-y-auto p-12px">
               {studySettingsTab === 'populations' && <PopulationManager />}
-              {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
-              {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
+              {studySettingsTab === 'treatmentColumns' && <ColumnHeaderSetEditor />}
+              {studySettingsTab === 'populations' && <PopulationManager />}
+              {studySettingsTab === 'headerFormatting' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
-              {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
-              {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}
             </div>
           ) : tableStore.currentTable
             ? renderTableEditor()
