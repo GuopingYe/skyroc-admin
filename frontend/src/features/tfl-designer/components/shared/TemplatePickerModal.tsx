@@ -35,6 +35,12 @@ const DISPLAY_TYPE_TABS = [
   { key: 'Listing', label: 'Listings' },
 ];
 
+const SOURCE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Templates' },
+  { value: 'global', label: 'Global Templates' },
+  { value: 'study', label: 'Study Templates' },
+];
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -228,6 +234,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         <Space className="w-full justify-between">
           <Text type="secondary">
             {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
+            {sourceFilter === 'all' && ` (${globalTemplates.length} Global, ${studyTemplates.length} Study)`}
           </Text>
           <Space>
             <Button onClick={handleClose}>Cancel</Button>
@@ -273,11 +280,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         <Select
           value={sourceFilter}
           onChange={(v) => setSourceFilter(v as 'all' | 'global' | 'study')}
-          options={[
-            { value: 'all', label: 'All Templates' },
-            { value: 'global', label: 'Global Templates' },
-            { value: 'study', label: 'Study Templates' },
-          ]}
+          options={SOURCE_FILTER_OPTIONS}
           style={{ width: 150 }}
           size="small"
         />
@@ -305,8 +308,10 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         {filteredTemplates.length === 0 ? (
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
             <Text type="secondary">
-              {allTemplates.length === 0
-                ? 'No templates available. Add study templates in Study Settings > Shell Templates, or check global templates.'
+              {sourceFilter === 'global' && globalTemplates.length === 0
+                ? 'No global templates available.'
+                : sourceFilter === 'study' && studyTemplates.length === 0
+                ? 'No study templates defined yet. Add templates in Study Settings > Shell Templates.'
                 : 'No templates match your search.'}
             </Text>
           </div>
@@ -339,6 +344,9 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                       </Tag>
                     </div>
                     <div>
+                      <Tag color={tpl.source === 'global' ? 'geekblue' : 'purple'}>
+                        {tpl.source === 'global' ? 'Global' : 'Study'}
+                      </Tag>
                       <Tag style={{ fontSize: 11 }}>{getCategoryLabel(tpl.category)}</Tag>
                       {ssName && <Tag color="purple" style={{ fontSize: 11 }}>{ssName}</Tag>}
                       {tpl.version && <Tag style={{ fontSize: 11 }}>v{tpl.version}</Tag>}
@@ -358,6 +366,12 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
           <div style={{ background: '#f5f5f5', borderRadius: 6, padding: 12 }}>
             <Title level={5} style={{ marginTop: 0 }}>Selected: {selectedTemplate.name}</Title>
             <Space size="large">
+              <span>
+                <Text type="secondary">Source:</Text>{' '}
+                <Tag color={selectedTemplate.source === 'global' ? 'geekblue' : 'purple'}>
+                  {selectedTemplate.source === 'global' ? 'Global' : 'Study'}
+                </Tag>
+              </span>
               <span><Text type="secondary">Category:</Text> {getCategoryLabel(selectedTemplate.category)}</span>
               <span><Text type="secondary">Type:</Text> {selectedTemplate.displayType}</span>
               {selectedTemplate.version && <span><Text type="secondary">Version:</Text> v{selectedTemplate.version}</span>}
