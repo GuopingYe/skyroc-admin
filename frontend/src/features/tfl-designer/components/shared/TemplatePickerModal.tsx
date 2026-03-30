@@ -227,7 +227,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
       footer={
         <Space className="w-full justify-between">
           <Text type="secondary">
-            {filteredTemplates.length} study template{filteredTemplates.length !== 1 ? 's' : ''}
+            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
           </Text>
           <Space>
             <Button onClick={handleClose}>Cancel</Button>
@@ -305,8 +305,8 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         {filteredTemplates.length === 0 ? (
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
             <Text type="secondary">
-              {studyTemplates.length === 0
-                ? 'No study templates defined yet. Add templates in Study Settings > Shell Templates.'
+              {allTemplates.length === 0
+                ? 'No templates available. Add study templates in Study Settings > Shell Templates, or check global templates.'
                 : 'No templates match your search.'}
             </Text>
           </div>
@@ -341,7 +341,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                     <div>
                       <Tag style={{ fontSize: 11 }}>{getCategoryLabel(tpl.category)}</Tag>
                       {ssName && <Tag color="purple" style={{ fontSize: 11 }}>{ssName}</Tag>}
-                      <Tag style={{ fontSize: 11 }}>v{tpl.version}</Tag>
+                      {tpl.version && <Tag style={{ fontSize: 11 }}>v{tpl.version}</Tag>}
                     </div>
                   </Space>
                 </Card>
