@@ -1667,7 +1667,7 @@ const TflDesigner: React.FC = () => {
               <div className="flex flex-col gap-2px pt-4px">
                 {/* Study settings vertical tabs */}
                 {[
-                  { key: 'population', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
+                  { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
                   { key: 'treatmentArms', icon: <ColumnWidthOutlined />, label: t('page.mdr.tflDesigner.tabs.treatmentArms') },
                   { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Layout' },
                   { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
@@ -1771,7 +1771,7 @@ const TflDesigner: React.FC = () => {
         <Card className="min-w-0 flex flex-1 flex-col overflow-hidden card-wrapper" size="small" variant="borderless">
           {sidebarView === 'settings' && !tableStore.currentTable && !figureStore.currentFigure && !listingStore.currentListing ? (
             <div className="h-full overflow-y-auto p-12px">
-              {studySettingsTab === 'population' && <PopulationManager />}
+              {studySettingsTab === 'populations' && <PopulationManager />}
               {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
               {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
               {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
