@@ -268,14 +268,26 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
 
       <Divider style={{ margin: '12px 0' }} />
 
-      {/* Search */}
-      <div style={{ marginBottom: 12 }}>
+      {/* Filter and Search */}
+      <div style={{ marginBottom: 12, display: 'flex', gap: 12 }}>
+        <Select
+          value={sourceFilter}
+          onChange={(v) => setSourceFilter(v as 'all' | 'global' | 'study')}
+          options={[
+            { value: 'all', label: 'All Templates' },
+            { value: 'global', label: 'Global Templates' },
+            { value: 'study', label: 'Study Templates' },
+          ]}
+          style={{ width: 150 }}
+          size="small"
+        />
         <Search
-          placeholder="Search study templates..."
+          placeholder="Search templates..."
           prefix={<SearchOutlined />}
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           allowClear
+          style={{ flex: 1 }}
         />
       </div>
 
