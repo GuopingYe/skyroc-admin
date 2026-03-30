@@ -360,7 +360,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
             <Space size="large">
               <span><Text type="secondary">Category:</Text> {getCategoryLabel(selectedTemplate.category)}</span>
               <span><Text type="secondary">Type:</Text> {selectedTemplate.displayType}</span>
-              <span><Text type="secondary">Version:</Text> v{selectedTemplate.version}</span>
+              {selectedTemplate.version && <span><Text type="secondary">Version:</Text> v{selectedTemplate.version}</span>}
             </Space>
           </div>
         </>
