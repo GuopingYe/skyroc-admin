@@ -32,24 +32,31 @@ Current system has limited template hierarchy:
 
 ### 1.1 ShellLibraryTemplate (Global + TA Level)
 
+**TypeScript Interface (Frontend):**
 ```typescript
 interface ShellLibraryTemplate {
-  id: string;
-  scopeLevel: 'global' | 'ta' | 'product';  // 'product' reserved for future
-  scopeNodeId: string;                       // 'GLOBAL' | 'TA_ONCOLOGY' | 'TA_CARDIO'
+  id: number;                                 // Integer PK (matches backend)
+  scopeLevel: 'global' | 'ta' | 'product';   // 'product' reserved for future
+  scopeNodeId: number;                        // FK to scope_nodes.id
   category: AnalysisCategory;
   templateName: string;
   displayType: 'Table' | 'Figure' | 'Listing';
   shellSchema: TableShell | FigureShell | ListingShell;
-  statisticsSetId?: string;
+  statisticsSetId?: number;
   version: number;
   versionHistory?: VersionHistoryEntry[];
   description?: string;
+
+  // Audit fields (from TimestampMixin)
   createdBy: string;
   createdAt: string;
   updatedBy?: string;
-  updatedAt?: string;
-  isArchived: boolean;
+  updatedAt: string;
+
+  // Soft delete (from SoftDeleteMixin)
+  isDeleted: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
 }
 
 interface VersionHistoryEntry {
@@ -61,52 +68,63 @@ interface VersionHistoryEntry {
 }
 ```
 
+> **Note:** Backend model inherits `Base, TimestampMixin, SoftDeleteMixin` following existing patterns in `backend/app/models/ars_study.py`.
+
 ### 1.2 StudyTemplate (Extended)
 
-```typescript
-interface StudyTemplate {
-  id: string;
-  scopeNodeId: string;                       // Study_XXX
-  category: AnalysisCategory;
-  templateName: string;
-  displayType: 'Table' | 'Figure' | 'Listing';
-  shellSchema: ShellSchema;
-  statisticsSetId?: string;
-  version: number;
+> **Note:** Existing `StudyTemplate` in `backend/app/models/ars_study.py` already has:
+> - `id: Mapped[int]` (Integer PK)
+> - `scope_node_id: Mapped[int]` (FK to scope_nodes.id)
+> - `version`, `created_by`, `updated_by`
+> - Inherits `TimestampMixin, SoftDeleteMixin`
+>
+> Only the following **new fields** need to be added:
 
-  // New: Source tracking
-  sourceLibraryId?: string;                  // From Global/TA Library
+```typescript
+// New fields to add to existing StudyTemplate
+interface StudyTemplateExtension {
+  // Source tracking (NEW)
+  sourceLibraryId?: number;                  // FK to shell_library_templates.id
   sourceLevel?: 'global' | 'ta' | 'product';
   sourceTemplateName?: string;
 
-  // New: Version and audit
+  // Version history (NEW)
   versionHistory?: VersionHistoryEntry[];
-  createdBy: string;
-  createdAt: string;
-  updatedBy?: string;
-  updatedAt?: string;
-  isArchived: boolean;
 }
 ```
 
 ### 1.3 Analysis Shell (Extended)
 
-```typescript
-interface ShellBase {
-  id: string;
-  shellNumber: string;
-  title: string;
-  // ... existing fields
+> **Note:** Existing shell types (`TableShell`, `FigureShell`, `ListingShell`) defined in `frontend/src/features/tfl-designer/types/index.ts`. Only the following fields need to be added:
 
-  // New: Source tracking
-  sourceTemplateId?: string;                 // From Study Template
-  sourceLibraryId?: string;                  // From Global/TA Library (skip-level)
+```typescript
+// New fields to add to existing TableShell, FigureShell, ListingShell
+interface ShellSourceTracking {
+  // Source tracking (NEW)
+  sourceTemplateId?: number;                 // From Study Template
+  sourceLibraryId?: number;                  // From Global/TA Library (skip-level)
   sourceLevel?: 'global' | 'ta' | 'product' | 'study';
   sourceTemplateName?: string;
 
-  // New: Version
+  // Version (NEW)
   version: number;
   versionHistory?: VersionHistoryEntry[];
+}
+
+// Example: Extended TableShell
+interface TableShell extends ShellSourceTracking {
+  id: string;                                // Frontend uses string for local IDs
+  shellNumber: string;
+  title: string;
+  population: string;
+  category: AnalysisCategory;
+  dataset: string;
+  treatmentArmSetId: string;
+  statisticsSetId: string;
+  headerLayers?: HeaderLayer[];
+  rows: TableRow[];
+  footer: TableFooter;
+  decimalOverride?: DecimalConfig;
 }
 ```
 
@@ -115,6 +133,14 @@ interface ShellBase {
 ## Section 2: Store & State Management
 
 ### 2.1 shellLibraryStore (New)
+
+> **Note:** This store **replaces** the existing `templateStore.ts` for Global/TA level templates.
+> The existing `templateStore` will be deprecated and its data migrated to `shellLibraryStore`.
+>
+> **Migration Path:**
+> 1. `shellLibraryStore` becomes the source of truth for Global/TA templates
+> 2. Existing `templateStore.templates` data is migrated on first load
+> 3. `templateStore` is removed after migration is complete
 
 ```typescript
 interface ShellLibraryState {
@@ -387,6 +413,8 @@ TA Template ─────└── pushToGlobal() → ShellLibraryTemplate (PR
 
 Push to Global/TA Library requires PR approval:
 
+> **PRItemType:** Uses `PRItemType.SHELL_TEMPLATE_UPDATE` (already defined in `backend/app/models/mapping_enums.py`)
+
 ```
 User clicks "Push to Library"
     ↓
@@ -400,7 +428,7 @@ User fills PR title + description
     ↓
 [Submit PR]
     ↓
-Backend: Create PR (PRStatus='Pending', PRItemType='ShellTemplateUpdate')
+Backend: Create PR (PRStatus='Pending', PRItemType='SHELL_TEMPLATE_UPDATE')
     ↓
 Reviewer notified
     ↓
@@ -443,7 +471,45 @@ If Approved:
 
 ## Section 5: Backend API Design
 
-### 5.1 Shell Library API (Global + TA)
+### 5.1 Audit Trail Integration (21 CFR Part 11 Compliance)
+
+All shell library operations must integrate with the existing audit system:
+
+```python
+# All API endpoints must use audit context
+from app.models.audit_listener import set_audit_context
+
+@router.post("/shell-library/templates")
+async def create_template(
+    ...,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    # Set audit context before any DB operation
+    set_audit_context(db, current_user.username)
+
+    template = ShellLibraryTemplate(
+        scope_level=scope_level,
+        template_name=template_name,
+        created_by=current_user.username,
+        # ...
+    )
+    db.add(template)
+    await db.commit()
+
+    # Audit trail is automatically recorded via audit_listener
+```
+
+**Audit Events to Track:**
+| Event | Action | Audit Fields |
+|-------|--------|--------------|
+| Create Template | INSERT | `created_by`, `created_at` |
+| Update Template | UPDATE | `updated_by`, `updated_at`, `version_history` |
+| Soft Delete | UPDATE | `deleted_by`, `deleted_at`, `is_deleted=TRUE` |
+| Push PR Submit | INSERT to PR table | Full PR record |
+| Push PR Approve | UPDATE to PR + INSERT to Library | Template creation with PR reference |
+
+### 5.2 Shell Library API (Global + TA)
 
 ```
 # New router: backend/app/api/routers/shell_library.py
@@ -451,10 +517,10 @@ If Approved:
 # CRUD
 GET    /api/v1/shell-library/templates
        ?scopeLevel=global|ta|product
-       ?scopeNodeId=TA_ONCOLOGY
+       ?scopeNodeId=123
        ?category=Demographics
        ?displayType=Table
-       ?isArchived=false
+       ?isDeleted=false
        → List ShellLibraryTemplate[]
 
 GET    /api/v1/shell-library/templates/{id}
@@ -469,8 +535,9 @@ PUT    /api/v1/shell-library/templates/{id}
        Body: { templateName, shellSchema, description }
        → Update (version+1)
 
-DELETE /api/v1/shell-library/templates/{id}
-       → Soft delete (isArchived=true)
+POST   /api/v1/shell-library/templates/{id}/soft-delete
+       → Soft delete (is_deleted=true, deleted_by=current_user)
+       Note: Uses existing SoftDeleteMixin.soft_delete() method
 
 POST   /api/v1/shell-library/templates/{id}/duplicate
        → Duplicate
@@ -501,7 +568,7 @@ POST   /api/v1/shell-library/templates/{id}/clone-to-study
        → Create StudyTemplate
 ```
 
-### 5.2 Study Template API (Extended)
+### 5.3 Study Template API (Extended)
 
 ```
 # Existing: backend/app/api/routers/ars_study.py
@@ -525,7 +592,7 @@ POST   /api/v1/studies/{studyId}/shell-templates/clone-from-library
        → Create StudyTemplate
 ```
 
-### 5.3 Analysis Shell API (Extended)
+### 5.4 Analysis Shell API (Extended)
 
 ```
 # Existing: backend/app/api/routers/ars.py
@@ -547,52 +614,88 @@ POST   /api/v1/analyses/{analysisId}/shells/{shellId}/push-to-library
        → Create PR
 ```
 
-### 5.4 Database Models
+### 5.5 Database Models
 
 ```python
 # backend/app/models/shell_library.py
 
-class ShellLibraryTemplate(Base, SoftDeleteMixin):
+from app.models.base import Base, TimestampMixin, SoftDeleteMixin
+
+class ShellLibraryTemplate(Base, TimestampMixin, SoftDeleteMixin):
+    """Global/TA 级 Shell 模板库"""
+
     __tablename__ = "shell_library_templates"
 
-    id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    scope_level: Mapped[str] = mapped_column(String(20))
-    scope_node_id: Mapped[str] = mapped_column(String(100))
-    category: Mapped[str] = mapped_column(String(50))
-    template_name: Mapped[str] = mapped_column(String(200))
-    display_type: Mapped[str] = mapped_column(String(20))
-    shell_schema: Mapped[dict] = mapped_column(JSONB)
-    statistics_set_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    version: Mapped[int] = mapped_column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scope_level: Mapped[str] = mapped_column(String(20), nullable=False)  # 'global' | 'ta' | 'product'
+    scope_node_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("scope_nodes.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+        comment="Scope node (GLOBAL or TA node)",
+    )
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    template_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    display_type: Mapped[str] = mapped_column(String(20), nullable=False, default="Table")
+    shell_schema: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    statistics_set_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("statistics_sets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     version_history: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_by: Mapped[str] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updated_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Audit (from TimestampMixin: created_at, updated_at)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    updated_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Soft delete (from SoftDeleteMixin: is_deleted, deleted_at, deleted_by)
+
+    __table_args__ = (
+        Index(
+            "uix_shell_library_templates_scope_name",
+            "scope_node_id", "template_name",
+            unique=True,
+            where="is_deleted = FALSE",
+        ),
+        {"comment": "Global/TA 级 Shell 模板库"},
+    )
+
+    def __repr__(self) -> str:
+        return f"<ShellLibraryTemplate(id={self.id}, name={self.template_name}, level={self.scope_level})>"
+```
+
+```python
 # backend/app/models/ars_study.py (extend StudyTemplate)
 
-class StudyTemplate(Base, SoftDeleteMixin):
-    # Existing fields preserved
+# Existing StudyTemplate already has:
+# - id: Integer PK
+# - scope_node_id: FK to scope_nodes.id
+# - version, created_by, updated_by
+# - TimestampMixin, SoftDeleteMixin
 
-    # New: source tracking
-    source_library_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+# Only add these NEW fields:
+class StudyTemplate(Base, TimestampMixin, SoftDeleteMixin):
+    # ... existing fields ...
+
+    # NEW: Source tracking
+    source_library_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("shell_library_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Source template from Global/TA Library",
+    )
     source_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
     source_template_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
-    # New: version and audit
-    version: Mapped[int] = mapped_column(Integer, default=1)
+    # NEW: Version history
     version_history: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    created_by: Mapped[str] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    updated_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
 ```
 
-### 5.5 Migration
+### 5.6 Migration
 
 ```python
 # backend/alembic/versions/YYYY-MM-DD_shell_library_system.py
@@ -601,35 +704,49 @@ def upgrade():
     # Create shell_library_templates table
     op.create_table(
         'shell_library_templates',
-        sa.Column('id', sa.String(50), primary_key=True),
-        sa.Column('scope_level', sa.String(20)),
-        sa.Column('scope_node_id', sa.String(100)),
-        sa.Column('category', sa.String(50)),
-        sa.Column('template_name', sa.String(200)),
-        sa.Column('display_type', sa.String(20)),
-        sa.Column('shell_schema', sa.JSON),
-        sa.Column('statistics_set_id', sa.String(50), nullable=True),
-        sa.Column('version', sa.Integer, default=1),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('scope_level', sa.String(20), nullable=False),
+        sa.Column('scope_node_id', sa.Integer, sa.ForeignKey('scope_nodes.id', ondelete='RESTRICT'), nullable=False),
+        sa.Column('category', sa.String(50), nullable=False),
+        sa.Column('template_name', sa.String(200), nullable=False),
+        sa.Column('display_type', sa.String(20), nullable=False, server_default='Table'),
+        sa.Column('shell_schema', sa.JSON, nullable=False),
+        sa.Column('statistics_set_id', sa.Integer, sa.ForeignKey('statistics_sets.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('version', sa.Integer, nullable=False, server_default='1'),
         sa.Column('version_history', sa.JSON, nullable=True),
         sa.Column('description', sa.Text, nullable=True),
-        sa.Column('created_by', sa.String(100)),
-        sa.Column('created_at', sa.DateTime),
+        sa.Column('created_by', sa.String(100), nullable=False),
         sa.Column('updated_by', sa.String(100), nullable=True),
-        sa.Column('updated_at', sa.DateTime, nullable=True),
-        sa.Column('is_archived', sa.Boolean, default=False),
+        # TimestampMixin fields
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        # SoftDeleteMixin fields
+        sa.Column('is_deleted', sa.Boolean, nullable=False, server_default='FALSE'),
+        sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('deleted_by', sa.String, nullable=True),
     )
 
-    # Extend study_templates
-    op.add_column('study_templates', sa.Column('source_library_id', sa.String(50), nullable=True))
-    op.add_column('study_templates', sa.Column('source_level', sa.String(20), nullable=True))
-    op.add_column('study_templates', sa.Column('source_template_name', sa.String(200), nullable=True))
-    op.add_column('study_templates', sa.Column('version', sa.Integer, default=1))
-    op.add_column('study_templates', sa.Column('version_history', sa.JSON, nullable=True))
-    op.add_column('study_templates', sa.Column('created_by', sa.String(100)))
-    op.add_column('study_templates', sa.Column('created_at', sa.DateTime))
-    op.add_column('study_templates', sa.Column('updated_by', sa.String(100), nullable=True))
-    op.add_column('study_templates', sa.Column('updated_at', sa.DateTime, nullable=True))
-    op.add_column('study_templates', sa.Column('is_archived', sa.Boolean, default=False))
+    # Create indexes
+    op.create_index('ix_shell_library_templates_scope_node_id', 'shell_library_templates', ['scope_node_id'])
+    op.create_index('uix_shell_library_templates_scope_name', 'shell_library_templates', ['scope_node_id', 'template_name'], unique=True, postgresql_where=sa.text('is_deleted = FALSE'))
+
+    # Extend ars_study_templates table (only NEW fields)
+    op.add_column('ars_study_templates', sa.Column('source_library_id', sa.Integer, sa.ForeignKey('shell_library_templates.id', ondelete='SET NULL'), nullable=True))
+    op.add_column('ars_study_templates', sa.Column('source_level', sa.String(20), nullable=True))
+    op.add_column('ars_study_templates', sa.Column('source_template_name', sa.String(200), nullable=True))
+    op.add_column('ars_study_templates', sa.Column('version_history', sa.JSON, nullable=True))
+
+    # Note: version, created_by, updated_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
+    # already exist in ars_study_templates from TimestampMixin and SoftDeleteMixin
+
+def downgrade():
+    op.drop_column('ars_study_templates', 'version_history')
+    op.drop_column('ars_study_templates', 'source_template_name')
+    op.drop_column('ars_study_templates', 'source_level')
+    op.drop_column('ars_study_templates', 'source_library_id')
+    op.drop_index('uix_shell_library_templates_scope_name')
+    op.drop_index('ix_shell_library_templates_scope_node_id')
+    op.drop_table('shell_library_templates')
 ```
 
 ---
@@ -638,7 +755,9 @@ def upgrade():
 
 ### 6.1 JSON Import Implementation
 
-**Clymb Clinical ARS Format:**
+**Clymb Clinical ARS Format (Reference):**
+
+> **Note:** This format is based on Clymb Clinical TFL Designer v2.0.2 export. The actual vendor format may vary. Implementation should validate against real export samples in `frontend/examples/tfldesigner/references/`.
 
 ```json
 {
@@ -688,7 +807,7 @@ function parseARSJSONToShellTemplates(
       templates.push({
         id: generateId('libtpl'),
         scopeLevel,
-        scopeNodeId,
+        scopeNodeId: scopeNodeId,  // Integer FK
         category: shellSchema.category,
         templateName: display.name,
         displayType: 'Table',
@@ -696,7 +815,7 @@ function parseARSJSONToShellTemplates(
         version: 1,
         createdBy: 'import',
         createdAt: new Date().toISOString().split('T')[0],
-        isArchived: false,
+        isDeleted: false,  // From SoftDeleteMixin
       });
     }
   }
