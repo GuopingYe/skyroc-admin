@@ -9,15 +9,7 @@ import { useMemo } from 'react';
 import { Select, Space, Tag } from 'antd';
 import type { ColumnHeaderGroup } from '../../types';
 import { useStudyStore, useTableStore } from '../../stores';
-
-function countLeaves(groups: ColumnHeaderGroup[]): number {
-  let n = 0;
-  groups.forEach((g) => {
-    if (g.children?.length) n += countLeaves(g.children);
-    else n++;
-  });
-  return n;
-}
+import { countLeaves } from '../../utils/treeUtils';
 
 export default function ColumnSourceEditor() {
   const currentTable = useTableStore((s) => s.currentTable);
@@ -73,7 +65,7 @@ export default function ColumnSourceEditor() {
         popupMatchSelectWidth={false}
       />
       <span className="text-11px text-gray-400">
-        Edit in Study Settings (sidebar &gt; Study Settings &gt; Header Styles)
+        Edit in Study Settings (sidebar &gt; Study Settings &gt; Table Headers)
       </span>
     </div>
   );

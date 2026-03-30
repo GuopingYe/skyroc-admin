@@ -203,7 +203,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         tableStore.setCurrentTable(null);
         figureStore.setCurrentFigure(null);
       }
-      window.$message?.success(`Shell created from template "${selectedTemplate.name}"`);
+      window.$message?.success(`Shell created from ${selectedTemplate.source === 'global' ? 'global' : 'study'} template "${selectedTemplate.name}"`);
     }
 
     handleClose();
@@ -324,7 +324,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                 : undefined;
               return (
                 <Card
-                  key={tpl.id}
+                  key={`${tpl.source}-${tpl.id}`}
                   hoverable
                   size="small"
                   style={{

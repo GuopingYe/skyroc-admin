@@ -368,6 +368,8 @@ export interface ListingColumn {
   sourceColumns?: string[]; // Array of dataset columns to combine
   combineFormat?: string; // e.g. "{0} / {1}" or "{0}\n  {1}"
   indentLevel?: number;
+  // Multi-line column headers (each line rendered on separate row)
+  headerLines?: string[];
   // Nested column headers (grouped headers like tables)
   children?: ListingColumn[];
   colspan?: number;

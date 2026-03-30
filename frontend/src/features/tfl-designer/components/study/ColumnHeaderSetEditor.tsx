@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnHeaderSet, ColumnHeaderGroup } from '../../types';
 import { useStudyStore } from '../../stores';
+import { countLeaves } from '../../utils/treeUtils';
 
 const { Text } = Typography;
 
@@ -48,15 +49,6 @@ function flattenGroups(groups: ColumnHeaderGroup[], depth = 0, parentId: string 
     }
   });
   return result;
-}
-
-function countLeaves(groups: ColumnHeaderGroup[]): number {
-  let n = 0;
-  groups.forEach((g) => {
-    if (g.children?.length) n += countLeaves(g.children);
-    else n++;
-  });
-  return n;
 }
 
 // ==================== Component ====================

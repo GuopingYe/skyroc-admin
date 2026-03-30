@@ -27,6 +27,10 @@ import type {
 } from '../../types';
 import { generateId, DEFAULT_DECIMAL_RULES } from '../../types';
 import { formatPlaceholder, buildDecimalsMap } from '../../utils/placeholderFormatter';
+import {
+  countLeaves, getTreeDepth, collectLeaves,
+  updateInTree, deleteFromTree, addChildToTree, insertAfterInTree, moveInTree,
+} from '../../utils/treeUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Tiny types                                                  */
@@ -329,67 +333,6 @@ const MoveBtn: React.FC<{
 };
 
 /* ------------------------------------------------------------------ */
-/*  Tree-walking helpers for nested ColumnHeaderGroup[]           */
-/* ------------------------------------------------------------------ */
-
-/** Walk the header tree; when targetId is found, call op(siblings, index).
- *  op returns a new siblings array (or null to skip).               */
-function walkHeaderTree(
-  headers: ColumnHeaderGroup[],
-  targetId: string,
-  op: (siblings: ColumnHeaderGroup[], index: number) => ColumnHeaderGroup[] | null,
-): ColumnHeaderGroup[] {
-  for (let i = 0; i < headers.length; i++) {
-    if (headers[i].id === targetId) {
-      return op([...headers], i) ?? headers;
-    }
-    if (headers[i].children) {
-      const result = walkHeaderTree(headers[i].children!, targetId, op);
-      if (result !== headers[i].children) {
-        const arr = [...headers];
-        arr[i] = { ...arr[i], children: result };
-        return arr;
-      }
-    }
-  }
-  return headers;
-}
-
-/** Insert newCol as a sibling after the node with afterId (recurses tree) */
-function insertHeaderAfter(headers: ColumnHeaderGroup[], afterId: string, newCol: ColumnHeaderGroup): ColumnHeaderGroup[] {
-  const result = walkHeaderTree(headers, afterId, (siblings, idx) => {
-    siblings.splice(idx + 1, 0, newCol);
-    return siblings;
-  });
-  return result !== headers ? result : [...headers, newCol];
-}
-
-/** Insert newCol as a child of the group with parentId */
-function insertHeaderChild(headers: ColumnHeaderGroup[], parentId: string, newCol: ColumnHeaderGroup): ColumnHeaderGroup[] {
-  return walkHeaderTree(headers, parentId, (siblings, idx) =>
-    siblings.map((s, i) => i === idx ? { ...s, children: [...(s.children || []), newCol] } : s)
-  ) || [...headers, newCol];
-}
-
-/** Swap a node with its adjacent sibling (delta = ±1) anywhere in tree */
-function moveHeaderInTree(headers: ColumnHeaderGroup[], nodeId: string, delta: number): ColumnHeaderGroup[] {
-  return walkHeaderTree(headers, nodeId, (siblings, idx) => {
-    const ni = idx + delta;
-    if (ni < 0 || ni >= siblings.length) return null;
-    [siblings[idx], siblings[ni]] = [siblings[ni], siblings[idx]];
-    return siblings;
-  });
-}
-
-/** Remove a node from anywhere in the tree */
-function deleteHeaderFromTree(headers: ColumnHeaderGroup[], nodeId: string): ColumnHeaderGroup[] {
-  return walkHeaderTree(headers, nodeId, (siblings, idx) => {
-    siblings.splice(idx, 1);
-    return siblings;
-  });
-}
-
-/* ------------------------------------------------------------------ */
 /*  Main component                                               */
 /* ------------------------------------------------------------------ */
 
@@ -474,6 +417,19 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
   /* ---- undo / redo stacks ---- */
   const undoStack = useRef<Template[]>([]);
   const redoStack = useRef<Template[]>([]);
+
+  /* ---- resize handler cleanup (for column width resizing) ---- */
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
+  // Cleanup resize handlers on unmount
+  useEffect(() => {
+    return () => {
+      if (resizeCleanupRef.current) {
+        resizeCleanupRef.current();
+        resizeCleanupRef.current = null;
+      }
+    };
+  }, []);
 
   /* ---- mutate shell field (with undo capture) ---- */
   const setShell = useCallback((updater: (s: any) => void) => {
@@ -781,7 +737,7 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
       if (!afterId) {
         onColumnHeadersChange([...columnHeaders, newCol]);
       } else {
-        onColumnHeadersChange(insertHeaderAfter(columnHeaders, afterId, newCol));
+        onColumnHeadersChange(insertAfterInTree(columnHeaders, afterId, newCol));
       }
     } else {
       // No external header management — store columns in the shell itself
@@ -804,19 +760,19 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
   const addHeaderChild = useCallback((parentId: string) => {
     if (!onColumnHeadersChange || !columnHeaders) return;
     const newCol: ColumnHeaderGroup = { id: generateId('hcol'), label: 'New Col', width: 120, align: 'center' };
-    onColumnHeadersChange(insertHeaderChild(columnHeaders, parentId, newCol));
+    onColumnHeadersChange(addChildToTree(columnHeaders, parentId, newCol));
     message.success('Column added under group');
   }, [columnHeaders, onColumnHeadersChange]);
 
   const deleteHeaderColumn = useCallback((headerId: string) => {
     if (!onColumnHeadersChange || !columnHeaders) return;
-    onColumnHeadersChange(deleteHeaderFromTree(columnHeaders, headerId));
+    onColumnHeadersChange(deleteFromTree(columnHeaders, headerId));
     message.success('Column deleted');
   }, [columnHeaders, onColumnHeadersChange]);
 
   const moveHeaderColumn = useCallback((headerId: string, delta: number) => {
     if (!onColumnHeadersChange || !columnHeaders) return;
-    onColumnHeadersChange(moveHeaderInTree(columnHeaders, headerId, delta));
+    onColumnHeadersChange(moveInTree(columnHeaders, headerId, delta < 0 ? 'up' : 'down'));
   }, [columnHeaders, onColumnHeadersChange]);
 
   /* ---- editable "Row Label" text (legacy compat) ---- */
@@ -826,13 +782,6 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
     const s = template.shell as any;
     setRowLabelText(s.labelColumns?.[0]?.label || s.rowLabel || 'Row Label');
   }, [template?.id]);
-
-  /* ---- helper: count leaf headers ---- */
-  const countLeaves = (groups: ColumnHeaderGroup[]): number => {
-    let n = 0;
-    groups.forEach(g => { if (g.children?.length) n += countLeaves(g.children); else n++; });
-    return n;
-  };
 
   /* ---- Label column operations ---- */
   const updateLabelColumn = useCallback((colId: string, newLabel: string) => {
@@ -883,6 +832,54 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
     });
   }, [setShell]);
 
+  /* ---- Listing header line operations ---- */
+  const updateColumnHeaderLines = useCallback((colId: string, updater: (lines: string[]) => string[]) => {
+    setShell(sh => {
+      sh.columns = (sh.columns || []).map((c: ListingColumn) => {
+        if (c.id !== colId) return c;
+        const lines = c.headerLines ? [...c.headerLines] : [c.label];
+        const newLines = updater(lines);
+        return { ...c, headerLines: newLines, label: newLines[0] };
+      });
+    });
+  }, [setShell]);
+
+  const updateHeaderLine = useCallback((colId: string, lineIdx: number, value: string) => {
+    updateColumnHeaderLines(colId, lines => {
+      while (lines.length <= lineIdx) lines.push('');
+      lines[lineIdx] = value;
+      return lines;
+    });
+  }, [updateColumnHeaderLines]);
+
+  const addHeaderLine = useCallback((colId: string) => {
+    updateColumnHeaderLines(colId, lines => [...lines, '']);
+    message.success('Header line added');
+  }, [updateColumnHeaderLines]);
+
+  const removeHeaderLine = useCallback((colId: string, lineIdx: number) => {
+    let removed = false;
+    updateColumnHeaderLines(colId, lines => {
+      if (lines.length <= 1) return lines;
+      lines.splice(lineIdx, 1);
+      removed = true;
+      return lines;
+    });
+    if (removed) {
+      message.success('Header line removed');
+    } else {
+      message.warning('Cannot remove the last header line');
+    }
+  }, [updateColumnHeaderLines]);
+
+  const updateColumnWidth = useCallback((colId: string, width: number) => {
+    setShell(sh => {
+      sh.columns = (sh.columns || []).map((c: ListingColumn) =>
+        c.id === colId ? { ...c, width } : c
+      );
+    });
+  }, [setShell]);
+
   /* ---- helper: mk InlineEdit ---- */
   const mk = (eid: string, value: string, onChange: (v: string) => void, opts?: { multiline?: boolean; placeholder?: string; className?: string }) => (
     <InlineEdit
@@ -903,12 +900,6 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
   const abbrs = shell.footer?.abbreviations as Record<string, string> | undefined;
   const armHeaders: ColumnHeaderGroup[] = columnHeaders || [];
   const totalCols = armHeaders.length > 0 ? countLeaves(armHeaders) : 1;
-  // Count actual leaf columns for data cells
-  const collectLeafCount = (groups: ColumnHeaderGroup[]): number => {
-    let n = 0;
-    groups.forEach(g => { if (g.children?.length) n += collectLeafCount(g.children); else n++; });
-    return n;
-  };
   // Also collect leaf columns from shell.columns (used when no armHeaders are provided)
   const shellColHeaders: ColumnHeaderGroup[] = (cols || []).map((c: ListingColumn) => ({
     id: c.id, label: c.label, width: c.width || 80, align: 'center' as const,
@@ -916,14 +907,10 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
 
   // Merge: armHeaders take priority, shell.columns as fallback
   const effectiveHeaders: ColumnHeaderGroup[] = armHeaders.length > 0 ? armHeaders : shellColHeaders;
-  const leafColCount = effectiveHeaders.length > 0 ? collectLeafCount(effectiveHeaders) : 0;
+  const leafColCount = effectiveHeaders.length > 0 ? countLeaves(effectiveHeaders) : 0;
 
   // Collect all leaf column IDs for data cell rendering
-  const leafCols: ColumnHeaderGroup[] = [];
-  const collectLeaves = (groups: ColumnHeaderGroup[]) => {
-    groups.forEach(g => { if (g.children?.length) collectLeaves(g.children); else leafCols.push(g); });
-  };
-  if (effectiveHeaders.length > 0) collectLeaves(effectiveHeaders);
+  const leafCols: ColumnHeaderGroup[] = collectLeaves(effectiveHeaders);
   const title = shell.title || template.name;
   const outNum = shell.shellNumber || shell.figureNumber || shell.listingNumber || '';
 
@@ -1091,10 +1078,6 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
     const lblColCount = lblColumns.length;
 
     // Compute max nesting depth for multi-level column headers
-    const getTreeDepth = (groups: ColumnHeaderGroup[]): number => {
-      if (groups.length === 0) return 0;
-      return Math.max(...groups.map(g => g.children?.length ? 1 + getTreeDepth(g.children) : 1));
-    };
     const treeDepth = effectiveHeaders.length > 0 ? getTreeDepth(effectiveHeaders) : 1;
 
     // Build nested header rows for the <thead>
@@ -1399,86 +1382,183 @@ const InteractiveOutputEditor = React.forwardRef<InteractiveOutputEditorRef, Int
 
   /* ---------- LISTING ---------- */
   if (template.type === 'listing') {
+    // Compute max header lines for multi-line headers
+    const maxHeaderLines = Math.max(1, ...cols.map(c => c.headerLines?.length || 1));
+
     return (
       <div className={`bg-white ${compact ? '' : 'p-3 border rounded'}`} onClick={() => setSel(null)}>
         {/* Title block */}
         {renderTitleBlock()}
 
-        {/* Columns with modern insert UX — three-line table */}
+        {/* Columns with multi-line headers and resizable width */}
         <div onClick={e => e.stopPropagation()}>
           <style>{`
-            .listing-three-line { border-collapse: separate; border-spacing: 0; }
+            .listing-three-line { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
             .listing-three-line thead tr:first-child th { border-top: 2px solid #333; }
             .listing-three-line thead tr:last-child th { border-bottom: 1px solid #333; }
             .listing-three-line tbody tr:last-child td { border-bottom: 2px solid #333; }
+            .listing-header-cell { position: relative; }
+            .listing-header-cell:hover .col-resize-handle { opacity: 1; }
+            .col-resize-handle {
+              position: absolute;
+              right: 0;
+              top: 0;
+              bottom: 0;
+              width: 6px;
+              cursor: col-resize;
+              background: transparent;
+              opacity: 0;
+              transition: opacity 0.15s;
+              z-index: 10;
+            }
+            .col-resize-handle:hover { background: rgba(24, 144, 255, 0.3); }
+            .col-resize-handle.dragging { background: rgba(24, 144, 255, 0.5); }
           `}</style>
-          <table className="listing-three-line w-full" style={{ fontSize: hs ? hs.columnHeaderSize : 11 }}>
+          <table className="listing-three-line" style={{ fontSize: hs ? hs.columnHeaderSize : 11 }}>
             <thead>
-              <tr className="sticky top-0" style={colHeaderStyle}>
-                {cols.slice(0, 10).map((col, idx) => (
-                  <th key={col.id} className="px-2 py-1 text-left font-semibold group relative" style={{ minWidth: 60 }}>
-                    <div className="flex items-center gap-1">
-                      {editable && <MoveBtn dir="h" onFirst={idx === 0} onLast={idx === cols.length - 1} onPrev={() => moveCol(idx, -1)} onNext={() => moveCol(idx, 1)} />}
-                      {mk(`col-${col.id}`, col.label, v => setShell(s => {
-                        s.columns = (s.columns || []).map((c: ListingColumn) => c.id === col.id ? { ...c, label: v } : c);
-                      }))}
-                      {editable && (
-                        <Tooltip title="Delete column">
-                          <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-400 hover:text-red-600 border-0 bg-transparent cursor-pointer"
-                            style={{ fontSize: 10 }}
-                            onClick={(e) => { e.stopPropagation(); delCol(col.id); }}
+              {/* Render multiple header rows based on headerLines */}
+              {Array.from({ length: maxHeaderLines }).map((_, lineIdx) => (
+                <tr key={`header-line-${lineIdx}`} className="sticky top-0" style={colHeaderStyle}>
+                  {cols.slice(0, 10).map((col, idx) => {
+                    const lines = col.headerLines || [col.label];
+                    const lineText = lines[lineIdx] || '';
+                    const isFirstLine = lineIdx === 0;
+                    const isLastLine = lineIdx === maxHeaderLines - 1;
+
+                    return (
+                      <th
+                        key={col.id}
+                        className={`px-2 py-1 text-left font-semibold group relative listing-header-cell ${isFirstLine ? '' : 'border-t-0'}`}
+                        style={{ minWidth: col.width || 80, width: col.width || 80 }}
+                      >
+                        <div className="flex items-center gap-1">
+                          {/* Actions only on first line */}
+                          {isFirstLine && editable && (
+                            <MoveBtn dir="h" onFirst={idx === 0} onLast={idx === cols.length - 1} onPrev={() => moveCol(idx, -1)} onNext={() => moveCol(idx, 1)} />
+                          )}
+                          {/* Editable text for this line */}
+                          {editable ? (
+                            <div className="flex-1 flex items-center gap-1">
+                              {mk(`col-${col.id}-line-${lineIdx}`, lineText, v => updateHeaderLine(col.id, lineIdx, v), { placeholder: `Line ${lineIdx + 1}...` })}
+                              {/* Add/remove line buttons on last visible line */}
+                              {editable && isFirstLine && (
+                                <Tooltip title="Add header line">
+                                  <button
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-400 hover:text-blue-600 border-0 bg-transparent cursor-pointer p-0"
+                                    style={{ fontSize: 10 }}
+                                    onClick={(e) => { e.stopPropagation(); addHeaderLine(col.id); }}
+                                  >
+                                    +
+                                  </button>
+                                </Tooltip>
+                              )}
+                              {editable && lines.length > 1 && (
+                                <Tooltip title="Remove this line">
+                                  <button
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600 border-0 bg-transparent cursor-pointer p-0"
+                                    style={{ fontSize: 10 }}
+                                    onClick={(e) => { e.stopPropagation(); removeHeaderLine(col.id, lineIdx); }}
+                                  >
+                                    ×
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </div>
+                          ) : (
+                            <span>{lineText}</span>
+                          )}
+                          {/* Delete column only on first line */}
+                          {isFirstLine && editable && (
+                            <Tooltip title="Delete column">
+                              <button
+                                className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-400 hover:text-red-600 border-0 bg-transparent cursor-pointer"
+                                style={{ fontSize: 10 }}
+                                onClick={(e) => { e.stopPropagation(); delCol(col.id); }}
+                              >
+                                <DeleteOutlined />
+                              </button>
+                            </Tooltip>
+                          )}
+                        </div>
+                        {/* Column resize handle - only on last header row */}
+                        {isLastLine && editable && (
+                          <div
+                            className="col-resize-handle"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              const startX = e.clientX;
+                              const startWidth = col.width || 80;
+                              const th = e.currentTarget.parentElement as HTMLElement;
+
+                              const onMouseMove = (ev: MouseEvent) => {
+                                const delta = ev.clientX - startX;
+                                const newWidth = Math.max(40, startWidth + delta);
+                                updateColumnWidth(col.id, newWidth);
+                                th.style.width = `${newWidth}px`;
+                              };
+
+                              const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                                document.body.style.cursor = '';
+                                resizeCleanupRef.current = null;
+                              };
+
+                              document.addEventListener('mousemove', onMouseMove);
+                              document.addEventListener('mouseup', onMouseUp);
+                              document.body.style.cursor = 'col-resize';
+                              resizeCleanupRef.current = onMouseUp;
+                            }}
+                          />
+                        )}
+                        {/* Right-edge hover zone for adding columns - only on first line */}
+                        {isFirstLine && editable && (
+                          <div
+                            className="absolute top-0 bottom-0 -right-[6px] w-3 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            onMouseEnter={e => { e.stopPropagation(); }}
                           >
-                            <DeleteOutlined />
-                          </button>
-                        </Tooltip>
-                      )}
-                    </div>
-                    {/* Right-edge hover zone */}
-                    {editable && (
-                      <div
-                        className="absolute top-0 bottom-0 -right-[6px] w-3 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        onMouseEnter={e => { e.stopPropagation(); }}
-                      >
-                        <Tooltip title="Add column">
-                          <button
-                            className="w-5 h-5 rounded-full bg-blue-500 text-white text-xs leading-none flex items-center justify-center shadow-sm border-0 cursor-pointer"
-                            style={{ fontSize: 14, fontWeight: 300 }}
-                            onClick={(e) => { e.stopPropagation(); addColumn(idx); }}
-                            onMouseDown={e => e.stopPropagation()}
-                          >+</button>
-                        </Tooltip>
-                      </div>
-                    )}
-                  </th>
-                ))}
-                {editable && cols.length === 0 && (
-                  <th className="px-2 py-1 text-center text-gray-400">
-                    No columns — click + to add
-                  </th>
-                )}
-                {/* Final add column at the end */}
-                {editable && cols.length > 0 && cols.length <= 10 && (
-                  <th className="px-2 py-1 w-[32px] relative group-col-gap">
-                    <Tooltip title="Add column at end">
-                      <button
-                        className="w-5 h-5 rounded-full bg-blue-500 text-white text-xs leading-none flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity shadow-sm border-0 cursor-pointer"
-                        style={{ fontSize: 14, fontWeight: 300 }}
-                        onClick={(e) => { e.stopPropagation(); addColumn(); }}
-                        onMouseDown={e => e.stopPropagation()}
-                      >
-                        +
-                      </button>
-                    </Tooltip>
-                  </th>
-                )}
-              </tr>
+                            <Tooltip title="Add column">
+                              <button
+                                className="w-5 h-5 rounded-full bg-blue-500 text-white text-xs leading-none flex items-center justify-center shadow-sm border-0 cursor-pointer"
+                                style={{ fontSize: 14, fontWeight: 300 }}
+                                onClick={(e) => { e.stopPropagation(); addColumn(idx); }}
+                                onMouseDown={e => e.stopPropagation()}
+                              >+</button>
+                            </Tooltip>
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
+                  {/* Empty state - only show on first line */}
+                  {lineIdx === 0 && editable && cols.length === 0 && (
+                    <th className="px-2 py-1 text-center text-gray-400">
+                      No columns — click + to add
+                    </th>
+                  )}
+                  {/* Final add column at the end - only on first line */}
+                  {lineIdx === 0 && editable && cols.length > 0 && cols.length <= 10 && (
+                    <th className="px-2 py-1 w-[32px] relative group-col-gap">
+                      <Tooltip title="Add column at end">
+                        <button
+                          className="w-5 h-5 rounded-full bg-blue-500 text-white text-xs leading-none flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity shadow-sm border-0 cursor-pointer"
+                          style={{ fontSize: 14, fontWeight: 300 }}
+                          onClick={(e) => { e.stopPropagation(); addColumn(); }}
+                          onMouseDown={e => e.stopPropagation()}
+                        >
+                          +
+                        </button>
+                      </Tooltip>
+                    </th>
+                  )}
+                </tr>
+              ))}
             </thead>
             <tbody>
               {[0, 1, 2].map(i => (
                 <tr key={i}>
                   {cols.slice(0, 10).map(col => (
-                    <td key={col.id} className="px-2 py-1 text-gray-400">-</td>
+                    <td key={col.id} className="px-2 py-1 text-gray-400" style={{ width: col.width || 80 }}>-</td>
                   ))}
                 </tr>
               ))}

@@ -39,6 +39,7 @@ import {
 } from '@ant-design/icons';
 import type { TreatmentArmSet, TreatmentArm, ColumnHeaderGroup } from '../../types';
 import { useStudyStore } from '../../stores';
+import { countLeaves } from '../../utils/treeUtils';
 
 const { Text } = Typography;
 
@@ -66,15 +67,6 @@ function deriveArmsFromHeaders(headers: ColumnHeaderGroup[]): TreatmentArm[] {
   return arms;
 }
 
-/** Count leaf columns */
-function countLeaves(groups: ColumnHeaderGroup[]): number {
-  let n = 0;
-  groups.forEach((g) => {
-    if (g.children?.length) n += countLeaves(g.children);
-    else n++;
-  });
-  return n;
-}
 
 /** Build flat list with depth for rendering, respecting expanded state */
 function flattenTree(

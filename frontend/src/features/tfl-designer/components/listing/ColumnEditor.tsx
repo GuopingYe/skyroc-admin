@@ -33,6 +33,7 @@ import {
   ArrowDownOutlined,
 } from '@ant-design/icons';
 import type { ListingColumn } from '../../types';
+import { countLeaves } from '../../utils/treeUtils';
 
 const { Text } = Typography;
 
@@ -171,20 +172,7 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
   }, [flatColumns, searchValue]);
 
   // Count leaf columns (excluding groups)
-  const leafCount = useMemo(() => {
-    let count = 0;
-    const countLeaves = (cols: ListingColumn[]) => {
-      cols.forEach((col) => {
-        if (col.children?.length) {
-          countLeaves(col.children);
-        } else {
-          count++;
-        }
-      });
-    };
-    countLeaves(columns);
-    return count;
-  }, [columns]);
+  const leafCount = useMemo(() => countLeaves(columns), [columns]);
 
   // ==================== Handlers ====================
 
