@@ -99,7 +99,7 @@ import {
 import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
 
 import type { TableShell, FigureShell, ListingShell, IARSDocument, ColumnHeaderGroup } from '@/features/tfl-designer';
-import { generateId } from '@/features/tfl-designer';
+import { generateId, DEFAULT_HEADER_FONT_STYLE } from '@/features/tfl-designer';
 import { useUserInfo } from '@/service/hooks';
 
 const { Text, Title } = Typography;
@@ -163,9 +163,10 @@ const TflDesigner: React.FC = () => {
     [statisticsSets]
   );
 
-  // Header font style from study store
-  const headerFontStyle = useStudyStore((s) => s.headerFontStyle);
-  const setHeaderFontStyle = useStudyStore((s) => s.setHeaderFontStyle);
+  // Study defaults (decimal rules, header style, etc.)
+  const studyDefaults = useStudyStore((s) => s.studyDefaults);
+  const updateHeaderStyle = useStudyStore((s) => s.updateHeaderStyle);
+  const headerFontStyle = studyDefaults?.headerStyle ?? DEFAULT_HEADER_FONT_STYLE;
 
   // Column headers from the currently selected treatment arm set
   const treatmentArmSets = useStudyStore((s) => s.treatmentArmSets);
@@ -867,7 +868,7 @@ const TflDesigner: React.FC = () => {
                   children: (
                     <HeaderStyleSelector
                       value={headerFontStyle}
-                      onChange={setHeaderFontStyle}
+                      onChange={updateHeaderStyle}
                     />
                   ),
                 },
@@ -1500,7 +1501,7 @@ const TflDesigner: React.FC = () => {
               {[
                 { key: 'treatmentArms', icon: <TeamOutlined />, label: 'Treatment Arms' },
                 { key: 'populations', icon: <TeamOutlined />, label: 'Populations' },
-                { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Layout' },
+                { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
                 { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
                 { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
                 { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
@@ -1526,7 +1527,7 @@ const TflDesigner: React.FC = () => {
               {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
               {studySettingsTab === 'populations' && <PopulationManager />}
               {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
+              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
               {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
               {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}
@@ -1669,7 +1670,7 @@ const TflDesigner: React.FC = () => {
                 {[
                   { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
                   { key: 'treatmentArms', icon: <ColumnWidthOutlined />, label: t('page.mdr.tflDesigner.tabs.treatmentArms') },
-                  { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Layout' },
+                  { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
                   { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
                   { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
                   { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
@@ -1774,7 +1775,7 @@ const TflDesigner: React.FC = () => {
               {studySettingsTab === 'populations' && <PopulationManager />}
               {studySettingsTab === 'treatmentArms' && <TreatmentArmEditor />}
               {studySettingsTab === 'columnLayout' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={setHeaderFontStyle} />}
+              {studySettingsTab === 'headerStyle' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
               {studySettingsTab === 'statistics' && <StatisticsSetManager />}
               {studySettingsTab === 'decimalDefaults' && <DecimalDefaultsEditor />}
               {studySettingsTab === 'shellTemplates' && <StudyTemplateLibrary />}

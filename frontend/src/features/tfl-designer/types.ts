@@ -117,7 +117,7 @@ export interface StudyDefaults {
   scopeNodeId: string | number;
   defaultStatisticsSetId?: string | number;
   decimalRules: DecimalConfig;
-  headerStyle?: Record<string, unknown>;
+  headerStyle?: HeaderFontStyle;
 }
 
 // ==================== Column Header Set ====================

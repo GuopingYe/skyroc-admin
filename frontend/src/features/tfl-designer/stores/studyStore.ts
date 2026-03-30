@@ -33,6 +33,7 @@ interface StudyState {
   // Study Defaults
   setStudyDefaults: (defaults: StudyDefaults) => void;
   updateDecimalRules: (rules: DecimalConfig) => void;
+  updateHeaderStyle: (style: HeaderFontStyle) => void;
 
   // Column Header Set CRUD
 
@@ -534,6 +535,21 @@ export const useStudyStore = create<StudyState>()(
           };
         } else {
           state.studyDefaults.decimalRules = rules;
+        }
+      }),
+
+    updateHeaderStyle: (style) =>
+      set((state) => {
+        // Auto-initialize studyDefaults if not present
+        if (!state.studyDefaults) {
+          state.studyDefaults = {
+            id: generateId('sd'),
+            scopeNodeId: '',
+            decimalRules: {},
+            headerStyle: style,
+          };
+        } else {
+          state.studyDefaults.headerStyle = style;
         }
       }),
 
