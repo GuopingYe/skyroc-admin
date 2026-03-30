@@ -5,7 +5,7 @@
  * Shows study templates (from studyStore.studyTemplates) + built-in templates.
  * User selects a template OR starts blank.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Modal,
   Card,
@@ -16,12 +16,13 @@ import {
   Button,
   Typography,
   Divider,
+  Select,
 } from 'antd';
 import { SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import type { StudyTemplate, AnalysisCategory } from '../../types';
+import type { StudyTemplate, AnalysisCategory, Template } from '../../types';
 import { categoryOptions, generateId } from '../../types';
 import type { TableShell, FigureShell, ListingShell } from '../../types';
-import { useStudyStore, useTableStore, useFigureStore, useListingStore } from '../../stores';
+import { useStudyStore, useTableStore, useFigureStore, useListingStore, useTemplateStore } from '../../stores';
 import { createNewFigure } from '../../stores/figureStore';
 
 const { Text, Title } = Typography;
@@ -48,24 +49,82 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
 
   const [activeTab, setActiveTab] = useState('all');
   const [searchValue, setSearchValue] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<StudyTemplate | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'global' | 'study'>('all');
+
+  // Access global templates and initialize on mount
+  const globalTemplates = useTemplateStore((s) => s.templates);
+  const initTemplates = useTemplateStore((s) => s.initTemplates);
+
+  useEffect(() => {
+    initTemplates();
+  }, [initTemplates]);
+
+  interface TemplateItem {
+    id: string;
+    name: string;
+    source: 'global' | 'study';
+    displayType: 'Table' | 'Figure' | 'Listing';
+    category: AnalysisCategory;
+    shellSchema: TableShell | FigureShell | ListingShell;
+    statisticsSetId?: string;
+    version?: number;
+  }
+
+  // Combine global and study templates into unified list
+  const allTemplates = useMemo<TemplateItem[]>(() => {
+    const global: TemplateItem[] = globalTemplates.map((t: Template) => ({
+      id: t.id,
+      name: t.name,
+      source: 'global' as const,
+      displayType: t.type === 'table' ? 'Table' : t.type === 'figure' ? 'Figure' : 'Listing',
+      category: t.category,
+      shellSchema: t.shell,
+    }));
+
+    const study: TemplateItem[] = studyTemplates.map((t: StudyTemplate) => ({
+      id: String(t.id),
+      name: t.templateName,
+      source: 'study' as const,
+      displayType: t.displayType,
+      category: t.category,
+      shellSchema: t.shellSchema,
+      statisticsSetId: t.statisticsSetId as string | undefined,
+      version: t.version,
+    }));
+
+    return [...global, ...study];
+  }, [globalTemplates, studyTemplates]);
+
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [selectedBlank, setSelectedBlank] = useState<string | null>(null);
 
   const filteredTemplates = useMemo(() => {
-    let templates = studyTemplates;
+    let templates = allTemplates;
+
+    // Filter by source
+    if (sourceFilter === 'global') {
+      templates = templates.filter((t) => t.source === 'global');
+    } else if (sourceFilter === 'study') {
+      templates = templates.filter((t) => t.source === 'study');
+    }
+
+    // Filter by search
     if (searchValue) {
       const q = searchValue.toLowerCase();
       templates = templates.filter(
         (t) =>
-          t.templateName.toLowerCase().includes(q) ||
+          t.name.toLowerCase().includes(q) ||
           t.category.toLowerCase().includes(q),
       );
     }
+
+    // Filter by display type tab
     if (activeTab !== 'all') {
       templates = templates.filter((t) => t.displayType === activeTab);
     }
+
     return templates;
-  }, [studyTemplates, activeTab, searchValue]);
+  }, [allTemplates, sourceFilter, searchValue, activeTab]);
 
   const getCategoryLabel = (cat: AnalysisCategory) =>
     categoryOptions.find((o) => o.value === cat)?.label ?? cat.replace(/_/g, ' ');
@@ -138,7 +197,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         tableStore.setCurrentTable(null);
         figureStore.setCurrentFigure(null);
       }
-      window.$message?.success(`Shell created from template "${selectedTemplate.templateName}"`);
+      window.$message?.success(`Shell created from template "${selectedTemplate.name}"`);
     }
 
     handleClose();
@@ -262,7 +321,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                 >
                   <Space direction="vertical" size={4} style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text strong style={{ fontSize: 13 }}>{tpl.templateName}</Text>
+                      <Text strong style={{ fontSize: 13 }}>{tpl.name}</Text>
                       <Tag color={tpl.displayType === 'Table' ? 'blue' : tpl.displayType === 'Figure' ? 'green' : 'orange'}>
                         {tpl.displayType}
                       </Tag>
@@ -285,7 +344,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         <>
           <Divider />
           <div style={{ background: '#f5f5f5', borderRadius: 6, padding: 12 }}>
-            <Title level={5} style={{ marginTop: 0 }}>Selected: {selectedTemplate.templateName}</Title>
+            <Title level={5} style={{ marginTop: 0 }}>Selected: {selectedTemplate.name}</Title>
             <Space size="large">
               <span><Text type="secondary">Category:</Text> {getCategoryLabel(selectedTemplate.category)}</span>
               <span><Text type="secondary">Type:</Text> {selectedTemplate.displayType}</span>
