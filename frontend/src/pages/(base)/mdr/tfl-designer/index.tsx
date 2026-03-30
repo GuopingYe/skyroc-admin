@@ -864,7 +864,7 @@ const TflDesigner: React.FC = () => {
                 },
                 {
                   key: 'headerStyle',
-                  label: 'Header Style',
+                  label: 'Header Override',
                   children: (
                     <HeaderStyleSelector
                       value={headerFontStyle}
@@ -1502,7 +1502,7 @@ const TflDesigner: React.FC = () => {
                 { key: 'treatmentArms', icon: <TeamOutlined />, label: 'Treatment Arms' },
                 { key: 'populations', icon: <TeamOutlined />, label: 'Populations' },
                 { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
-                { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
+                { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style (Default)' },
                 { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
                 { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
                 { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
@@ -1671,7 +1671,7 @@ const TflDesigner: React.FC = () => {
                   { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
                   { key: 'treatmentArms', icon: <ColumnWidthOutlined />, label: t('page.mdr.tflDesigner.tabs.treatmentArms') },
                   { key: 'columnLayout', icon: <LayoutOutlined />, label: 'Column Header Sets' },
-                  { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style' },
+                  { key: 'headerStyle', icon: <BgColorsOutlined />, label: 'Header Style (Default)' },
                   { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
                   { key: 'decimalDefaults', icon: <NumberOutlined />, label: 'Decimal Defaults' },
                   { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
