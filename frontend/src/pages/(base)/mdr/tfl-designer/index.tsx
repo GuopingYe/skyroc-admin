@@ -76,7 +76,6 @@ import {
   AxesConfig,
   SeriesConfig,
   ListingPreview,
-  ColumnEditor,
   SortConfigEditor,
   FilterConfigEditor,
   ExportModal,
@@ -87,7 +86,6 @@ import {
   PopulationManager,
   StatisticsSetManager,
   HeaderStyleSelector,
-  ColumnHeaderSetEditor,
   InteractiveOutputEditor,
   DecimalDefaultsEditor,
   DecimalSettingsTab,
@@ -232,7 +230,34 @@ const TflDesigner: React.FC = () => {
   const [listingEditorTab, setListingEditorTab] = useState('metadata');
 
   // Study settings tab
-  const [studySettingsTab, setStudySettingsTab] = useState('treatmentArms');
+  const [studySettingsTab, setStudySettingsTab] = useState('tableHeaders');
+
+  // Study settings tabs configuration (shared between two views)
+  const studySettingsTabs = useMemo(() => [
+    { key: 'tableHeaders', icon: <ColumnWidthOutlined />, label: 'Table Headers' },
+    { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
+    { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
+    { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
+    { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
+  ], [t]);
+
+  // Render study settings content based on active tab
+  const renderStudySettingsContent = useCallback(() => {
+    switch (studySettingsTab) {
+      case 'tableHeaders':
+        return <TreatmentArmEditor />;
+      case 'populations':
+        return <PopulationManager />;
+      case 'shellTemplates':
+        return <StudyTemplateLibrary />;
+      case 'headerFormatting':
+        return <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />;
+      case 'statistics':
+        return <StatisticsSetManager />;
+      default:
+        return null;
+    }
+  }, [studySettingsTab, headerFontStyle, updateHeaderStyle]);
 
   // Template selector modal
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -1259,22 +1284,6 @@ const TflDesigner: React.FC = () => {
                   ),
                 },
                 {
-                  key: 'columns',
-                  label: (
-                    <Space size={4}>
-                      {t('page.mdr.tflDesigner.tabs.columns')}
-                      <Tag className="ml-4px">{lst.columns.length}</Tag>
-                    </Space>
-                  ),
-                  children: (
-                    <ColumnEditor
-                      displayId={lst.id}
-                      columns={lst.columns}
-                      onChange={(cols) => listingStore.updateColumns(cols)}
-                    />
-                  ),
-                },
-                {
                   key: 'sort',
                   label: (
                     <Space size={4}>
@@ -1476,12 +1485,7 @@ const TflDesigner: React.FC = () => {
               <div className="mb-8px text-12px font-medium text-gray-500">
                 Study-Level Configuration
               </div>
-              {[
-                { key: 'treatmentColumns', icon: <ColumnWidthOutlined />, label: 'Treatment Columns' },
-                { key: 'populations', icon: <TeamOutlined />, label: 'Populations' },
-                { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
-                { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
-              ].map(tab => (
+              {studySettingsTabs.map(tab => (
                 <div
                   key={tab.key}
                   className="flex items-center gap-8px px-8px py-6px rounded cursor-pointer text-12px transition-colors"
@@ -1499,10 +1503,7 @@ const TflDesigner: React.FC = () => {
 
             {/* Settings content */}
             <div className="flex-1 overflow-y-auto py-4px">
-              {studySettingsTab === 'treatmentColumns' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'populations' && <PopulationManager />}
-              {studySettingsTab === 'headerFormatting' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
-              {studySettingsTab === 'statistics' && <StatisticsSetManager />}
+              {renderStudySettingsContent()}
             </div>
           </div>
         </Card>
@@ -1639,12 +1640,7 @@ const TflDesigner: React.FC = () => {
             {sidebarView === 'settings' ? (
               <div className="flex flex-col gap-2px pt-4px">
                 {/* Study settings vertical tabs */}
-                {[
-                  { key: 'treatmentColumns', icon: <ColumnWidthOutlined />, label: 'Treatment Columns' },
-                  { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
-                  { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
-                  { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
-                ].map(tab => (
+                {studySettingsTabs.map(tab => (
                   <div
                     key={tab.key}
                     className={`flex cursor-pointer items-center gap-6px rounded px-8px py-6px transition-colors ${
@@ -1741,10 +1737,7 @@ const TflDesigner: React.FC = () => {
         <Card className="min-w-0 flex flex-1 flex-col overflow-hidden card-wrapper" size="small" variant="borderless">
           {sidebarView === 'settings' && !tableStore.currentTable && !figureStore.currentFigure && !listingStore.currentListing ? (
             <div className="h-full overflow-y-auto p-12px">
-              {studySettingsTab === 'treatmentColumns' && <ColumnHeaderSetEditor />}
-              {studySettingsTab === 'populations' && <PopulationManager />}
-              {studySettingsTab === 'headerFormatting' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
-              {studySettingsTab === 'statistics' && <StatisticsSetManager />}
+              {renderStudySettingsContent()}
             </div>
           ) : tableStore.currentTable
             ? renderTableEditor()
