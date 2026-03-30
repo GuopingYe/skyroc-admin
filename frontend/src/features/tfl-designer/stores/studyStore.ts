@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Study, TreatmentArmSet, TreatmentArm, PopulationSet, StatisticsSet, ColumnHeaderSet, ColumnHeaderGroup, HeaderFontStyle, StudyTemplate, StudyDefaults, DecimalConfig } from '../types';
-import { generateId, DEFAULT_HEADER_FONT_STYLE, DEFAULT_DECIMAL_RULES } from '../types';
+import { generateId } from '../types';
 
 // ==================== State Interface ====================
 
@@ -18,7 +18,6 @@ interface StudyState {
   populationSets: PopulationSet[];
   statisticsSets: StatisticsSet[];
   columnHeaderSets: ColumnHeaderSet[];
-  headerFontStyle: HeaderFontStyle;
 
   // Study Templates + Defaults
   studyTemplates: StudyTemplate[];
@@ -63,9 +62,6 @@ interface StudyState {
   addStatisticsSet: (ss: Omit<StatisticsSet, 'id'>) => void;
   updateStatisticsSet: (id: string, updates: Partial<StatisticsSet>) => void;
   deleteStatisticsSet: (id: string) => void;
-
-  // Header Font Style
-  setHeaderFontStyle: (style: HeaderFontStyle) => void;
 
   // Column Header Set CRUD
   addColumnHeaderSet: (chs: Omit<ColumnHeaderSet, 'id'>) => void;
@@ -367,7 +363,6 @@ export const useStudyStore = create<StudyState>()(
     populationSets: mockPopulationSets,
     statisticsSets: mockStatisticsSets,
     columnHeaderSets: mockColumnHeaderSets,
-    headerFontStyle: DEFAULT_HEADER_FONT_STYLE,
     studyTemplates: [],
     studyDefaults: null,
 
@@ -487,11 +482,6 @@ export const useStudyStore = create<StudyState>()(
     deleteStatisticsSet: (id) =>
       set((state) => {
         state.statisticsSets = state.statisticsSets.filter((s) => s.id !== id);
-      }),
-
-    setHeaderFontStyle: (style) =>
-      set((state) => {
-        state.headerFontStyle = style;
       }),
 
     // Study Template CRUD
