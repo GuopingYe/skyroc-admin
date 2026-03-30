@@ -1741,7 +1741,6 @@ const TflDesigner: React.FC = () => {
         <Card className="min-w-0 flex flex-1 flex-col overflow-hidden card-wrapper" size="small" variant="borderless">
           {sidebarView === 'settings' && !tableStore.currentTable && !figureStore.currentFigure && !listingStore.currentListing ? (
             <div className="h-full overflow-y-auto p-12px">
-              {studySettingsTab === 'populations' && <PopulationManager />}
               {studySettingsTab === 'treatmentColumns' && <ColumnHeaderSetEditor />}
               {studySettingsTab === 'populations' && <PopulationManager />}
               {studySettingsTab === 'headerFormatting' && <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />}
