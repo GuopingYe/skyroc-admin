@@ -38,7 +38,7 @@ class VersionHistoryEntry(BaseModel):
     """版本历史条目"""
 
     version: int = Field(..., description="版本号")
-    changed_at: str = Field(..., description="变更时间")
+    changed_at: datetime = Field(..., description="变更时间")
     changed_by: str = Field(..., description="变更人")
     change_description: str | None = Field(None, description="变更描述")
     snapshot: dict[str, Any] | None = Field(None, description="版本快照数据")
