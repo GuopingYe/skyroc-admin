@@ -452,6 +452,8 @@ export interface Template {
   description?: string;
   shell: TableShell | FigureShell | ListingShell;
   createdAt: string;
+  /** Scope level for library templates - global, ta, or product */
+  scopeLevel?: ScopeLevel;
 }
 
 // ==================== Population ====================

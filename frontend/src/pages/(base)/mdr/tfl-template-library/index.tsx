@@ -53,6 +53,7 @@ import { importARSJSONToTemplates } from '@/features/tfl-designer';
 const { Text, Title } = Typography;
 
 type TypeFilter = 'all' | 'table' | 'figure' | 'listing';
+type ScopeLevelFilter = 'all' | 'global' | 'ta' | 'product';
 
 const categoryLabelMap: Record<string, string> = {};
 categoryOptions.forEach((opt) => {
@@ -94,6 +95,7 @@ const TemplateLibrary: React.FC = () => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+  const [scopeLevelFilter, setScopeLevelFilter] = useState<ScopeLevelFilter>('all');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -179,12 +181,13 @@ const TemplateLibrary: React.FC = () => {
     let list = allTemplatesCombined;
     if (typeFilter !== 'all') list = list.filter((tp) => tp.type === typeFilter);
     if (categoryFilter) list = list.filter((tp) => tp.category === categoryFilter);
+    if (scopeLevelFilter !== 'all') list = list.filter((tp) => tp.scopeLevel === scopeLevelFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((tp) => tp.name.toLowerCase().includes(q) || tp.description?.toLowerCase().includes(q));
     }
     return list;
-  }, [allTemplatesCombined, typeFilter, categoryFilter, search]);
+  }, [allTemplatesCombined, typeFilter, categoryFilter, scopeLevelFilter, search]);
 
   const typeCounts = useMemo(
     () => ({
@@ -558,6 +561,18 @@ const TemplateLibrary: React.FC = () => {
           <div className="mb-8px">
             <Input prefix={<SearchOutlined />} size="small" placeholder={t('page.mdr.tflTemplateLibrary.searchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} allowClear />
           </div>
+          <Segmented
+            size="small"
+            value={scopeLevelFilter}
+            onChange={(v) => setScopeLevelFilter(v as ScopeLevelFilter)}
+            options={[
+              { label: 'All', value: 'all' },
+              { label: 'Global', value: 'global' },
+              { label: 'TA', value: 'ta' },
+              { label: 'Product', value: 'product', disabled: true },
+            ]}
+            style={{ marginBottom: 8, width: '100%' }}
+          />
           <Segmented block size="small" value={typeFilter} options={[
             { label: <Space size={2}>All<sup>{typeCounts.all}</sup></Space>, value: 'all' },
             { label: <Space size={2}>T<sup>{typeCounts.table}</sup></Space>, value: 'table' },
@@ -584,9 +599,14 @@ const TemplateLibrary: React.FC = () => {
                         <span style={{ color: typeColor[tpl.type], fontSize: 13 }}>{typeIconMap[tpl.type]}</span>
                         <span className="text-13px truncate" style={{ maxWidth: sidebarWidth - 100 }}>{tpl.name}</span>
                       </Space>
-                      <Tag className="m-0 text-10px" color="green" style={{ fontSize: 10 }}>
-                        {categoryLabelMap[tpl.category]?.replace(/_/g, ' ') || tpl.category.replace(/_/g, ' ')}
-                      </Tag>
+                      <Space size={4}>
+                        <Tag className="m-0 text-10px" color={tpl.scopeLevel === 'global' ? 'geekblue' : tpl.scopeLevel === 'ta' ? 'purple' : 'default'} style={{ fontSize: 10 }}>
+                          {tpl.scopeLevel === 'global' ? 'Global' : tpl.scopeLevel === 'ta' ? 'TA' : tpl.scopeLevel === 'product' ? 'Product' : 'Global'}
+                        </Tag>
+                        <Tag className="m-0 text-10px" color="green" style={{ fontSize: 10 }}>
+                          {categoryLabelMap[tpl.category]?.replace(/_/g, ' ') || tpl.category.replace(/_/g, ' ')}
+                        </Tag>
+                      </Space>
                     </div>
                   );
                 })}
