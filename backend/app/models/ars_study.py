@@ -159,6 +159,28 @@ class StudyTemplate(Base, TimestampMixin, SoftDeleteMixin):
         comment="模板版本号",
     )
 
+    # Source tracking (NEW)
+    source_library_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("shell_library_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Source template from Global/TA Library",
+    )
+    source_level: Mapped[str | None] = mapped_column(
+        String(20), nullable=True,
+        comment="Source level: 'global' | 'ta' | 'product'",
+    )
+    source_template_name: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+        comment="Original template name from source",
+    )
+
+    # Version history (NEW)
+    version_history: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB, nullable=True,
+        comment="Version change history",
+    )
+
     created_by: Mapped[str] = mapped_column(String(100), nullable=False)
     updated_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
