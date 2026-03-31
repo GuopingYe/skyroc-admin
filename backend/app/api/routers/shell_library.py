@@ -8,8 +8,8 @@ REST API for Global/TA level shell template management.
 import copy
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, and_
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
@@ -49,14 +49,20 @@ async def list_templates(
     if display_type:
         conditions.append(ShellLibraryTemplate.display_type == display_type)
 
-    stmt = select(ShellLibraryTemplate).where(and_(*conditions)).offset(skip).limit(limit)
+    stmt = (
+        select(ShellLibraryTemplate)
+        .where(and_(*conditions))
+        .order_by(ShellLibraryTemplate.category, ShellLibraryTemplate.template_name)
+        .offset(skip)
+        .limit(limit)
+    )
     result = await db.execute(stmt)
     templates = result.scalars().all()
 
-    # Get total count
-    count_stmt = select(ShellLibraryTemplate.id).where(and_(*conditions))
+    # Get total count using SQL COUNT for efficiency
+    count_stmt = select(func.count()).select_from(ShellLibraryTemplate).where(and_(*conditions))
     count_result = await db.execute(count_stmt)
-    total = len(count_result.all())
+    total = count_result.scalar() or 0
 
     return ShellLibraryTemplateList(items=templates, total=total)
 
@@ -65,14 +71,17 @@ async def list_templates(
 async def get_template(
     template_id: int,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> ShellLibraryTemplateResponse:
     """Get a single shell library template"""
-    stmt = select(ShellLibraryTemplate).where(ShellLibraryTemplate.id == template_id)
+    stmt = select(ShellLibraryTemplate).where(
+        ShellLibraryTemplate.id == template_id,
+        ShellLibraryTemplate.is_deleted == False,
+    )
     result = await db.execute(stmt)
     template = result.scalar_one_or_none()
 
     if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     return template
 
@@ -86,7 +95,11 @@ async def create_template(
     """Create a new shell library template"""
     # TODO: Add permission check (R_ADMIN for global, R_TA_ADMIN for ta)
 
-    set_audit_context(db, current_user.username)
+    set_audit_context(
+        user_id=current_user.username,
+        user_name=current_user.username,
+        context={"operation": "create_template", "source": "api"},
+    )
 
     template = ShellLibraryTemplate(
         scope_level=data.scope_level,
@@ -116,14 +129,21 @@ async def update_template(
     db: AsyncSession = Depends(get_db_session),
 ):
     """Update a shell library template (increments version)"""
-    set_audit_context(db, current_user.username)
+    set_audit_context(
+        user_id=current_user.username,
+        user_name=current_user.username,
+        context={"operation": "update_template", "source": "api"},
+    )
 
-    stmt = select(ShellLibraryTemplate).where(ShellLibraryTemplate.id == template_id)
+    stmt = select(ShellLibraryTemplate).where(
+        ShellLibraryTemplate.id == template_id,
+        ShellLibraryTemplate.is_deleted == False,
+    )
     result = await db.execute(stmt)
     template = result.scalar_one_or_none()
 
     if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     # Update fields
     update_data = data.model_dump(exclude_unset=True)
@@ -149,14 +169,21 @@ async def soft_delete_template(
     db: AsyncSession = Depends(get_db_session),
 ):
     """Soft delete a shell library template"""
-    set_audit_context(db, current_user.username)
+    set_audit_context(
+        user_id=current_user.username,
+        user_name=current_user.username,
+        context={"operation": "soft_delete_template", "source": "api"},
+    )
 
-    stmt = select(ShellLibraryTemplate).where(ShellLibraryTemplate.id == template_id)
+    stmt = select(ShellLibraryTemplate).where(
+        ShellLibraryTemplate.id == template_id,
+        ShellLibraryTemplate.is_deleted == False,
+    )
     result = await db.execute(stmt)
     template = result.scalar_one_or_none()
 
     if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     template.soft_delete(current_user.username)
     await db.commit()
@@ -172,14 +199,21 @@ async def duplicate_template(
     db: AsyncSession = Depends(get_db_session),
 ):
     """Duplicate a shell library template"""
-    set_audit_context(db, current_user.username)
+    set_audit_context(
+        user_id=current_user.username,
+        user_name=current_user.username,
+        context={"operation": "duplicate_template", "source": "api"},
+    )
 
-    stmt = select(ShellLibraryTemplate).where(ShellLibraryTemplate.id == template_id)
+    stmt = select(ShellLibraryTemplate).where(
+        ShellLibraryTemplate.id == template_id,
+        ShellLibraryTemplate.is_deleted == False,
+    )
     result = await db.execute(stmt)
     source = result.scalar_one_or_none()
 
     if not source:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     new_template = ShellLibraryTemplate(
         scope_level=source.scope_level,
