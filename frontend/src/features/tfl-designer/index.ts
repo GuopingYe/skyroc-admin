@@ -53,6 +53,7 @@ export { default as DecimalDefaultsEditor } from './components/study/DecimalDefa
 export { default as StudyShellLibrary } from './components/study/StudyShellLibrary';
 export { default as TemplatePickerModal } from './components/shared/TemplatePickerModal';
 export { default as PushToStudyModal } from './components/shared/PushToStudyModal';
+export { default as PushToLibraryModal } from './components/shared/PushToLibraryModal';
 export { default as ExportModal } from './components/common/ExportModal';
 export { default as TemplateEditor } from './components/shared/TemplateEditor';
 export { default as InteractiveOutputEditor } from './components/shared/InteractiveOutputEditor';
