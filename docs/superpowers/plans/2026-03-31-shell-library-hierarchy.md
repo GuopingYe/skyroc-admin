@@ -269,7 +269,7 @@ git commit -m "feat(models): add ShellLibraryTemplate model"
 
 - [ ] **Step 1: Add source tracking fields to StudyTemplate**
 
-Locate `class StudyTemplate` in `backend/app/models/ars_study.py` (around line 119) and add after `decimal_override` field:
+Locate `class StudyTemplate` in `backend/app/models/ars_study.py` (around line 119) and add after `version` field (line 160), before `created_by`:
 
 ```python
     # Source tracking (NEW)
@@ -992,12 +992,15 @@ const [sourceFilter, setSourceFilter] = useState<'all' | 'global' | 'ta' | 'stud
 
 - [ ] **Step 2: Merge template sources**
 
-Update template list to include all sources:
+Update template list to include all sources. Note: This code must be inside a React component using Zustand hooks:
 
 ```tsx
+// Inside component, using Zustand hooks
+const shellLibraryTemplates = useShellLibraryStore((s) => s.templates);
+const studyTemplates = useStudyStore((s) => s.studyTemplates);
+
 const allTemplates = useMemo(() => {
-  const libraryTemplates = shellLibraryStore.templates.filter(t => !t.isDeleted);
-  const studyTemplates = studyStore.studyTemplates;
+  const libraryTemplates = shellLibraryTemplates.filter(t => !t.isDeleted);
 
   const combined = [
     ...libraryTemplates.map(t => ({
@@ -1014,7 +1017,7 @@ const allTemplates = useMemo(() => {
     return combined.filter(t => t.source === sourceFilter);
   }
   return combined;
-}, [shellLibraryStore.templates, studyStore.studyTemplates, sourceFilter]);
+}, [shellLibraryTemplates, studyTemplates, sourceFilter]);
 ```
 
 - [ ] **Step 3: Add source tag to cards**
@@ -1096,10 +1099,18 @@ Add column after `templateName`:
 
 - [ ] **Step 3: Update exports**
 
+Update `frontend/src/features/tfl-designer/components/study/index.ts`:
+```tsx
+// Change from
+export { default as StudyTemplateLibrary } from './StudyTemplateLibrary';
+// To
+export { default as StudyShellLibrary } from './StudyShellLibrary';
+```
+
 Update `frontend/src/features/tfl-designer/index.ts`:
 ```tsx
 // Update import path
-export { default as StudyShellLibrary } from './components/study/StudyShellLibrary';
+export { StudyShellLibrary } from './components/study/StudyShellLibrary';
 ```
 
 - [ ] **Step 4: Run type check**
@@ -1112,7 +1123,7 @@ cd frontend && pnpm typecheck
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/features/tfl-designer/components/study/StudyShellLibrary.tsx frontend/src/features/tfl-designer/index.ts
+git add frontend/src/features/tfl-designer/components/study/StudyShellLibrary.tsx frontend/src/features/tfl-designer/components/study/index.ts frontend/src/features/tfl-designer/index.ts
 git commit -m "feat(ui): rename to StudyShellLibrary, add source column"
 ```
 
