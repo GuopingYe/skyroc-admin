@@ -209,6 +209,7 @@ from app.api.routers import (
     pipeline_router,
     pull_requests_router,
     rbac_router,
+    shell_library_router,
     study_spec_router,
     tfl_router,
     tracker_router,
@@ -271,5 +272,10 @@ app.include_router(
 
 app.include_router(
     tfl_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    shell_library_router,
     prefix="/api/v1",
 )

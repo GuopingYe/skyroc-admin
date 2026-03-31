@@ -8,6 +8,7 @@ from app.api.routers.mapping_studio import router as mapping_studio_router
 from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.pull_requests import router as pull_requests_router
 from app.api.routers.rbac import rbac_router
+from app.api.routers.shell_library import router as shell_library_router
 from app.api.routers.study_spec import router as study_spec_router
 from app.api.routers.tfl import router as tfl_router
 from app.api.routers.tracker import router as tracker_router
@@ -25,4 +26,5 @@ __all__ = [
     "pipeline_router",
     "study_spec_router",
     "tfl_router",
+    "shell_library_router",
 ]
