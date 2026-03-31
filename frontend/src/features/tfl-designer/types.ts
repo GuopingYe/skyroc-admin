@@ -120,6 +120,61 @@ export interface StudyDefaults {
   headerStyle?: HeaderFontStyle;
 }
 
+// ==================== Shell Library Types ====================
+
+export type ScopeLevel = 'global' | 'ta' | 'product';
+
+export interface VersionHistoryEntry {
+  version: number;
+  changedAt: string;
+  changedBy: string;
+  changeDescription?: string;
+  snapshot?: TableShell | FigureShell | ListingShell;
+}
+
+export interface ShellLibraryTemplate {
+  id: number;
+  scopeLevel: ScopeLevel;
+  scopeNodeId: number;
+  category: AnalysisCategory;
+  templateName: string;
+  displayType: 'Table' | 'Figure' | 'Listing';
+  shellSchema: TableShell | FigureShell | ListingShell;
+  statisticsSetId?: number;
+  version: number;
+  versionHistory?: VersionHistoryEntry[];
+  description?: string;
+
+  // Audit fields
+  createdBy: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt: string;
+
+  // Soft delete
+  isDeleted: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
+}
+
+// Extend StudyTemplate with source tracking
+export interface StudyTemplateExtension {
+  sourceLibraryId?: number;
+  sourceLevel?: ScopeLevel;
+  sourceTemplateName?: string;
+  versionHistory?: VersionHistoryEntry[];
+}
+
+// Extend shell types with source tracking
+export interface ShellSourceTracking {
+  sourceTemplateId?: number;
+  sourceLibraryId?: number;
+  sourceLevel?: ScopeLevel | 'study';
+  sourceTemplateName?: string;
+  version: number;
+  versionHistory?: VersionHistoryEntry[];
+}
+
 // ==================== Column Header Set ====================
 
 export interface ColumnHeaderGroup {
