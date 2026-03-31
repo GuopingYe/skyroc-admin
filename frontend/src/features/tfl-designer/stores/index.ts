@@ -22,3 +22,4 @@ export {
 } from './listingStore';
 export type { ExtendedFilterConfig } from './listingStore';
 export { useTemplateStore } from './templateStore';
+export { useShellLibraryStore } from './shellLibraryStore';
