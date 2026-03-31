@@ -110,6 +110,7 @@ export interface StudyTemplate {
   version: number;
   createdBy?: string;
   updatedAt?: string;
+  sourceLevel?: ScopeLevel;
 }
 
 export interface StudyDefaults {

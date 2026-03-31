@@ -89,7 +89,7 @@ import {
   InteractiveOutputEditor,
   DecimalDefaultsEditor,
   DecimalSettingsTab,
-  StudyTemplateLibrary,
+  StudyShellLibrary,
   TemplatePickerModal,
   PushToStudyModal,
   useTFLDesignerData,
@@ -249,7 +249,7 @@ const TflDesigner: React.FC = () => {
       case 'populations':
         return <PopulationManager />;
       case 'shellTemplates':
-        return <StudyTemplateLibrary />;
+        return <StudyShellLibrary />;
       case 'headerFormatting':
         return <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />;
       case 'statistics':

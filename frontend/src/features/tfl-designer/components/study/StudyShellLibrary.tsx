@@ -1,5 +1,5 @@
 /**
- * TFL Designer - Study Template Library
+ * TFL Designer - Study Shell Library
  *
  * Manage per-category shell templates at the study level.
  * Templates are cloned when creating analysis-level shells.
@@ -34,7 +34,7 @@ const DISPLAY_TYPE_OPTIONS = [
   { value: 'Listing', label: 'Listing' },
 ];
 
-export default function StudyTemplateLibrary() {
+export default function StudyShellLibrary() {
   const studyTemplates = useStudyStore((s) => s.studyTemplates);
   const addStudyTemplate = useStudyStore((s) => s.addStudyTemplate);
   const updateStudyTemplate = useStudyStore((s) => s.updateStudyTemplate);
@@ -149,6 +149,21 @@ export default function StudyTemplateLibrary() {
       width: 220,
     },
     {
+      title: 'Source',
+      dataIndex: 'sourceLevel',
+      key: 'source',
+      width: 120,
+      render: (level: string | undefined, record: StudyTemplate) => {
+        if (!level) return <Text type="secondary">Scratch</Text>;
+        const color = level === 'global' ? 'geekblue' : level === 'ta' ? 'purple' : 'green';
+        return (
+          <Tag color={color}>
+            {level === 'global' ? 'Global' : level === 'ta' ? 'TA' : 'Study'}
+          </Tag>
+        );
+      },
+    },
+    {
       title: 'Type',
       dataIndex: 'displayType',
       key: 'displayType',
@@ -202,7 +217,7 @@ export default function StudyTemplateLibrary() {
     <Card
       title={
         <Space>
-          <Title level={5} style={{ margin: 0 }}>Shell Templates</Title>
+          <Title level={5} style={{ margin: 0 }}>Study Shell Library</Title>
           <Tag color="purple">{studyTemplates.length}</Tag>
         </Space>
       }

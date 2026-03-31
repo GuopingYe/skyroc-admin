@@ -50,7 +50,7 @@ export { default as HeaderStyleSelector } from './components/study/HeaderStyleSe
 export { default as StatisticsSetManager } from './components/study/StatisticsSetManager';
 export { default as ColumnHeaderSetEditor } from './components/study/ColumnHeaderSetEditor';
 export { default as DecimalDefaultsEditor } from './components/study/DecimalDefaultsEditor';
-export { default as StudyTemplateLibrary } from './components/study/StudyTemplateLibrary';
+export { default as StudyShellLibrary } from './components/study/StudyShellLibrary';
 export { default as TemplatePickerModal } from './components/shared/TemplatePickerModal';
 export { default as PushToStudyModal } from './components/shared/PushToStudyModal';
 export { default as ExportModal } from './components/common/ExportModal';
