@@ -2,10 +2,13 @@
  * TFL Designer - Template Picker Modal
  *
  * Modal shown when creating a new shell at analysis level.
- * Shows study templates (from studyStore.studyTemplates) + built-in templates.
+ * Shows templates from multiple sources:
+ * - Global Library (from shellLibraryStore, scopeLevel='global')
+ * - TA Library (from shellLibraryStore, scopeLevel='ta')
+ * - Study Library (from studyStore.studyTemplates)
  * User selects a template OR starts blank.
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Modal,
   Card,
@@ -19,10 +22,10 @@ import {
   Select,
 } from 'antd';
 import { SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import type { StudyTemplate, AnalysisCategory, Template } from '../../types';
+import type { AnalysisCategory } from '../../types';
 import { categoryOptions, generateId } from '../../types';
 import type { TableShell, FigureShell, ListingShell } from '../../types';
-import { useStudyStore, useTableStore, useFigureStore, useListingStore, useTemplateStore } from '../../stores';
+import { useStudyStore, useTableStore, useFigureStore, useListingStore, useShellLibraryStore } from '../../stores';
 import { createNewFigure } from '../../stores/figureStore';
 
 const { Text, Title } = Typography;
@@ -36,9 +39,10 @@ const DISPLAY_TYPE_TABS = [
 ];
 
 const SOURCE_FILTER_OPTIONS = [
-  { value: 'all', label: 'All Templates' },
-  { value: 'global', label: 'Global Templates' },
-  { value: 'study', label: 'Study Templates' },
+  { value: 'all', label: 'All Sources' },
+  { value: 'global', label: 'Global Library' },
+  { value: 'ta', label: 'TA Library' },
+  { value: 'study', label: 'Study Library' },
 ];
 
 interface Props {
@@ -55,20 +59,15 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
 
   const [activeTab, setActiveTab] = useState('all');
   const [searchValue, setSearchValue] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'global' | 'study'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'global' | 'ta' | 'study'>('all');
 
-  // Access global templates and initialize on mount
-  const globalTemplates = useTemplateStore((s) => s.templates);
-  const initTemplates = useTemplateStore((s) => s.initTemplates);
-
-  useEffect(() => {
-    initTemplates();
-  }, [initTemplates]);
+  // Access library templates (global/TA) from shellLibraryStore
+  const shellLibraryTemplates = useShellLibraryStore((s) => s.templates);
 
   interface TemplateItem {
     id: string;
     name: string;
-    source: 'global' | 'study';
+    source: 'global' | 'ta' | 'study';
     displayType: 'Table' | 'Figure' | 'Listing';
     category: AnalysisCategory;
     shellSchema: TableShell | FigureShell | ListingShell;
@@ -76,30 +75,36 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
     version?: number;
   }
 
-  // Combine global and study templates into unified list
+  // Combine library templates (global/TA) and study templates into unified list
   const allTemplates = useMemo<TemplateItem[]>(() => {
-    const global: TemplateItem[] = globalTemplates.map((t: Template) => ({
-      id: t.id,
-      name: t.name,
-      source: 'global' as const,
-      displayType: t.type === 'table' ? 'Table' : t.type === 'figure' ? 'Figure' : 'Listing',
-      category: t.category,
-      shellSchema: t.shell,
-    }));
+    // Library templates (global and TA) from shellLibraryStore
+    const libraryTemplates = shellLibraryTemplates
+      .filter((t) => !t.isDeleted)
+      .map((t) => ({
+        id: String(t.id),
+        name: t.templateName,
+        source: t.scopeLevel as 'global' | 'ta',
+        displayType: t.displayType,
+        category: t.category,
+        shellSchema: t.shellSchema,
+        statisticsSetId: t.statisticsSetId ? String(t.statisticsSetId) : undefined,
+        version: t.version,
+      }));
 
-    const study: TemplateItem[] = studyTemplates.map((t: StudyTemplate) => ({
+    // Study templates from studyStore
+    const study: TemplateItem[] = studyTemplates.map((t) => ({
       id: String(t.id),
       name: t.templateName,
       source: 'study' as const,
       displayType: t.displayType,
       category: t.category,
       shellSchema: t.shellSchema,
-      statisticsSetId: t.statisticsSetId as string | undefined,
+      statisticsSetId: t.statisticsSetId ? String(t.statisticsSetId) : undefined,
       version: t.version,
     }));
 
-    return [...global, ...study];
-  }, [globalTemplates, studyTemplates]);
+    return [...libraryTemplates, ...study];
+  }, [shellLibraryTemplates, studyTemplates]);
 
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
   const [selectedBlank, setSelectedBlank] = useState<string | null>(null);
@@ -110,6 +115,8 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
     // Filter by source
     if (sourceFilter === 'global') {
       templates = templates.filter((t) => t.source === 'global');
+    } else if (sourceFilter === 'ta') {
+      templates = templates.filter((t) => t.source === 'ta');
     } else if (sourceFilter === 'study') {
       templates = templates.filter((t) => t.source === 'study');
     }
@@ -203,7 +210,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         tableStore.setCurrentTable(null);
         figureStore.setCurrentFigure(null);
       }
-      window.$message?.success(`Shell created from ${selectedTemplate.source === 'global' ? 'global' : 'study'} template "${selectedTemplate.name}"`);
+      window.$message?.success(`Shell created from ${selectedTemplate.source === 'global' ? 'global' : selectedTemplate.source === 'ta' ? 'TA' : 'study'} template "${selectedTemplate.name}"`);
     }
 
     handleClose();
@@ -234,7 +241,13 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         <Space className="w-full justify-between">
           <Text type="secondary">
             {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
-            {sourceFilter === 'all' && ` (${globalTemplates.length} Global, ${studyTemplates.length} Study)`}
+            {sourceFilter === 'all' && (
+              <span>
+                {' '}({shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'global').length} Global,
+                {' '}{shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'ta').length} TA,
+                {' '}{studyTemplates.length} Study)
+              </span>
+            )}
           </Text>
           <Space>
             <Button onClick={handleClose}>Cancel</Button>
@@ -279,7 +292,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
       <div style={{ marginBottom: 12, display: 'flex', gap: 12 }}>
         <Select
           value={sourceFilter}
-          onChange={(v) => setSourceFilter(v as 'all' | 'global' | 'study')}
+          onChange={(v) => setSourceFilter(v as 'all' | 'global' | 'ta' | 'study')}
           options={SOURCE_FILTER_OPTIONS}
           style={{ width: 150 }}
           size="small"
@@ -308,8 +321,10 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
         {filteredTemplates.length === 0 ? (
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
             <Text type="secondary">
-              {sourceFilter === 'global' && globalTemplates.length === 0
+              {sourceFilter === 'global' && shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'global').length === 0
                 ? 'No global templates available.'
+                : sourceFilter === 'ta' && shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'ta').length === 0
+                ? 'No TA templates available.'
                 : sourceFilter === 'study' && studyTemplates.length === 0
                 ? 'No study templates defined yet. Add templates in Study Settings > Shell Templates.'
                 : 'No templates match your search.'}
@@ -344,8 +359,11 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                       </Tag>
                     </div>
                     <div>
-                      <Tag color={tpl.source === 'global' ? 'geekblue' : 'purple'}>
-                        {tpl.source === 'global' ? 'Global' : 'Study'}
+                      <Tag color={
+                        tpl.source === 'global' ? 'geekblue' :
+                        tpl.source === 'ta' ? 'purple' : 'green'
+                      }>
+                        {tpl.source === 'study' ? 'Study' : tpl.source === 'global' ? 'Global' : 'TA'}
                       </Tag>
                       <Tag style={{ fontSize: 11 }}>{getCategoryLabel(tpl.category)}</Tag>
                       {ssName && <Tag color="purple" style={{ fontSize: 11 }}>{ssName}</Tag>}
@@ -368,8 +386,11 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
             <Space size="large">
               <span>
                 <Text type="secondary">Source:</Text>{' '}
-                <Tag color={selectedTemplate.source === 'global' ? 'geekblue' : 'purple'}>
-                  {selectedTemplate.source === 'global' ? 'Global' : 'Study'}
+                <Tag color={
+                  selectedTemplate.source === 'global' ? 'geekblue' :
+                  selectedTemplate.source === 'ta' ? 'purple' : 'green'
+                }>
+                  {selectedTemplate.source === 'study' ? 'Study' : selectedTemplate.source === 'global' ? 'Global' : 'TA'}
                 </Tag>
               </span>
               <span><Text type="secondary">Category:</Text> {getCategoryLabel(selectedTemplate.category)}</span>
