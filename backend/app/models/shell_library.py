@@ -4,7 +4,7 @@ Shell Library Template Model
 Global/TA level shell templates for hierarchical template management.
 """
 from typing import Any
-from sqlalchemy import Integer, String, Text, Boolean, ForeignKey
+from sqlalchemy import Integer, String, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import JSONB
 
