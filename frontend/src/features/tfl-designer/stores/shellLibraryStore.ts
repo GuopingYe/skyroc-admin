@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { ShellLibraryTemplate, ScopeLevel } from '../types';
+import { generateId } from '../types';
 
 type ScopeLevelFilter = 'all' | ScopeLevel;
 
@@ -79,7 +80,7 @@ export const useShellLibraryStore = create<ShellLibraryState>()(
 
         const copy: ShellLibraryTemplate = {
           ...JSON.parse(JSON.stringify(source)),
-          id: Date.now(), // Temporary ID, will be replaced by backend
+          id: generateId('shell'),
           templateName: `${source.templateName} (Copy)`,
           version: 1,
           createdBy: 'duplicate',

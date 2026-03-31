@@ -139,6 +139,20 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
     return templates;
   }, [allTemplates, sourceFilter, searchValue, activeTab]);
 
+  // Memoize source counts to avoid repeated filter operations in footer
+  const sourceCounts = useMemo(() => {
+    const active = shellLibraryTemplates.filter((t) => !t.isDeleted);
+    return {
+      global: active.filter((t) => t.scopeLevel === 'global').length,
+      ta: active.filter((t) => t.scopeLevel === 'ta').length,
+      study: studyTemplates.length,
+    };
+  }, [shellLibraryTemplates, studyTemplates]);
+
+  // Helper for source tag colors
+  const getSourceColor = (source: string) =>
+    source === 'global' ? 'geekblue' : source === 'ta' ? 'purple' : 'green';
+
   const getCategoryLabel = (cat: AnalysisCategory) =>
     categoryOptions.find((o) => o.value === cat)?.label ?? cat.replace(/_/g, ' ');
 
@@ -243,9 +257,9 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
             {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
             {sourceFilter === 'all' && (
               <span>
-                {' '}({shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'global').length} Global,
-                {' '}{shellLibraryTemplates.filter(t => !t.isDeleted && t.scopeLevel === 'ta').length} TA,
-                {' '}{studyTemplates.length} Study)
+                {' '}({sourceCounts.global} Global,
+                {' '}{sourceCounts.ta} TA,
+                {' '}{sourceCounts.study} Study)
               </span>
             )}
           </Text>
@@ -359,10 +373,7 @@ export default function TemplatePickerModal({ open, onClose }: Props) {
                       </Tag>
                     </div>
                     <div>
-                      <Tag color={
-                        tpl.source === 'global' ? 'geekblue' :
-                        tpl.source === 'ta' ? 'purple' : 'green'
-                      }>
+                      <Tag color={getSourceColor(tpl.source)}>
                         {tpl.source === 'study' ? 'Study' : tpl.source === 'global' ? 'Global' : 'TA'}
                       </Tag>
                       <Tag style={{ fontSize: 11 }}>{getCategoryLabel(tpl.category)}</Tag>

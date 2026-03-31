@@ -1,336 +1,252 @@
-# =========================
-# Environment & Secrets
-# =========================
-.env
-.env.local
-.env.*.local
-*.env
+
 !.env.example
 !.env.prod.example
-
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
 # =========================
-# Python (Backend)
-# =========================
+# Alembic
+# Backup files
+# Build outputs
 # Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
 # C extensions
-*.so
-
+# Coverage directory used by tools like istanbul
+# Cursor IDE
+# Cython debug symbols
+# Database
+# Dependencies
+# Dependency directories
 # Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# PyInstaller
-*.manifest
-*.spec
-
+# Docker
+# DynamoDB Local files
+# Emacs
+# Environment & Secrets
+# Environments
+# FuseBox cache
+# Gatsby files
+# IDE & Editors
+# IPython
 # Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
+# JetBrains IDEs
+# Jupyter Notebook
+# Large data files (if any)
+# Linux
+# Local agent/runtime state
+# Local generated outputs
+# Lock files (keep package-lock.json, pnpm-lock.yaml)
+# Log files (backend specific)
+# Logs
+# Microbundle cache
+# Misc
+# Next.js build output
+# Node.js (Frontend)
+# Nuxt.js build / generate output
+# OS Generated Files
+# Optional REPL history
+# Optional eslint cache
+# Optional npm cache directory
+# Optional stylelint cache
+# Output of 'npm pack'
+# Playwright artifacts
+# PyInstaller
+# Pyre type checker
+# Python (Backend)
+# Rope project settings
+# Runtime data
+# SageMath parsed files
+# Serverless directories
+# Sphinx documentation
+# Spyder project settings
+# Sublime Text
+# Temporary files
+# TernJS port file
+# Translations
+# TypeScript cache
 # Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
+# VSCode
+# Vim
+# Vite
+# Windows
+# Yarn Integrity file
+# celery beat schedule file
+# macOS
+# mkdocs documentation
+# mypy
+# nyc test coverage
+# parcel-bundler cache
+# pnpm-lock.yaml should be committed for reproducible builds
+# pyenv
+# pytype static type analyzer
+# uvicorn log
+# vuepress build output
+$RECYCLE.BIN/
+*$py.class
+*.backup
+*.bak
+*.code-workspace
+*.cover
+*.db
+*.egg
+*.egg-info/
+*.elc
+*.env
+*.iml
+*.ipr
+*.iws
+*.json.gz
+*.lnk
+*.local
+*.log
+*.manifest
+*.mo
+*.old
+*.pid
+*.pid.lock
+*.pot
+*.py,cover
+*.py[cod]
+*.sage.py
+*.seed
+*.so
+*.spec
+*.sql.bak
+*.sqlite
+*.sqlite3
+*.stTheme.cache
+*.stackdump
+*.sublime-project
+*.sublime-workspace
+*.swo
+*.swp
+*.tar.gz
+*.temp
+*.temp.*
+*.tgz
+*.tmPreferences.cache
+*.tmlanguage.cache
+*.tmp
+*.tsbuildinfo
+*.zip
+*~
+.*.sw[a-z]
+.AppleDouble
+.DS_Store
+.LSOverride
+.Python
+.Spotlight-V100
+.Trash-*
+.Trashes
+.\#*
+._*
+.cache
+.cache/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-pytestdebug.log
-
-# Translations
-*.mo
-*.pot
-
-# Sphinx documentation
-docs/_build/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
+.cursor/
+.directory
 .dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# =========================
-# Node.js (Frontend)
-# =========================
-# Dependencies
-node_modules/
-.pnpm-store/
-
-# Build outputs
-dist/
-dist-ssr/
-*.local
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
+.dynamodb/
+.eggs/
+.env
+.env.*.local
+.env.local
 .eslintcache
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle cache
+.fuse_hidden*
+.fusebox/
+.hypothesis/
+.idea/
+.installed.cfg
+.ipynb_checkpoints
+.mypy_cache/
+.next/
+.nfs*
+.node_repl_history
+.nox/
+.npm
+.nuxt/
+.nyc_output
+.omx/
+.parcel-cache
+.pnpm-store/
+.pyre/
+.pytest_cache/
+.python-version
+.pytype/
+.ropeproject
 .rpt2_cache/
 .rts2_cache_cjs/
 .rts2_cache_es/
 .rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache
-.parcel-cache
-
-# Next.js build output
-.next/
-
-# Nuxt.js build / generate output
-.nuxt/
-
-# Gatsby files
-.cache/
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
 .serverless/
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
+.spyderproject
+.spyproject
+.stylelintcache
+.superpowers/
 .tern-port
-
-# Vite
+.tox/
+.venv
 .vite/
-
-# =========================
-# IDE & Editors
-# =========================
-# VSCode
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# JetBrains IDEs
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# Sublime Text
-*.tmlanguage.cache
-*.tmPreferences.cache
-*.stTheme.cache
-*.sublime-workspace
-*.sublime-project
-
-# Vim
-*.swp
-*.swo
-*~
-.*.sw[a-z]
-
-# Emacs
-*~
-\#*\#
+.vuepress/dist
+.yarn-integrity
 /.emacs.desktop
 /.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-# =========================
-# OS Generated Files
-# =========================
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
-
-# Windows
+/site
+D:/github/clinical-mdr/.superpowers/
+ENV/
 Thumbs.db
 Thumbs.db:encryptable
+[Dd]esktop.ini
+\#*\#
+__pycache__/
+alembic/versions/__pycache__/
+auto-save-list
+build/
+celerybeat-schedule
+coverage.xml
+coverage/
+cython_debug/
+develop-eggs/
+dist-ssr/
+dist/
+dmypy.json
+docker-compose.override.yml
+docs/_build/
+downloads/
+eggs/
 ehthumbs.db
 ehthumbs_vista.db
-*.stackdump
-[Dd]esktop.ini
-$RECYCLE.BIN/
-*.lnk
-
-# Linux
-*~
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
-
-# =========================
-# Database
-# =========================
-*.db
-*.sqlite
-*.sqlite3
-*.sql.bak
-
-# =========================
-# Docker
-# =========================
-docker-compose.override.yml
-
-# =========================
-# Misc
-# =========================
-# Backup files
-*.bak
-*.backup
-*.old
-
-# Lock files (keep package-lock.json, pnpm-lock.yaml)
-# pnpm-lock.yaml should be committed for reproducible builds
-
-# Temporary files
-*.tmp
-*.temp
-*.temp.*
-
-# Log files (backend specific)
-*.log
-
-# uvicorn log
-uvicorn.log
-
-# Alembic
-alembic/versions/__pycache__/
-
-# Large data files (if any)
-*.json.gz
-*.tar.gz
-*.zip
-
-# Cursor IDE
-.cursor/
-
-# Local agent/runtime state
-.omx/
-.superpowers/
-
-# Local generated outputs
-output/
-test-screenshots/
-tmp/
-
-# Playwright artifacts
+env.bak/
+env/
 frontend/playwright-report/
 frontend/test-results/
+htmlcov/
+ipython_config.py
+jspm_packages/
+lerna-debug.log*
+lib/
+lib64/
+logs/
+node_modules/
+nosetests.xml
+npm-debug.log*
+output/
+parts/
+pids
+pip-delete-this-directory.txt
+pip-log.txt
+pnpm-debug.log*
+profile_default/
+pytestdebug.log
+sdist/
+test-screenshots/
+tmp/
+tramp
+uvicorn.log
+var/
+venv.bak/
+venv/
+wheels/
+yarn-debug.log*
+yarn-error.log*

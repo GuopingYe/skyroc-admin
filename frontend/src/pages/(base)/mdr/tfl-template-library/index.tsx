@@ -123,18 +123,22 @@ const TemplateLibrary: React.FC = () => {
 
       const allLoaded: Template[] = [];
 
-      for (const filePath of refFiles) {
-        try {
-          const response = await fetch(filePath);
-          if (response.ok) {
-            const json = await response.json();
-            const imported = importARSJSONToTemplates(json);
-            allLoaded.push(...imported);
+      // Fetch all reference files in parallel for efficiency
+      const results = await Promise.all(
+        refFiles.map(async (filePath) => {
+          try {
+            const response = await fetch(filePath);
+            if (response.ok) {
+              const json = await response.json();
+              return importARSJSONToTemplates(json);
+            }
+          } catch (err) {
+            console.warn(`Could not load ${filePath}:`, err);
           }
-        } catch (err) {
-          console.warn(`Could not load ${filePath}:`, err);
-        }
-      }
+          return [];
+        })
+      );
+      allLoaded.push(...results.flat());
 
       if (allLoaded.length > 0) {
         setImportedTemplates(allLoaded);
