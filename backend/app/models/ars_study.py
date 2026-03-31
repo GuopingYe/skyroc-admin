@@ -164,6 +164,7 @@ class StudyTemplate(Base, TimestampMixin, SoftDeleteMixin):
         Integer,
         ForeignKey("shell_library_templates.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
         comment="Source template from Global/TA Library",
     )
     source_level: Mapped[str | None] = mapped_column(
