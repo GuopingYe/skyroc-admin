@@ -73,7 +73,7 @@ class ShellLibraryTemplateBase(BaseSchema):
 class ShellLibraryTemplateCreate(ShellLibraryTemplateBase):
     """创建 ShellLibraryTemplate 请求"""
 
-    created_by: str = Field(..., max_length=100, description="创建者用户 ID")
+    pass
 
 
 class ShellLibraryTemplateUpdate(BaseSchema):
@@ -82,7 +82,6 @@ class ShellLibraryTemplateUpdate(BaseSchema):
     template_name: str | None = Field(None, min_length=1, max_length=200, description="模板名称")
     shell_schema: dict[str, Any] | None = Field(None, description="Shell 布局 Schema")
     description: str | None = Field(None, description="模板描述")
-    updated_by: str = Field(..., max_length=100, description="更新者用户 ID")
 
 
 class ShellLibraryTemplateResponse(ShellLibraryTemplateBase):
@@ -134,7 +133,6 @@ class PushRequestCreate(BaseSchema):
     update_existing_template_id: int | None = Field(
         None, description="要更新的现有模板 ID（可选）"
     )
-    created_by: str = Field(..., max_length=100, description="创建者用户 ID")
 
 
 # ============================================================
@@ -146,4 +144,3 @@ class CloneToStudyRequest(BaseSchema):
     """克隆到 Study 请求"""
 
     study_id: int = Field(..., description="目标 Study ID")
-    created_by: str = Field(..., max_length=100, description="创建者用户 ID")
