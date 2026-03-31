@@ -39,7 +39,7 @@
 ### Modified Files (Frontend)
 | File | Changes |
 |------|---------|
-| `frontend/src/features/tfl-designer/types/index.ts` | Add ShellLibraryTemplate, VersionHistoryEntry types |
+| `frontend/src/features/tfl-designer/types.ts` | Add ShellLibraryTemplate, VersionHistoryEntry types |
 | `frontend/src/features/tfl-designer/components/study/StudyTemplateLibrary.tsx` | Rename to StudyShellLibrary, add source column, push actions |
 | `frontend/src/features/tfl-designer/components/shared/TemplatePickerModal.tsx` | Multi-source template list |
 | `frontend/src/pages/(base)/mdr/tfl-template-library/index.tsx` | Add scope level filter, TA dropdown |
@@ -136,8 +136,9 @@ Expected: Migration succeeds without errors
 
 Run:
 ```bash
-cd backend && python -c "from app.core.database import engine; import asyncio; from sqlalchemy import text; async def check(): async with engine.connect() as conn: r = await conn.execute(text('SELECT column_name FROM information_schema.columns WHERE table_name = '\''shell_library_templates'\''')); print([row[0] for row in r]); asyncio.run(check())"
+cd backend && python -c "from app.models import *; print('Models imported OK')"
 ```
+Expected: `Models imported OK`
 
 - [ ] **Step 5: Commit**
 
@@ -626,15 +627,17 @@ async def duplicate_template(
     return new_template
 ```
 
-- [ ] **Step 2: Register router in __init__.py**
+- [ ] **Step 2: Register router**
 
 Add to `backend/app/api/routers/__init__.py`:
 ```python
 from app.api.routers.shell_library import router as shell_library_router
 ```
 
-And add to the router list in `backend/app/api/main.py`:
+And register in `backend/app/main.py` (in the routers section around line 220):
 ```python
+from app.api.routers.shell_library import router as shell_library_router
+# ... then later
 app.include_router(shell_library_router, prefix="/api/v1")
 ```
 
@@ -649,7 +652,7 @@ curl http://localhost:8080/api/v1/shell-library/templates
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/app/api/routers/shell_library.py backend/app/api/routers/__init__.py backend/app/api/main.py
+git add backend/app/api/routers/shell_library.py backend/app/api/routers/__init__.py
 git commit -m "feat(api): add Shell Library CRUD endpoints"
 ```
 
@@ -660,11 +663,11 @@ git commit -m "feat(api): add Shell Library CRUD endpoints"
 ### Task 6: Add TypeScript Types
 
 **Files:**
-- Modify: `frontend/src/features/tfl-designer/types/index.ts`
+- Modify: `frontend/src/features/tfl-designer/types.ts`
 
 - [ ] **Step 1: Add ShellLibraryTemplate type**
 
-Add to `frontend/src/features/tfl-designer/types/index.ts`:
+Add to `frontend/src/features/tfl-designer/types.ts`:
 
 ```typescript
 // ==================== Shell Library Types ====================
@@ -733,7 +736,7 @@ cd frontend && pnpm typecheck
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/features/tfl-designer/types/index.ts
+git add frontend/src/features/tfl-designer/types.ts
 git commit -m "feat(types): add ShellLibraryTemplate and source tracking types"
 ```
 
@@ -1141,6 +1144,7 @@ import {
   Tag,
   Divider,
   Alert,
+  Button,
 } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 
@@ -1215,10 +1219,10 @@ export default function PushToLibraryModal({
         <Space>
           <Text type="secondary">This will create a PR for review</Text>
           <span style={{ flex: 1 }} />
-          <button onClick={handleClose}>Cancel</button>
-          <button type="primary" loading={submitting} onClick={handleSubmit}>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button type="primary" loading={submitting} onClick={handleSubmit}>
             Submit PR
-          </button>
+          </Button>
         </Space>
       }
     >
@@ -1542,3 +1546,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 3. Add import API endpoints
 4. Implement permission checks (R_ADMIN, R_TA_ADMIN)
 5. Add version history recording on updates
+6. Add shell store push methods (tableStore.pushToStudy, pushToLibrary)
+7. Add Study Template API extensions (import, push-to-library, clone-from-library)
+
+**Note on Analysis Shell Source Tracking:** Per spec Section 1.3, `ShellSourceTracking` fields are added to frontend types only. Analysis shells are not persisted to database (they exist in frontend store only), so no backend migration needed.
