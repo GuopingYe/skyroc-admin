@@ -1,4 +1,5 @@
-const fs = require('fs');
+const fs = require('node:fs');
+
 const file = 'd:/github/clinical-mdr/frontend/src/pages/(base)/mdr/tfl-designer/index.tsx';
 const lines = fs.readFileSync(file, 'utf8').split('\n');
 // Keep lines up to 488 (index 0 to 487)

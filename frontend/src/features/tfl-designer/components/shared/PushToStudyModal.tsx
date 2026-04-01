@@ -1,45 +1,34 @@
 /**
  * TFL Designer - Push to Study Template Modal
  *
- * Modal for proposing analysis shell changes back to the study template.
- * Shows a diff preview and creates a PR via the existing workflow.
+ * Modal for proposing analysis shell changes back to the study template. Shows a diff preview and creates a PR via the
+ * existing workflow.
  */
-import { useState, useMemo } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  Space,
-  Typography,
-  Alert,
-  Tag,
-  Button,
-  Divider,
-  Empty,
-} from 'antd';
-import { SendOutlined, DiffOutlined } from '@ant-design/icons';
-import type { TableShell } from '../../types';
+import { DiffOutlined, SendOutlined } from '@ant-design/icons';
+import { Alert, Button, Divider, Empty, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
+import { useMemo, useState } from 'react';
+
 import { useStudyStore, useTableStore } from '../../stores';
+import type { TableShell } from '../../types';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 interface Props {
-  open: boolean;
   onClose: () => void;
+  open: boolean;
 }
 
 interface DiffEntry {
   field: string;
-  old: string;
   new: string;
-  type: 'added' | 'removed' | 'modified';
+  old: string;
+  type: 'added' | 'modified' | 'removed';
 }
 
-export default function PushToStudyModal({ open, onClose }: Props) {
-  const studyTemplates = useStudyStore((s) => s.studyTemplates);
-  const currentTable = useTableStore((s) => s.currentTable);
+export default function PushToStudyModal({ onClose, open }: Props) {
+  const studyTemplates = useStudyStore(s => s.studyTemplates);
+  const currentTable = useTableStore(s => s.currentTable);
 
   const [form] = Form.useForm();
   const selectedTemplateId = Form.useWatch('targetTemplate', form);
@@ -48,14 +37,14 @@ export default function PushToStudyModal({ open, onClose }: Props) {
   const templateOptions = useMemo(
     () =>
       studyTemplates
-        .filter((t) => t.displayType === 'Table')
-        .map((t) => ({ value: t.id, label: `${t.templateName} (v${t.version})` })),
-    [studyTemplates],
+        .filter(t => t.displayType === 'Table')
+        .map(t => ({ label: `${t.templateName} (v${t.version})`, value: t.id })),
+    [studyTemplates]
   );
 
   const selectedTemplate = useMemo(
-    () => (selectedTemplateId ? studyTemplates.find((t) => t.id === selectedTemplateId) : undefined),
-    [selectedTemplateId, studyTemplates],
+    () => (selectedTemplateId ? studyTemplates.find(t => t.id === selectedTemplateId) : undefined),
+    [selectedTemplateId, studyTemplates]
   );
 
   // Compute a simple text-based diff between current table and source template
@@ -68,25 +57,30 @@ export default function PushToStudyModal({ open, onClose }: Props) {
 
     // Title diff
     if (currentTable.title !== schema.title) {
-      result.push({ field: 'Title', old: schema.title || '(empty)', new: currentTable.title, type: 'modified' });
+      result.push({ field: 'Title', new: currentTable.title, old: schema.title || '(empty)', type: 'modified' });
     }
     // Category diff
     if (currentTable.category !== schema.category) {
-      result.push({ field: 'Category', old: schema.category, new: currentTable.category, type: 'modified' });
+      result.push({ field: 'Category', new: currentTable.category, old: schema.category, type: 'modified' });
     }
     // Population diff
     if (currentTable.population !== schema.population) {
-      result.push({ field: 'Population', old: schema.population || '(empty)', new: currentTable.population, type: 'modified' });
+      result.push({
+        field: 'Population',
+        new: currentTable.population,
+        old: schema.population || '(empty)',
+        type: 'modified'
+      });
     }
     // Dataset diff
     if (currentTable.dataset !== schema.dataset) {
-      result.push({ field: 'Dataset', old: schema.dataset || '(empty)', new: currentTable.dataset, type: 'modified' });
+      result.push({ field: 'Dataset', new: currentTable.dataset, old: schema.dataset || '(empty)', type: 'modified' });
     }
     // Row count diff
     const oldRows = schema.rows?.length ?? 0;
     const newRows = currentTable.rows?.length ?? 0;
     if (oldRows !== newRows) {
-      result.push({ field: 'Row Count', old: String(oldRows), new: String(newRows), type: 'modified' });
+      result.push({ field: 'Row Count', new: String(newRows), old: String(oldRows), type: 'modified' });
     }
     // Row-level diffs
     const oldRowsArr = schema.rows ?? [];
@@ -94,18 +88,23 @@ export default function PushToStudyModal({ open, onClose }: Props) {
     const maxLen = Math.max(oldRowsArr.length, newRowsArr.length);
     for (let i = 0; i < maxLen; i++) {
       if (!oldRowsArr[i]) {
-        result.push({ field: `Row ${i + 1}`, old: '(none)', new: newRowsArr[i].label, type: 'added' });
+        result.push({ field: `Row ${i + 1}`, new: newRowsArr[i].label, old: '(none)', type: 'added' });
       } else if (!newRowsArr[i]) {
-        result.push({ field: `Row ${i + 1}`, old: oldRowsArr[i].label, new: '(removed)', type: 'removed' });
+        result.push({ field: `Row ${i + 1}`, new: '(removed)', old: oldRowsArr[i].label, type: 'removed' });
       } else if (oldRowsArr[i].label !== newRowsArr[i].label) {
-        result.push({ field: `Row ${i + 1} Label`, old: oldRowsArr[i].label, new: newRowsArr[i].label, type: 'modified' });
+        result.push({
+          field: `Row ${i + 1} Label`,
+          new: newRowsArr[i].label,
+          old: oldRowsArr[i].label,
+          type: 'modified'
+        });
       }
     }
     // Footer notes diff
     const oldNotes = (schema.footer?.notes ?? []).length;
     const newNotes = (currentTable.footer?.notes ?? []).length;
     if (oldNotes !== newNotes) {
-      result.push({ field: 'Footer Notes', old: `${oldNotes} notes`, new: `${newNotes} notes`, type: 'modified' });
+      result.push({ field: 'Footer Notes', new: `${newNotes} notes`, old: `${oldNotes} notes`, type: 'modified' });
     }
 
     return result;
@@ -118,10 +117,10 @@ export default function PushToStudyModal({ open, onClose }: Props) {
       // In a real implementation, this would call the backend API:
       // POST /api/v1/ars/displays/{display_id}/propose-to-study
       console.log('Push to Study PR:', {
-        templateId: selectedTemplateId,
-        title: values.title,
         description: values.description,
         diffs,
+        templateId: selectedTemplateId,
+        title: values.title
       });
       window.$message?.success('Push to Study request submitted (PR created)');
       form.resetFields();
@@ -140,61 +139,81 @@ export default function PushToStudyModal({ open, onClose }: Props) {
 
   const getDiffColor = (type: DiffEntry['type']) => {
     switch (type) {
-      case 'added': return 'green';
-      case 'removed': return 'red';
-      case 'modified': return 'orange';
+      case 'added':
+        return 'green';
+      case 'removed':
+        return 'red';
+      case 'modified':
+        return 'orange';
     }
   };
 
   return (
     <Modal
+      open={open}
+      width={700}
+      footer={
+        <Space>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button
+            disabled={!selectedTemplateId}
+            icon={<SendOutlined />}
+            loading={submitting}
+            type="primary"
+            onClick={handleSubmit}
+          >
+            Submit PR
+          </Button>
+        </Space>
+      }
       title={
         <Space>
           <SendOutlined />
           <span>Push to Study Template</span>
         </Space>
       }
-      open={open}
       onCancel={handleClose}
-      width={700}
-      footer={
-        <Space>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            loading={submitting}
-            onClick={handleSubmit}
-            disabled={!selectedTemplateId}
-          >
-            Submit PR
-          </Button>
-        </Space>
-      }
     >
       {!currentTable ? (
         <Empty description="No shell selected" />
       ) : (
         <>
           <Alert
-            type="info"
             showIcon
             message="Propose changes from this analysis shell back to the study template. A PR will be created for review."
             style={{ marginBottom: 16 }}
+            type="info"
           />
 
-          <Form form={form} layout="vertical">
-            <Form.Item name="targetTemplate" label="Target Study Template" rules={[{ required: true, message: 'Select a template' }]}>
+          <Form
+            form={form}
+            layout="vertical"
+          >
+            <Form.Item
+              label="Target Study Template"
+              name="targetTemplate"
+              rules={[{ message: 'Select a template', required: true }]}
+            >
               <Select
-                placeholder="Select study template to update"
                 options={templateOptions}
+                placeholder="Select study template to update"
               />
             </Form.Item>
-            <Form.Item name="title" label="PR Title" rules={[{ required: true, message: 'Enter a title' }]}>
+            <Form.Item
+              label="PR Title"
+              name="title"
+              rules={[{ message: 'Enter a title', required: true }]}
+            >
               <Input placeholder="e.g., Update Demographics Table shell with new rows" />
             </Form.Item>
-            <Form.Item name="description" label="Description">
-              <TextArea rows={3} placeholder="Describe the changes and rationale..." />
+            <Form.Item
+              label="Description"
+              name="description"
+            >
+              <TextArea
+                placeholder="Describe the changes and rationale..."
+                rows={3}
+              />
             </Form.Item>
           </Form>
 
@@ -208,7 +227,7 @@ export default function PushToStudyModal({ open, onClose }: Props) {
                 </Space>
               </Divider>
               {diffs.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ padding: '20px 0', textAlign: 'center' }}>
                   <Text type="secondary">No differences detected between this shell and the template.</Text>
                 </div>
               ) : (
@@ -217,24 +236,34 @@ export default function PushToStudyModal({ open, onClose }: Props) {
                     <div
                       key={i}
                       style={{
-                        display: 'flex',
                         alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 12px',
                         borderBottom: '1px solid #f0f0f0',
+                        display: 'flex',
                         fontSize: 13,
+                        gap: 8,
+                        padding: '6px 12px'
                       }}
                     >
-                      <Tag color={getDiffColor(d.type)} style={{ width: 70, textAlign: 'center', margin: 0 }}>
+                      <Tag
+                        color={getDiffColor(d.type)}
+                        style={{ margin: 0, textAlign: 'center', width: 70 }}
+                      >
                         {d.type}
                       </Tag>
-                      <Text strong style={{ width: 130, flexShrink: 0 }}>{d.field}</Text>
-                      <Text type="secondary" delete={d.type === 'removed'} style={{ flex: 1 }}>
+                      <Text
+                        strong
+                        style={{ flexShrink: 0, width: 130 }}
+                      >
+                        {d.field}
+                      </Text>
+                      <Text
+                        delete={d.type === 'removed'}
+                        style={{ flex: 1 }}
+                        type="secondary"
+                      >
                         {d.old}
                       </Text>
-                      <Text style={{ flex: 1, color: d.type === 'added' ? '#52c41a' : undefined }}>
-                        {d.new}
-                      </Text>
+                      <Text style={{ color: d.type === 'added' ? '#52c41a' : undefined, flex: 1 }}>{d.new}</Text>
                     </div>
                   ))}
                 </div>

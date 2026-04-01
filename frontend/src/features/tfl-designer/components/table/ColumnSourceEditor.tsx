@@ -1,39 +1,44 @@
 /**
  * TFL Designer - Column Source Editor (Compact)
  *
- * Simple selector to pick which arm set or study header set drives the table columns.
- * No inline tree editing here — that belongs in Study Settings.
- * The TablePreview on the right renders the selected columns live.
+ * Simple selector to pick which arm set or study header set drives the table columns. No inline tree editing here —
+ * that belongs in Study Settings. The TablePreview on the right renders the selected columns live.
  */
-import { useMemo } from 'react';
 import { Select, Space, Tag } from 'antd';
-import type { ColumnHeaderGroup } from '../../types';
+import { useMemo } from 'react';
+
 import { useStudyStore, useTableStore } from '../../stores';
+import type { ColumnHeaderGroup } from '../../types';
 import { countLeaves } from '../../utils/treeUtils';
 
 export default function ColumnSourceEditor() {
-  const currentTable = useTableStore((s) => s.currentTable);
-  const updateMetadata = useTableStore((s) => s.updateMetadata);
-  const treatmentArmSets = useStudyStore((s) => s.treatmentArmSets);
+  const currentTable = useTableStore(s => s.currentTable);
+  const updateMetadata = useTableStore(s => s.updateMetadata);
+  const treatmentArmSets = useStudyStore(s => s.treatmentArmSets);
 
   if (!currentTable) return null;
 
   const sourceOptions = useMemo(() => {
-    const opts: Array<{ value: string; label: React.ReactNode }> = [];
+    const opts: Array<{ label: React.ReactNode; value: string }> = [];
 
-    treatmentArmSets.forEach((tas) => {
+    treatmentArmSets.forEach(tas => {
       const headers: ColumnHeaderGroup[] = tas.headers?.length
         ? tas.headers
-        : tas.arms.map((a) => ({ id: a.id, label: a.name, N: a.N }));
+        : tas.arms.map(a => ({ id: a.id, label: a.name, N: a.N }));
       const cols = countLeaves(headers);
       opts.push({
-        value: `armset:${tas.id}`,
         label: (
           <Space size={6}>
             <span>{tas.name}</span>
-            <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px' }}>{cols} cols</Tag>
+            <Tag
+              color="blue"
+              style={{ fontSize: 10, lineHeight: '16px' }}
+            >
+              {cols} cols
+            </Tag>
           </Space>
         ),
+        value: `armset:${tas.id}`
       });
     });
 
@@ -43,7 +48,7 @@ export default function ColumnSourceEditor() {
   const handleChange = (value: string) => {
     if (value.startsWith('armset:')) {
       const armSetId = value.slice(7);
-      updateMetadata({ treatmentArmSetId: armSetId, columnHeaderSetId: undefined, headerLayers: [] });
+      updateMetadata({ columnHeaderSetId: undefined, headerLayers: [], treatmentArmSetId: armSetId });
     }
   };
 
@@ -57,12 +62,12 @@ export default function ColumnSourceEditor() {
     <div className="flex flex-col gap-8px">
       <Select
         className="w-full"
-        size="small"
-        value={displayValue}
-        onChange={handleChange}
         options={sourceOptions}
         placeholder="Select column source..."
         popupMatchSelectWidth={false}
+        size="small"
+        value={displayValue}
+        onChange={handleChange}
       />
       <span className="text-11px text-gray-400">
         Edit in Study Settings (sidebar &gt; Study Settings &gt; Table Headers)

@@ -1,21 +1,20 @@
 /**
  * DecimalSettingsTab - Per-shell decimal override editor
  *
- * Displays a table showing study-level defaults (read-only) alongside
- * shell-specific overrides (editable). Overrides are stored on the
- * TableShell.decimalOverride field and applied via tableStore.
+ * Displays a table showing study-level defaults (read-only) alongside shell-specific overrides (editable). Overrides
+ * are stored on the TableShell.decimalOverride field and applied via tableStore.
  */
-import { Card, InputNumber, Typography, Alert } from 'antd';
-import { useStudyStore } from '../../stores';
-import { useTableStore } from '../../stores';
-import { DEFAULT_DECIMAL_RULES, STAT_TYPES, type DecimalConfig, type StatTypeKey } from '../../types';
+import { Alert, Card, InputNumber, Typography } from 'antd';
+
+import { useStudyStore, useTableStore } from '../../stores';
+import { DEFAULT_DECIMAL_RULES, type DecimalConfig, STAT_TYPES, type StatTypeKey } from '../../types';
 
 const { Text } = Typography;
 
 export default function DecimalSettingsTab() {
-  const currentTable = useTableStore((s) => s.currentTable);
-  const updateDecimalOverride = useTableStore((s) => s.updateDecimalOverride);
-  const studyDefaults = useStudyStore((s) => s.studyDefaults);
+  const currentTable = useTableStore(s => s.currentTable);
+  const updateDecimalOverride = useTableStore(s => s.updateDecimalOverride);
+  const studyDefaults = useStudyStore(s => s.studyDefaults);
 
   const shellOverrides = currentTable?.decimalOverride ?? {};
   const studyRules = studyDefaults?.decimalRules ?? DEFAULT_DECIMAL_RULES;
@@ -30,12 +29,12 @@ export default function DecimalSettingsTab() {
   return (
     <div style={{ padding: 8 }}>
       <Alert
-        message="Defaults come from study-level config. Override here for this specific shell."
-        type="info"
         showIcon
-        style={{ marginBottom: 8, fontSize: 11 }}
+        message="Defaults come from study-level config. Override here for this specific shell."
+        style={{ fontSize: 11, marginBottom: 8 }}
+        type="info"
       />
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
         <thead>
           <tr style={{ background: '#f0f0f0' }}>
             <th style={{ padding: '4px 8px', textAlign: 'left' }}>Statistic Type</th>
@@ -52,12 +51,12 @@ export default function DecimalSettingsTab() {
               </td>
               <td style={{ padding: '4px 8px', textAlign: 'center' }}>
                 <InputNumber
-                  size="small"
-                  min={0}
                   max={10}
-                  value={shellOverrides[key] ?? studyRules[key] ?? DEFAULT_DECIMAL_RULES[key]}
-                  onChange={(v) => handleOverrideChange(key, v)}
+                  min={0}
+                  size="small"
                   style={{ width: 70 }}
+                  value={shellOverrides[key] ?? studyRules[key] ?? DEFAULT_DECIMAL_RULES[key]}
+                  onChange={v => handleOverrideChange(key, v)}
                 />
               </td>
             </tr>

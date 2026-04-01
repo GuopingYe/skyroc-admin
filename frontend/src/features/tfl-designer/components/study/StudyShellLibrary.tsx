@@ -1,45 +1,51 @@
 /**
  * TFL Designer - Study Shell Library
  *
- * Manage per-category shell templates at the study level.
- * Templates are cloned when creating analysis-level shells.
+ * Manage per-category shell templates at the study level. Templates are cloned when creating analysis-level shells.
  */
-import { useState, useMemo } from 'react';
+import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import {
-  Card,
-  Table,
   Button,
-  Space,
-  Typography,
-  Modal,
+  Card,
   Form,
   Input,
-  Select,
-  message,
+  Modal,
   Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Table,
   Tag,
   Tooltip,
-  Segmented,
+  Typography,
+  message
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import type { StudyTemplate, AnalysisCategory } from '../../types';
-import { generateId, categoryOptions } from '../../types';
-import { useStudyStore } from '../../stores';
+import { useEffect, useMemo, useState } from 'react';
+
+import { useStudyStore, useTemplateStore } from '../../stores';
+import type { AnalysisCategory, ScopeLevel, StudyTemplate, Template } from '../../types';
+import { categoryOptions, generateId, getDisplayTypeColor, getScopeLevelTagProps, toDisplayType } from '../../types';
 
 const { Text, Title } = Typography;
 
 const DISPLAY_TYPE_OPTIONS = [
-  { value: 'Table', label: 'Table' },
-  { value: 'Figure', label: 'Figure' },
-  { value: 'Listing', label: 'Listing' },
+  { label: 'Table', value: 'Table' },
+  { label: 'Figure', value: 'Figure' },
+  { label: 'Listing', value: 'Listing' }
 ];
 
 export default function StudyShellLibrary() {
-  const studyTemplates = useStudyStore((s) => s.studyTemplates);
-  const addStudyTemplate = useStudyStore((s) => s.addStudyTemplate);
-  const updateStudyTemplate = useStudyStore((s) => s.updateStudyTemplate);
-  const deleteStudyTemplate = useStudyStore((s) => s.deleteStudyTemplate);
-  const statisticsSets = useStudyStore((s) => s.statisticsSets);
+  const studyTemplates = useStudyStore(s => s.studyTemplates);
+  const addStudyTemplate = useStudyStore(s => s.addStudyTemplate);
+  const updateStudyTemplate = useStudyStore(s => s.updateStudyTemplate);
+  const deleteStudyTemplate = useStudyStore(s => s.deleteStudyTemplate);
+  const statisticsSets = useStudyStore(s => s.statisticsSets);
+  const libraryTemplates = useTemplateStore(s => s.templates);
+  const initTemplates = useTemplateStore(s => s.initTemplates);
+
+  useEffect(() => {
+    initTemplates();
+  }, [initTemplates]);
 
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
@@ -47,26 +53,29 @@ export default function StudyShellLibrary() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<StudyTemplate | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [libraryPickerVisible, setLibraryPickerVisible] = useState(false);
+  const [libraryFilter, setLibraryFilter] = useState<'global' | 'ta'>('global');
+  const [librarySearch, setLibrarySearch] = useState('');
 
   const statisticsSetOptions = useMemo(
-    () => statisticsSets.map((ss) => ({ value: ss.id, label: ss.name })),
-    [statisticsSets],
+    () => statisticsSets.map(ss => ({ label: ss.name, value: ss.id })),
+    [statisticsSets]
   );
 
   const categories = useMemo(() => {
-    const cats = new Set(studyTemplates.map((t) => t.category));
+    const cats = new Set(studyTemplates.map(t => t.category));
     return ['All', ...Array.from(cats).sort()];
   }, [studyTemplates]);
 
   const filteredTemplates = useMemo(
-    () => (categoryFilter === 'All' ? studyTemplates : studyTemplates.filter((t) => t.category === categoryFilter)),
-    [studyTemplates, categoryFilter],
+    () => (categoryFilter === 'All' ? studyTemplates : studyTemplates.filter(t => t.category === categoryFilter)),
+    [studyTemplates, categoryFilter]
   );
 
   const handleAdd = () => {
     setEditingTemplate(null);
     form.resetFields();
-    form.setFieldsValue({ displayType: 'Table', category: 'Demographics' });
+    form.setFieldsValue({ category: 'Demographics', displayType: 'Table' });
     setModalVisible(true);
   };
 
@@ -74,9 +83,9 @@ export default function StudyShellLibrary() {
     setEditingTemplate(template);
     form.setFieldsValue({
       category: template.category,
-      templateName: template.templateName,
       displayType: template.displayType,
       statisticsSetId: template.statisticsSetId,
+      templateName: template.templateName
     });
     setModalVisible(true);
   };
@@ -87,36 +96,36 @@ export default function StudyShellLibrary() {
   };
 
   const handleSubmit = () => {
-    form.validateFields().then((values) => {
+    form.validateFields().then(values => {
       if (editingTemplate) {
         updateStudyTemplate(editingTemplate.id, {
           category: values.category,
-          templateName: values.templateName,
           displayType: values.displayType,
           statisticsSetId: values.statisticsSetId,
+          templateName: values.templateName
         });
         message.success('Template updated');
       } else {
         const newTemplate: StudyTemplate = {
+          category: values.category,
+          displayType: values.displayType,
           id: generateId('tpl'),
           scopeNodeId: '',
-          category: values.category,
-          templateName: values.templateName,
-          displayType: values.displayType,
           shellSchema: {
-            id: generateId('table'),
-            shellNumber: '',
-            title: '',
-            population: 'Safety',
             category: values.category,
             dataset: 'ADSL',
-            treatmentArmSetId: '',
-            statisticsSetId: '',
+            footer: { notes: [], source: '' },
+            id: generateId('table'),
+            population: 'Safety',
             rows: [],
-            footer: { source: '', notes: [] },
+            shellNumber: '',
+            statisticsSetId: '',
+            title: '',
+            treatmentArmSetId: ''
           },
           statisticsSetId: values.statisticsSetId,
-          version: 1,
+          templateName: values.templateName,
+          version: 1
         };
         addStudyTemplate(newTemplate);
         message.success('Template created');
@@ -132,100 +141,163 @@ export default function StudyShellLibrary() {
     setPreviewVisible(true);
   };
 
+  const libraryFilteredTemplates = useMemo(() => {
+    let result = libraryTemplates.filter(t => (t.scopeLevel ?? 'global') === libraryFilter);
+    if (librarySearch.trim()) {
+      const q = librarySearch.toLowerCase();
+      result = result.filter(t => t.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [libraryTemplates, libraryFilter, librarySearch]);
+
+  const handleCopyFromLibrary = (libTemplate: Template) => {
+    const scopeLevel = (libTemplate.scopeLevel ?? 'global') as ScopeLevel;
+    const newTemplate: StudyTemplate = {
+      category: libTemplate.category,
+      displayType: toDisplayType(libTemplate.type),
+      id: generateId('tpl'),
+      scopeNodeId: '',
+      shellSchema: structuredClone(libTemplate.shell),
+      sourceLevel: scopeLevel,
+      templateName: `${libTemplate.name} (from ${scopeLevel})`,
+      version: 1
+    };
+    addStudyTemplate(newTemplate);
+    setLibraryPickerVisible(false);
+    message.success(`Copied "${libTemplate.name}" from ${scopeLevel} library`);
+  };
+
   const columns = [
     {
-      title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      width: 140,
       render: (val: AnalysisCategory) => (
-        <Tag color="geekblue">{categoryOptions.find((c) => c.value === val)?.label ?? val}</Tag>
+        <Tag color="geekblue">{categoryOptions.find(c => c.value === val)?.label ?? val}</Tag>
       ),
+      title: 'Category',
+      width: 140
     },
     {
-      title: 'Template Name',
       dataIndex: 'templateName',
       key: 'templateName',
-      width: 220,
+      title: 'Template Name',
+      width: 220
     },
     {
-      title: 'Source',
       dataIndex: 'sourceLevel',
       key: 'source',
-      width: 120,
-      render: (level: string | undefined, record: StudyTemplate) => {
+      render: (level: string | undefined) => {
         if (!level) return <Text type="secondary">Scratch</Text>;
-        const color = level === 'global' ? 'geekblue' : level === 'ta' ? 'purple' : 'green';
-        return (
-          <Tag color={color}>
-            {level === 'global' ? 'Global' : level === 'ta' ? 'TA' : 'Study'}
-          </Tag>
-        );
+        const props = getScopeLevelTagProps(level as ScopeLevel | 'study');
+        return <Tag color={props.color}>{props.label}</Tag>;
       },
+      title: 'Source',
+      width: 120
     },
     {
-      title: 'Type',
       dataIndex: 'displayType',
       key: 'displayType',
-      width: 90,
       render: (val: string) => (
-        <Tag color={val === 'Table' ? 'blue' : val === 'Figure' ? 'green' : 'orange'}>{val}</Tag>
+        <Tag color={getDisplayTypeColor(val as 'Figure' | 'Listing' | 'Table')}>{val}</Tag>
       ),
+      title: 'Type',
+      width: 90
     },
     {
-      title: 'Statistics Set',
       dataIndex: 'statisticsSetId',
       key: 'statisticsSetId',
-      width: 160,
       render: (val: string | undefined) => {
         if (!val) return <Text type="secondary">-</Text>;
-        const ss = statisticsSets.find((s) => s.id === val);
+        const ss = statisticsSets.find(s => s.id === val);
         return ss ? <Text>{ss.name}</Text> : <Text type="secondary">{val}</Text>;
       },
+      title: 'Statistics Set',
+      width: 160
     },
     {
-      title: 'Version',
+      align: 'center' as const,
       dataIndex: 'version',
       key: 'version',
-      width: 70,
-      align: 'center' as const,
       render: (val: number) => <Tag>v{val}</Tag>,
+      title: 'Version',
+      width: 70
     },
     {
-      title: 'Actions',
       key: 'actions',
-      width: 120,
       render: (_: unknown, record: StudyTemplate) => (
         <Space size="small">
           <Tooltip title="Preview JSON">
-            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handlePreview(record)} />
+            <Button
+              icon={<EyeOutlined />}
+              size="small"
+              type="text"
+              onClick={() => handlePreview(record)}
+            />
           </Tooltip>
           <Tooltip title="Edit">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+            <Button
+              icon={<EditOutlined />}
+              size="small"
+              type="text"
+              onClick={() => handleEdit(record)}
+            />
           </Tooltip>
-          <Popconfirm title="Delete this template?" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm
+            title="Delete this template?"
+            onConfirm={() => handleDelete(record.id)}
+          >
             <Tooltip title="Delete">
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                type="text"
+              />
             </Tooltip>
           </Popconfirm>
         </Space>
       ),
-    },
+      title: 'Actions',
+      width: 120
+    }
   ];
 
   return (
     <Card
-      title={
-        <Space>
-          <Title level={5} style={{ margin: 0 }}>Study Shell Library</Title>
-          <Tag color="purple">{studyTemplates.length}</Tag>
-        </Space>
-      }
       size="small"
       extra={
-        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAdd}>
-          Add Template
-        </Button>
+        <Space>
+          <Button
+            icon={<CopyOutlined />}
+            size="small"
+            onClick={() => {
+              setLibraryFilter('global');
+              setLibrarySearch('');
+              setLibraryPickerVisible(true);
+            }}
+          >
+            Copy from Library
+          </Button>
+          <Button
+            icon={<PlusOutlined />}
+            size="small"
+            type="primary"
+            onClick={handleAdd}
+          >
+            Add Template
+          </Button>
+        </Space>
+      }
+      title={
+        <Space>
+          <Title
+            level={5}
+            style={{ margin: 0 }}
+          >
+            Study Shell Library
+          </Title>
+          <Tag color="purple">{studyTemplates.length}</Tag>
+        </Space>
       }
     >
       {categories.length > 1 && (
@@ -233,83 +305,181 @@ export default function StudyShellLibrary() {
           <Segmented
             size="small"
             value={categoryFilter}
-            onChange={setCategoryFilter}
-            options={categories.map((c) => ({
-              value: c,
-              label: c === 'All' ? 'All' : categoryOptions.find((o) => o.value === c)?.label ?? c,
+            options={categories.map(c => ({
+              label: c === 'All' ? 'All' : (categoryOptions.find(o => o.value === c)?.label ?? c),
+              value: c
             }))}
+            onChange={setCategoryFilter}
           />
         </div>
       )}
 
       <Table
-        dataSource={filteredTemplates}
         columns={columns}
-        rowKey="id"
+        dataSource={filteredTemplates}
         pagination={false}
+        rowKey="id"
         size="small"
         locale={{
           emptyText: (
             <div style={{ padding: 20, textAlign: 'center' }}>
               <Text type="secondary">No shell templates defined for this study</Text>
               <div style={{ marginTop: 8 }}>
-                <Button type="dashed" icon={<PlusOutlined />} onClick={handleAdd}>
+                <Button
+                  icon={<PlusOutlined />}
+                  type="dashed"
+                  onClick={handleAdd}
+                >
                   Add First Template
                 </Button>
               </div>
             </div>
-          ),
+          )
         }}
       />
 
-      {/* Add/Edit Modal */}
       <Modal
-        title={editingTemplate ? 'Edit Shell Template' : 'Add Shell Template'}
+        okText={editingTemplate ? 'Update' : 'Create'}
         open={modalVisible}
+        title={editingTemplate ? 'Edit Shell Template' : 'Add Shell Template'}
+        width={600}
+        onOk={handleSubmit}
         onCancel={() => {
           setModalVisible(false);
           form.resetFields();
           setEditingTemplate(null);
         }}
-        onOk={handleSubmit}
-        width={600}
-        okText={editingTemplate ? 'Update' : 'Create'}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item name="category" label="Category" rules={[{ required: true, message: 'Select a category' }]}>
-            <Select options={categoryOptions} placeholder="Select category" />
+        <Form
+          form={form}
+          layout="vertical"
+        >
+          <Form.Item
+            label="Category"
+            name="category"
+            rules={[{ message: 'Select a category', required: true }]}
+          >
+            <Select
+              options={categoryOptions}
+              placeholder="Select category"
+            />
           </Form.Item>
-          <Form.Item name="templateName" label="Template Name" rules={[{ required: true, message: 'Enter a name' }]}>
+          <Form.Item
+            label="Template Name"
+            name="templateName"
+            rules={[{ message: 'Enter a name', required: true }]}
+          >
             <Input placeholder="e.g., Standard Demographics Table" />
           </Form.Item>
-          <Form.Item name="displayType" label="Display Type" rules={[{ required: true }]}>
+          <Form.Item
+            label="Display Type"
+            name="displayType"
+            rules={[{ required: true }]}
+          >
             <Select options={DISPLAY_TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="statisticsSetId" label="Statistics Set">
-            <Select options={statisticsSetOptions} allowClear placeholder="Select statistics set (optional)" />
+          <Form.Item
+            label="Statistics Set"
+            name="statisticsSetId"
+          >
+            <Select
+              allowClear
+              options={statisticsSetOptions}
+              placeholder="Select statistics set (optional)"
+            />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* JSON Preview Modal */}
       <Modal
-        title={previewTemplate ? `Preview: ${previewTemplate.templateName}` : 'Preview'}
+        footer={null}
         open={previewVisible}
+        title={previewTemplate ? `Preview: ${previewTemplate.templateName}` : 'Preview'}
+        width={700}
         onCancel={() => {
           setPreviewVisible(false);
           setPreviewTemplate(null);
         }}
-        footer={null}
-        width={700}
       >
         {previewTemplate && (
           <Input.TextArea
-            value={JSON.stringify(previewTemplate.shellSchema, null, 2)}
             readOnly
-            autoSize={{ minRows: 10, maxRows: 25 }}
+            autoSize={{ maxRows: 25, minRows: 10 }}
             style={{ fontFamily: 'monospace', fontSize: 12 }}
+            value={JSON.stringify(previewTemplate.shellSchema, null, 2)}
           />
         )}
+      </Modal>
+
+      <Modal
+        footer={null}
+        open={libraryPickerVisible}
+        title="Copy Template from Library"
+        width={700}
+        onCancel={() => setLibraryPickerVisible(false)}
+      >
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <Select
+            size="small"
+            style={{ width: 150 }}
+            value={libraryFilter}
+            options={[
+              { label: 'Global Library', value: 'global' },
+              { label: 'TA Library', value: 'ta' }
+            ]}
+            onChange={setLibraryFilter}
+          />
+          <Input.Search
+            allowClear
+            placeholder="Search templates..."
+            size="small"
+            style={{ flex: 1 }}
+            value={librarySearch}
+            onChange={e => setLibrarySearch(e.target.value)}
+          />
+        </div>
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {libraryFilteredTemplates.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center' }}>
+              <Text type="secondary">
+                No {libraryFilter} templates available. Add templates in the Template Library page first.
+              </Text>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr' }}>
+              {libraryFilteredTemplates.map(tpl => {
+                const scopeTag = getScopeLevelTagProps(tpl.scopeLevel as ScopeLevel | undefined);
+                const displayType = toDisplayType(tpl.type);
+                return (
+                <Card
+                  hoverable
+                  key={tpl.id}
+                  size="small"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleCopyFromLibrary(tpl)}
+                >
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text strong style={{ fontSize: 13 }}>{tpl.name}</Text>
+                      <Tag color={getDisplayTypeColor(displayType)}>
+                        {displayType}
+                      </Tag>
+                    </div>
+                    <div>
+                      <Tag color={scopeTag.color}>
+                        {scopeTag.label}
+                      </Tag>
+                      <Tag style={{ fontSize: 11 }}>
+                        {categoryOptions.find(c => c.value === tpl.category)?.label ?? tpl.category}
+                      </Tag>
+                    </div>
+                  </Space>
+                </Card>
+              );
+              })}
+            </div>
+          )}
+        </div>
       </Modal>
     </Card>
   );

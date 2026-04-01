@@ -3,39 +3,47 @@
  *
  * Configure columns for listing displays with support for nested/grouped headers.
  */
-import { useState, useMemo } from 'react';
 import {
-  Table,
-  Button,
-  Space,
-  Input,
-  InputNumber,
-  Select,
-  Tag,
-  Tooltip,
-  Popconfirm,
-  Typography,
-  Divider,
-  Card,
-  Modal,
-} from 'antd';
-import {
-  PlusOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  CopyOutlined,
   DeleteOutlined,
   DragOutlined,
-  CopyOutlined,
+  GroupOutlined,
+  PlusOutlined,
+  RightOutlined,
   SearchOutlined,
   SettingOutlined,
-  GroupOutlined,
-  UngroupOutlined,
-  RightOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
+  UngroupOutlined
 } from '@ant-design/icons';
-import type { ListingColumn } from '../../types';
-import { countLeaves } from '../../utils/treeUtils';
+import {
+  Button,
+  Card,
+  Divider,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography
+} from 'antd';
+const { Text: AntText } = Typography;
+import { useMemo, useState } from 'react';
 
-const { Text } = Typography;
+import type { ListingColumn } from '../../types';
+import {
+  addChildToTree,
+  countLeaves,
+  deleteFromTree,
+  findInTree,
+  moveInTree,
+  ungroupInTree,
+  updateInTree
+} from '../../utils/treeUtils';
 
 // ==================== Helpers ====================
 
@@ -48,7 +56,7 @@ interface FlatColumn {
 
 function flattenColumns(columns: ListingColumn[], depth = 0, parentId: string | null = null): FlatColumn[] {
   const result: FlatColumn[] = [];
-  columns.forEach((col) => {
+  columns.forEach(col => {
     result.push({ col, depth, parentId });
     if (col.children?.length) {
       result.push(...flattenColumns(col.children, depth + 1, col.id));
@@ -57,100 +65,18 @@ function flattenColumns(columns: ListingColumn[], depth = 0, parentId: string | 
   return result;
 }
 
-/** Recursively update a column by id */
-function updateInTree(columns: ListingColumn[], id: string, updates: Partial<ListingColumn>): ListingColumn[] {
-  return columns.map((col) => {
-    if (col.id === id) return { ...col, ...updates };
-    if (col.children?.length) {
-      return { ...col, children: updateInTree(col.children, id, updates) };
-    }
-    return col;
-  });
-}
-
-/** Recursively delete a column by id */
-function deleteFromTree(columns: ListingColumn[], id: string): ListingColumn[] {
-  return columns
-    .filter((col) => col.id !== id)
-    .map((col) => {
-      if (col.children?.length) {
-        return { ...col, children: deleteFromTree(col.children, id) };
-      }
-      return col;
-    });
-}
-
-/** Recursively find a column by id */
-function findInTree(columns: ListingColumn[], id: string): ListingColumn | null {
-  for (const col of columns) {
-    if (col.id === id) return col;
-    if (col.children?.length) {
-      const found = findInTree(col.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-/** Add a child column to a group */
-function addChildToGroup(columns: ListingColumn[], parentId: string, child: ListingColumn): ListingColumn[] {
-  return columns.map((col) => {
-    if (col.id === parentId) {
-      return { ...col, children: [...(col.children || []), child] };
-    }
-    if (col.children?.length) {
-      return { ...col, children: addChildToGroup(col.children, parentId, child) };
-    }
-    return col;
-  });
-}
-
-/** Ungroup: move all children of a group up to the parent level, replacing the group */
-function ungroupInTree(columns: ListingColumn[], id: string): ListingColumn[] {
-  const result: ListingColumn[] = [];
-  for (const col of columns) {
-    if (col.id === id) {
-      // Replace this group with its children
-      if (col.children?.length) {
-        result.push(...col.children);
-      }
-      // If no children, just remove the group
-    } else if (col.children?.length) {
-      result.push({ ...col, children: ungroupInTree(col.children, id) });
-    } else {
-      result.push(col);
-    }
-  }
-  return result;
-}
-
-/** Move a column up or down among its siblings */
-function moveInTree(columns: ListingColumn[], id: string, direction: 'up' | 'down'): ListingColumn[] {
-  const result = [...columns];
-  const idx = result.findIndex((c) => c.id === id);
-  if (idx !== -1) {
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx >= 0 && targetIdx < result.length) {
-      [result[idx], result[targetIdx]] = [result[targetIdx], result[idx]];
-      return result;
-    }
-  }
-  return result.map((col) => {
-    if (col.children?.length) return { ...col, children: moveInTree(col.children, id, direction) };
-    return col;
-  });
-}
+// Tree operations imported from shared treeUtils — local duplicates removed
 
 // ==================== Component ====================
 
 interface Props {
-  displayId: string;
   columns: ListingColumn[];
-  onChange: (columns: ListingColumn[]) => void;
   disabled?: boolean;
+  displayId: string;
+  onChange: (columns: ListingColumn[]) => void;
 }
 
-export default function ColumnEditor({ displayId, columns, onChange, disabled = false }: Props) {
+export default function ColumnEditor({ columns, disabled = false, displayId, onChange }: Props) {
   const [searchValue, setSearchValue] = useState('');
 
   // Advanced combine configuration state
@@ -167,7 +93,7 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
     return flatColumns.filter(
       ({ col }) =>
         col.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-        col.label.toLowerCase().includes(searchValue.toLowerCase()),
+        col.label.toLowerCase().includes(searchValue.toLowerCase())
     );
   }, [flatColumns, searchValue]);
 
@@ -178,34 +104,34 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
 
   const handleAddColumn = () => {
     const newCol: ListingColumn = {
-      id: `col-${Date.now()}`,
-      name: 'NEWVAR',
-      label: 'New Column',
-      width: 150,
       align: 'left',
+      id: `col-${Date.now()}`,
+      label: 'New Column',
+      name: 'NEWVAR',
+      width: 150
     };
     onChange([...columns, newCol]);
   };
 
   const handleAddGroup = () => {
     const newGroup: ListingColumn = {
-      id: `grp-${Date.now()}`,
-      name: 'GROUP',
-      label: 'New Group',
       children: [],
+      id: `grp-${Date.now()}`,
+      label: 'New Group',
+      name: 'GROUP'
     };
     onChange([...columns, newGroup]);
   };
 
   const handleAddChild = (parentId: string) => {
     const child: ListingColumn = {
-      id: `col-${Date.now()}`,
-      name: 'NEWVAR',
-      label: 'New Column',
-      width: 150,
       align: 'left',
+      id: `col-${Date.now()}`,
+      label: 'New Column',
+      name: 'NEWVAR',
+      width: 150
     };
-    onChange(addChildToGroup(columns, parentId, child));
+    onChange(addChildToTree(columns, parentId, child));
   };
 
   const handleUpdate = (id: string, updates: Partial<ListingColumn>) => {
@@ -221,15 +147,15 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
     if (!col) return;
     const dup: ListingColumn = {
       ...col,
-      id: `col-${Date.now()}`,
-      name: `${col.name}_copy`,
-      label: `${col.label} (copy)`,
       children: col.children
-        ? col.children.map((c) => ({ ...c, id: `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }))
+        ? col.children.map(c => ({ ...c, id: `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }))
         : undefined,
+      id: `col-${Date.now()}`,
+      label: `${col.label} (copy)`,
+      name: `${col.name}_copy`
     };
     // Insert after the original at top level
-    const idx = columns.findIndex((c) => c.id === id);
+    const idx = columns.findIndex(c => c.id === id);
     if (idx >= 0) {
       onChange([...columns.slice(0, idx + 1), dup, ...columns.slice(idx + 1)]);
     }
@@ -239,7 +165,7 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
     onChange(ungroupInTree(columns, id));
   };
 
-  const handleMove = (id: string, direction: 'up' | 'down') => {
+  const handleMove = (id: string, direction: 'down' | 'up') => {
     onChange(moveInTree(columns, id, direction));
   };
 
@@ -254,11 +180,11 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
     if (editingCombinedCol) {
       const sourceCols = sourceColumnsStr
         .split(',')
-        .map((s) => s.trim())
+        .map(s => s.trim())
         .filter(Boolean);
       handleUpdate(editingCombinedCol.id, {
         combineFormat,
-        sourceColumns: sourceCols.length > 0 ? sourceCols : undefined,
+        sourceColumns: sourceCols.length > 0 ? sourceCols : undefined
       });
       setEditingCombinedCol(null);
     }
@@ -268,123 +194,127 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
 
   const tableColumns = [
     {
-      title: '',
       key: 'drag',
-      width: 50,
       render: (_: unknown, record: FlatColumn) => (
-        <div style={{ textAlign: 'center', paddingLeft: record.depth * 20 }}>
-          {record.col.children?.length ? (
-            <GroupOutlined style={{ color: '#1890ff' }} />
-          ) : (
-            <DragOutlined />
-          )}
+        <div style={{ paddingLeft: record.depth * 20, textAlign: 'center' }}>
+          {record.col.children?.length ? <GroupOutlined style={{ color: '#1890ff' }} /> : <DragOutlined />}
         </div>
       ),
+      title: '',
+      width: 50
     },
     {
-      title: 'Variable',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
       render: (text: string, record: FlatColumn) => (
         <Input
-          value={text}
           disabled={disabled}
-          onChange={(e) => handleUpdate(record.col.id, { name: e.target.value })}
-          style={{ fontSize: 12 }}
           size="small"
+          style={{ fontSize: 12 }}
+          value={text}
+          onChange={e => handleUpdate(record.col.id, { name: e.target.value })}
         />
       ),
+      title: 'Variable',
+      width: 150
     },
     {
-      title: 'Label',
       dataIndex: 'label',
       key: 'label',
-      width: 150,
       render: (text: string, record: FlatColumn) => (
         <Input
-          value={text}
           disabled={disabled}
-          onChange={(e) => handleUpdate(record.col.id, { label: e.target.value })}
-          style={{ fontSize: 12 }}
           size="small"
+          style={{ fontSize: 12 }}
+          value={text}
+          onChange={e => handleUpdate(record.col.id, { label: e.target.value })}
         />
       ),
+      title: 'Label',
+      width: 150
     },
     {
-      title: 'Width',
       dataIndex: 'width',
       key: 'width',
-      width: 70,
       render: (value: number, record: FlatColumn) =>
         record.col.children?.length ? null : (
           <InputNumber
-            value={value}
-            min={50}
-            max={500}
-            step={10}
             disabled={disabled}
-            onChange={(val) => val !== null && handleUpdate(record.col.id, { width: val })}
-            style={{ fontSize: 12, width: '100%' }}
+            max={500}
+            min={50}
             size="small"
+            step={10}
+            style={{ fontSize: 12, width: '100%' }}
+            value={value}
+            onChange={val => val !== null && handleUpdate(record.col.id, { width: val })}
           />
         ),
+      title: 'Width',
+      width: 70
     },
     {
-      title: 'Align',
       dataIndex: 'align',
       key: 'align',
-      width: 80,
       render: (align: string, record: FlatColumn) =>
         record.col.children?.length ? null : (
           <Select
-            value={align}
-            options={[
-              { value: 'left', label: 'L' },
-              { value: 'center', label: 'C' },
-              { value: 'right', label: 'R' },
-            ]}
             disabled={disabled}
-            onChange={(value) => handleUpdate(record.col.id, { align: value as 'left' | 'center' | 'right' })}
             size="small"
             style={{ width: '100%' }}
+            value={align}
+            options={[
+              { label: 'L', value: 'left' },
+              { label: 'C', value: 'center' },
+              { label: 'R', value: 'right' }
+            ]}
+            onChange={value => handleUpdate(record.col.id, { align: value as 'center' | 'left' | 'right' })}
           />
         ),
+      title: 'Align',
+      width: 80
     },
     {
-      title: '',
       key: 'children',
-      width: 40,
       render: (_: unknown, record: FlatColumn) =>
         record.col.children?.length ? <Tag color="blue">{record.col.children.length}</Tag> : null,
+      title: '',
+      width: 40
     },
     {
-      title: 'Actions',
       key: 'actions',
-      width: 140,
       render: (_: unknown, record: FlatColumn) => (
         <Space size={2}>
           <Tooltip title="Move Up">
-            <Button type="text" size="small" icon={<ArrowUpOutlined />} onClick={() => handleMove(record.col.id, 'up')} />
+            <Button
+              icon={<ArrowUpOutlined />}
+              size="small"
+              type="text"
+              onClick={() => handleMove(record.col.id, 'up')}
+            />
           </Tooltip>
           <Tooltip title="Move Down">
-            <Button type="text" size="small" icon={<ArrowDownOutlined />} onClick={() => handleMove(record.col.id, 'down')} />
+            <Button
+              icon={<ArrowDownOutlined />}
+              size="small"
+              type="text"
+              onClick={() => handleMove(record.col.id, 'down')}
+            />
           </Tooltip>
           {record.col.children?.length ? (
             <>
               <Tooltip title="Add child column">
                 <Button
-                  type="text"
-                  size="small"
                   icon={<PlusOutlined />}
+                  size="small"
+                  type="text"
                   onClick={() => handleAddChild(record.col.id)}
                 />
               </Tooltip>
               <Tooltip title="Ungroup (move children up)">
                 <Button
-                  type="text"
-                  size="small"
                   icon={<UngroupOutlined />}
+                  size="small"
+                  type="text"
                   onClick={() => handleUngroup(record.col.id)}
                 />
               </Tooltip>
@@ -393,91 +323,127 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
             <>
               <Tooltip title="Combine settings">
                 <Button
-                  type="text"
-                  size="small"
                   icon={<SettingOutlined style={{ color: record.col.sourceColumns?.length ? '#1890ff' : undefined }} />}
+                  size="small"
+                  type="text"
                   onClick={() => openCombineSettings(record.col)}
                 />
               </Tooltip>
               <Tooltip title="Duplicate">
-                <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleDuplicate(record.col.id)} />
+                <Button
+                  icon={<CopyOutlined />}
+                  size="small"
+                  type="text"
+                  onClick={() => handleDuplicate(record.col.id)}
+                />
               </Tooltip>
             </>
           )}
           <Tooltip title="Delete">
-            <Popconfirm title="Delete this column?" onConfirm={() => handleDelete(record.col.id)} okText="Delete" cancelText="Cancel">
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            <Popconfirm
+              cancelText="Cancel"
+              okText="Delete"
+              title="Delete this column?"
+              onConfirm={() => handleDelete(record.col.id)}
+            >
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+                type="text"
+              />
             </Popconfirm>
           </Tooltip>
         </Space>
       ),
-    },
+      title: 'Actions',
+      width: 140
+    }
   ];
 
   // ==================== Render ====================
 
   return (
     <Card
-      title={
-        <Space>
-          <span>Column Configuration</span>
-          <Tag color="blue">{leafCount} columns</Tag>
-          {columns.some((c) => c.children?.length) && <Tag color="green">Grouped</Tag>}
-        </Space>
-      }
+      size="small"
       extra={
         <Space>
           <Tooltip title="Add grouped header">
-            <Button icon={<GroupOutlined />} onClick={handleAddGroup} size="small" disabled={disabled}>
+            <Button
+              disabled={disabled}
+              icon={<GroupOutlined />}
+              size="small"
+              onClick={handleAddGroup}
+            >
               Group
             </Button>
           </Tooltip>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddColumn} size="small" disabled={disabled}>
+          <Button
+            disabled={disabled}
+            icon={<PlusOutlined />}
+            size="small"
+            type="primary"
+            onClick={handleAddColumn}
+          >
             Column
           </Button>
         </Space>
       }
-      size="small"
+      title={
+        <Space>
+          <span>Column Configuration</span>
+          <Tag color="blue">{leafCount} columns</Tag>
+          {columns.some(c => c.children?.length) && <Tag color="green">Grouped</Tag>}
+        </Space>
+      }
     >
       {/* Search */}
       <Input
+        allowClear
         placeholder="Search columns..."
         prefix={<SearchOutlined />}
-        value={searchValue}
-        onChange={(e) => setSearchValue(e.target.value)}
-        allowClear
-        style={{ marginBottom: 8 }}
         size="small"
+        style={{ marginBottom: 8 }}
+        value={searchValue}
+        onChange={e => setSearchValue(e.target.value)}
       />
 
       {/* Columns Table */}
       <Table
-        dataSource={filteredFlat}
-        columns={tableColumns}
-        rowKey={(record) => record.col.id}
-        pagination={false}
-        size="small"
         bordered
+        columns={tableColumns}
+        dataSource={filteredFlat}
+        pagination={false}
+        rowKey={record => record.col.id}
+        size="small"
         rowClassName={(record: FlatColumn) =>
           record.col.children?.length ? 'group-row' : record.col.hidden ? 'hidden-row' : ''
         }
       />
 
       {filteredFlat.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>
-          <Text type="secondary">No columns defined</Text>
+        <div style={{ color: '#999', padding: 24, textAlign: 'center' }}>
+          <AntText type="secondary">No columns defined</AntText>
         </div>
       )}
 
       {/* Column Visibility */}
       {filteredFlat.length > 0 && <Divider />}
       <div>
-        <Text strong style={{ marginBottom: 8, display: 'block' }}>Visibility</Text>
-        <Space size={4} wrap>
+        <AntText
+          strong
+          style={{ display: 'block', marginBottom: 8 }}
+        >
+          Visibility
+        </AntText>
+        <Space
+          wrap
+          size={4}
+        >
           {flatColumns.map(({ col }) => (
             <Tag
-              key={col.id}
               color={col.hidden ? 'default' : 'blue'}
+              key={col.id}
               style={{ cursor: 'pointer', fontSize: 11 }}
               onClick={() => handleUpdate(col.id, { hidden: !col.hidden })}
             >
@@ -496,37 +462,43 @@ export default function ColumnEditor({ displayId, columns, onChange, disabled = 
 
       {/* Combined Column Settings Modal */}
       <Modal
+        open={Boolean(editingCombinedCol)}
         title={`Combine Settings: ${editingCombinedCol?.label || editingCombinedCol?.name}`}
-        open={!!editingCombinedCol}
+        width={500}
         onCancel={() => setEditingCombinedCol(null)}
         onOk={saveCombineSettings}
-        width={500}
       >
         <div style={{ marginBottom: 16 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
+          <AntText
+            style={{ fontSize: 13 }}
+            type="secondary"
+          >
             Merge data from multiple variables into one column (e.g. SOC and PT).
-          </Text>
+          </AntText>
         </div>
         <div style={{ marginBottom: 16 }}>
-          <Text strong>Source Columns (comma separated):</Text>
+          <AntText strong>Source Columns (comma separated):</AntText>
           <Input
-            value={sourceColumnsStr}
-            onChange={(e) => setSourceColumnsStr(e.target.value)}
             placeholder="e.g. AEBODSYS, AEDECOD"
             style={{ marginTop: 8 }}
+            value={sourceColumnsStr}
+            onChange={e => setSourceColumnsStr(e.target.value)}
           />
         </div>
         <div>
-          <Text strong>Format String:</Text>
+          <AntText strong>Format String:</AntText>
           <Input
-            value={combineFormat}
-            onChange={(e) => setCombineFormat(e.target.value)}
             placeholder="e.g. {0} / {1}"
             style={{ marginTop: 8 }}
+            value={combineFormat}
+            onChange={e => setCombineFormat(e.target.value)}
           />
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+          <AntText
+            style={{ display: 'block', fontSize: 12, marginTop: 4 }}
+            type="secondary"
+          >
             Use {'{0}'}, {'{1}'}, etc. to reference source columns in order.
-          </Text>
+          </AntText>
         </div>
       </Modal>
     </Card>

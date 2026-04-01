@@ -1,4 +1,4 @@
-import type { DecimalConfig, StatTypeKey, RowStats } from '../types';
+import type { DecimalConfig, RowStats, StatTypeKey } from '../types';
 
 /** Valid stat type keys for decimal lookup */
 const VALID_STAT_KEYS: Set<string> = new Set(['n', 'mean', 'sd', 'median', 'min', 'max', 'percent', 'range']);
@@ -10,6 +10,7 @@ function isValidStatKey(key: string): key is StatTypeKey {
 
 /**
  * Resolve decimal places for a stat type using the 3-level chain:
+ *
  * 1. Row-level override (highest priority)
  * 2. Shell-level defaults
  * 3. Study-level defaults (fallback)
@@ -19,7 +20,7 @@ export function resolveDecimals(
   rowDecimals: number | undefined,
   shellDefaults: DecimalConfig | undefined,
   studyDefaults: DecimalConfig | undefined,
-  globalDefaults: DecimalConfig,
+  globalDefaults: DecimalConfig
 ): number {
   if (rowDecimals !== undefined) return rowDecimals;
   if (shellDefaults?.[statType] !== undefined) return shellDefaults[statType]!;
@@ -27,14 +28,12 @@ export function resolveDecimals(
   return globalDefaults[statType] ?? 2;
 }
 
-/**
- * Build a decimal config map from row stats + shell + study defaults.
- */
+/** Build a decimal config map from row stats + shell + study defaults. */
 export function buildDecimalsMap(
   stats: RowStats[],
   shellDefaults: DecimalConfig | undefined,
   studyDefaults: DecimalConfig | undefined,
-  globalDefaults: DecimalConfig,
+  globalDefaults: DecimalConfig
 ): Record<string, number> {
   const map: Record<string, number> = {};
   for (const s of stats) {
@@ -47,14 +46,8 @@ export function buildDecimalsMap(
   return map;
 }
 
-/**
- * Generate placeholder string from stat types and resolved decimals.
- * Returns null for header rows (no data cells).
- */
-export function formatPlaceholder(
-  statTypes: string[],
-  decimalsMap: Record<string, number>,
-): string | null {
+/** Generate placeholder string from stat types and resolved decimals. Returns null for header rows (no data cells). */
+export function formatPlaceholder(statTypes: string[], decimalsMap: Record<string, number>): string | null {
   if (statTypes.length === 0) return null;
   if (statTypes.includes('header')) return null;
 

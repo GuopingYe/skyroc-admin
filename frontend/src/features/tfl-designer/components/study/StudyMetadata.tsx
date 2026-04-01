@@ -1,25 +1,13 @@
 /**
  * TFL Designer - Study Metadata Panel
  *
- * Edit study-level metadata: study ID, title, phase, compound, etc.
- * Uses Zustand useStudyStore for study CRUD operations.
+ * Edit study-level metadata: study ID, title, phase, compound, etc. Uses Zustand useStudyStore for study CRUD
+ * operations.
  */
-import { useState, useEffect } from 'react';
-import {
-  Card,
-  Form,
-  Input,
-  Select,
-  Space,
-  Typography,
-  Divider,
-  Button,
-  message
-} from 'antd';
-import {
-  SaveOutlined,
-  UndoOutlined
-} from '@ant-design/icons';
+import { SaveOutlined, UndoOutlined } from '@ant-design/icons';
+import { Button, Card, Divider, Form, Input, Select, Space, Typography, message } from 'antd';
+import { useEffect, useState } from 'react';
+
 import { useStudyStore } from '../../stores';
 import type { Study } from '../../types';
 
@@ -30,7 +18,7 @@ interface Props {
 }
 
 export default function StudyMetadata({ readOnly = false }: Props) {
-  const { currentStudy, updateStudy, addStudy, studies, setCurrentStudy } = useStudyStore();
+  const { addStudy, currentStudy, setCurrentStudy, studies, updateStudy } = useStudyStore();
 
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState(false);
@@ -39,12 +27,12 @@ export default function StudyMetadata({ readOnly = false }: Props) {
   useEffect(() => {
     if (currentStudy) {
       form.setFieldsValue({
-        studyId: currentStudy.studyId || '',
-        title: currentStudy.title || '',
-        phase: currentStudy.phase || '',
         compound: currentStudy.compound || '',
         diseaseArea: currentStudy.diseaseArea || '',
+        phase: currentStudy.phase || '',
+        studyId: currentStudy.studyId || '',
         therapeuticArea: currentStudy.therapeuticArea || '',
+        title: currentStudy.title || ''
       });
       setHasChanges(false);
     } else {
@@ -58,31 +46,29 @@ export default function StudyMetadata({ readOnly = false }: Props) {
       if (currentStudy) {
         // Update existing study
         updateStudy(currentStudy.id, {
-          studyId: values.studyId,
-          title: values.title,
-          phase: values.phase,
           compound: values.compound,
           diseaseArea: values.diseaseArea,
+          phase: values.phase,
+          studyId: values.studyId,
           therapeuticArea: values.therapeuticArea,
+          title: values.title
         });
         message.success('Study metadata updated successfully');
       } else {
         // Create a new study if none is selected
         const newStudy: Omit<Study, 'id'> = {
-          studyId: values.studyId,
-          title: values.title,
-          phase: values.phase,
           compound: values.compound,
-          diseaseArea: values.diseaseArea,
-          therapeuticArea: values.therapeuticArea,
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          diseaseArea: values.diseaseArea,
+          phase: values.phase,
+          studyId: values.studyId,
+          therapeuticArea: values.therapeuticArea,
+          title: values.title,
+          updatedAt: new Date().toISOString()
         };
         addStudy(newStudy);
         // Auto-select the newly created study
-        const created = studies.find(
-          s => s.studyId === values.studyId && s.title === values.title
-        );
+        const created = studies.find(s => s.studyId === values.studyId && s.title === values.title);
         if (created) {
           setCurrentStudy(created);
         }
@@ -96,12 +82,12 @@ export default function StudyMetadata({ readOnly = false }: Props) {
   const handleReset = () => {
     if (currentStudy) {
       form.setFieldsValue({
-        studyId: currentStudy.studyId || '',
-        title: currentStudy.title || '',
-        phase: currentStudy.phase || '',
         compound: currentStudy.compound || '',
         diseaseArea: currentStudy.diseaseArea || '',
+        phase: currentStudy.phase || '',
+        studyId: currentStudy.studyId || '',
         therapeuticArea: currentStudy.therapeuticArea || '',
+        title: currentStudy.title || ''
       });
     } else {
       form.resetFields();
@@ -111,33 +97,38 @@ export default function StudyMetadata({ readOnly = false }: Props) {
 
   return (
     <Card
-      title={
-        <Space>
-          <Title level={5} style={{ margin: 0 }}>Study Metadata</Title>
-        </Space>
-      }
       size="small"
       extra={
         <Space>
           {hasChanges && (
             <>
               <Button
-                size="small"
                 icon={<UndoOutlined />}
+                size="small"
                 onClick={handleReset}
               >
                 Reset
               </Button>
               <Button
+                icon={<SaveOutlined />}
                 size="small"
                 type="primary"
-                icon={<SaveOutlined />}
                 onClick={handleSave}
               >
                 Save
               </Button>
             </>
           )}
+        </Space>
+      }
+      title={
+        <Space>
+          <Title
+            level={5}
+            style={{ margin: 0 }}
+          >
+            Study Metadata
+          </Title>
         </Space>
       }
     >
@@ -147,94 +138,103 @@ export default function StudyMetadata({ readOnly = false }: Props) {
         onValuesChange={() => setHasChanges(true)}
       >
         {/* Basic Study Information */}
-        <Title level={5} style={{ fontSize: 12, color: '#1890ff' }}>
+        <Title
+          level={5}
+          style={{ color: '#1890ff', fontSize: 12 }}
+        >
           Basic Information
         </Title>
 
         <Form.Item
-          name="studyId"
           label="Study ID"
-          rules={[{ required: true, message: 'Please enter study ID' }]}
+          name="studyId"
+          rules={[{ message: 'Please enter study ID', required: true }]}
         >
           <Input
-            placeholder="e.g., STUDY-2024-001"
             disabled={readOnly}
+            placeholder="e.g., STUDY-2024-001"
             style={{ maxWidth: 300 }}
           />
         </Form.Item>
 
         <Form.Item
-          name="title"
           label="Study Title"
-          rules={[{ required: true, message: 'Please enter study title' }]}
+          name="title"
+          rules={[{ message: 'Please enter study title', required: true }]}
         >
           <Input.TextArea
-            placeholder="Full study title"
             disabled={readOnly}
+            placeholder="Full study title"
             rows={2}
           />
         </Form.Item>
 
         <Form.Item
-          name="phase"
           label="Study Phase"
+          name="phase"
         >
           <Select
-            placeholder="Select study phase"
-            disabled={readOnly}
-            style={{ width: '100%' }}
             allowClear
+            disabled={readOnly}
+            placeholder="Select study phase"
+            style={{ width: '100%' }}
             options={[
-              { value: 'Phase I', label: 'Phase I' },
-              { value: 'Phase I/II', label: 'Phase I/II' },
-              { value: 'Phase II', label: 'Phase II' },
-              { value: 'Phase II/III', label: 'Phase II/III' },
-              { value: 'Phase III', label: 'Phase III' },
-              { value: 'Phase IV', label: 'Phase IV' },
+              { label: 'Phase I', value: 'Phase I' },
+              { label: 'Phase I/II', value: 'Phase I/II' },
+              { label: 'Phase II', value: 'Phase II' },
+              { label: 'Phase II/III', value: 'Phase II/III' },
+              { label: 'Phase III', value: 'Phase III' },
+              { label: 'Phase IV', value: 'Phase IV' }
             ]}
           />
         </Form.Item>
 
         <Form.Item
-          name="compound"
           label="Compound Under Study"
-          rules={[{ required: true, message: 'Please enter compound name' }]}
+          name="compound"
+          rules={[{ message: 'Please enter compound name', required: true }]}
         >
           <Input
-            placeholder="e.g., TestCompound"
             disabled={readOnly}
+            placeholder="e.g., TestCompound"
             style={{ maxWidth: 300 }}
           />
         </Form.Item>
 
         <Form.Item
-          name="diseaseArea"
           label="Disease Area"
+          name="diseaseArea"
         >
           <Input
-            placeholder="e.g., Oncology, Cardiology"
             disabled={readOnly}
+            placeholder="e.g., Oncology, Cardiology"
           />
         </Form.Item>
 
         <Form.Item
-          name="therapeuticArea"
           label="Therapeutic Area"
+          name="therapeuticArea"
         >
           <Input
-            placeholder="e.g., Oncology, Immunology"
             disabled={readOnly}
+            placeholder="e.g., Oncology, Immunology"
           />
         </Form.Item>
 
         <Divider />
 
         {/* Timestamps */}
-        <Title level={5} style={{ fontSize: 12, color: '#1890ff' }}>
+        <Title
+          level={5}
+          style={{ color: '#1890ff', fontSize: 12 }}
+        >
           Timestamps
         </Title>
 
-        <Space direction="vertical" size={4}>
+        <Space
+          direction="vertical"
+          size={4}
+        >
           <Space>
             <Text type="secondary">Created:</Text>
             <Text strong>{currentStudy?.createdAt || '-'}</Text>

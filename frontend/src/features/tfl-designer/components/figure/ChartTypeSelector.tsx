@@ -5,97 +5,109 @@
  */
 import { Card, Radio, Space, Typography } from 'antd';
 import type { RadioChangeEvent } from 'antd';
+
 import type { ChartType } from '../../types';
 
-const { Title, Text } = Typography;
+const { Text, Title } = Typography;
 
 interface Props {
-  value?: ChartType;
-  onChange: (type: ChartType) => void;
   disabled?: boolean;
+  onChange: (type: ChartType) => void;
+  value?: ChartType;
 }
 
 const CHART_TYPES: Array<{
-  value: ChartType;
-  label: string;
   description: string;
   icon: string;
+  label: string;
+  value: ChartType;
 }> = [
   {
-    value: 'line',
-    label: 'Line Chart',
     description: 'Display trends over time with connected points',
     icon: '📈',
+    label: 'Line Chart',
+    value: 'line'
   },
   {
-    value: 'scatter',
-    label: 'Scatter Plot',
     description: 'Display relationship between two variables',
     icon: '🔵',
+    label: 'Scatter Plot',
+    value: 'scatter'
   },
   {
-    value: 'bar',
-    label: 'Bar Chart',
     description: 'Compare values across categories',
     icon: '📊',
+    label: 'Bar Chart',
+    value: 'bar'
   },
   {
-    value: 'box',
-    label: 'Box Plot',
     description: 'Display distribution of data',
     icon: '📦',
+    label: 'Box Plot',
+    value: 'box'
   },
   {
-    value: 'violin',
-    label: 'Violin Plot',
     description: 'Enhanced box plot with density',
     icon: '🎻',
+    label: 'Violin Plot',
+    value: 'violin'
   },
   {
-    value: 'waterfall',
-    label: 'Waterfall Plot',
     description: 'Display sequential changes',
     icon: '🌊',
+    label: 'Waterfall Plot',
+    value: 'waterfall'
   },
   {
-    value: 'km_curve',
-    label: 'Kaplan-Meier Curve',
     description: 'Survival probability over time',
     icon: '📉',
+    label: 'Kaplan-Meier Curve',
+    value: 'km_curve'
   },
   {
-    value: 'forest',
-    label: 'Forest Plot',
     description: 'Odds ratios with confidence intervals',
     icon: '🌲',
-  },
+    label: 'Forest Plot',
+    value: 'forest'
+  }
 ];
 
-export default function ChartTypeSelector({ value, onChange, disabled = false }: Props) {
+export default function ChartTypeSelector({ disabled = false, onChange, value }: Props) {
   const handleChange = (e: RadioChangeEvent) => {
     onChange(e.target.value as ChartType);
   };
 
   return (
-    <Card title="Chart Type" size="small">
+    <Card
+      size="small"
+      title="Chart Type"
+    >
       <Radio.Group
+        disabled={disabled}
         value={value}
         onChange={handleChange}
-        disabled={disabled}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space
+          direction="vertical"
+          size="small"
+          style={{ width: '100%' }}
+        >
           {CHART_TYPES.map(type => (
-            <div key={type.value} style={{ marginBottom: 16 }}>
+            <div
+              key={type.value}
+              style={{ marginBottom: 16 }}
+            >
               <Radio value={type.value}>
                 <Space>
-                  <span style={{ fontSize: 18, marginRight: 8 }}>
-                    {type.icon}
-                  </span>
+                  <span style={{ fontSize: 18, marginRight: 8 }}>{type.icon}</span>
                   <div>
                     <div>
                       <Text strong>{type.label}</Text>
                     </div>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
+                    <Text
+                      style={{ fontSize: 11 }}
+                      type="secondary"
+                    >
                       {type.description}
                     </Text>
                   </div>

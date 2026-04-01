@@ -5,15 +5,14 @@ import { globalConfig } from '@/config';
 import { getAuthorization } from './shared';
 
 /** 检查是否为包装的 API 响应格式 { code, msg, data } */
-function isWrappedResponse(data: unknown): data is { code: string; msg?: string; data?: unknown } {
+function isWrappedResponse(data: unknown): data is { code: string; data?: unknown; msg?: string } {
   return data !== null && typeof data === 'object' && 'code' in data;
 }
 
 /**
  * Global Library API 请求实例
  *
- * 后端 Global Library API 直接返回 JSON 数据，不包装在 { code, data } 结构中
- * 注意：认证错误等仍可能返回 { code, msg, data } 结构，需要特殊处理
+ * 后端 Global Library API 直接返回 JSON 数据，不包装在 { code, data } 结构中 注意：认证错误等仍可能返回 { code, msg, data } 结构，需要特殊处理
  */
 export const glRequest = createRequest<unknown>(
   {

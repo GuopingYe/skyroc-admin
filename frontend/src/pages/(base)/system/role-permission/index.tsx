@@ -49,7 +49,7 @@ const RolePermission: React.FC = () => {
   // API Hooks
   const { data: rolesData, isLoading: rolesLoading } = useRoles(true);
   const { data: permissionsData, isLoading: permissionsLoading } = usePermissions();
-  const { mutate: updateRolePermissions, isPending: isSaving } = useUpdateRolePermissions();
+  const { isPending: isSaving, mutate: updateRolePermissions } = useUpdateRolePermissions();
 
   // 当前选中的角色 ID
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
@@ -329,8 +329,8 @@ const RolePermission: React.FC = () => {
                         const permInfo = getPermissionInfo(permission, t);
                         return (
                           <Checkbox
-                            data-testid={`permission-checkbox-${permission.code.replaceAll(':', '-')}`}
                             checked={isPermissionChecked(permission.code)}
+                            data-testid={`permission-checkbox-${permission.code.replaceAll(':', '-')}`}
                             key={permission.id}
                             onChange={() => togglePermission(permission.code)}
                           >

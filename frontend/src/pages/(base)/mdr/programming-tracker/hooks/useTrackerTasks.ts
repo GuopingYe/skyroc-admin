@@ -7,29 +7,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getTrackerTaskList } from '@/service/api/mdr';
 import {
-  transformBackendTrackerList,
   type BackendTrackerListResponse,
-  type FrontendTrackerTask
+  type FrontendTrackerTask,
+  transformBackendTrackerList
 } from '@/service/transforms/tracker';
 
 import type { TaskCategory } from '../mockData';
 
 /** Hook 返回值 */
 interface UseTrackerTasksReturn {
-  tasks: FrontendTrackerTask[];
-  loading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
   categoryCounts: Record<TaskCategory, number>;
+  error: string | null;
+  loading: boolean;
+  refresh: () => Promise<void>;
+  tasks: FrontendTrackerTask[];
 }
 
-/**
- * 编程任务数据管理 Hook
- */
-export function useTrackerTasks(
-  analysisId: string | null,
-  activeCategory: TaskCategory
-): UseTrackerTasksReturn {
+/** 编程任务数据管理 Hook */
+export function useTrackerTasks(analysisId: string | null, activeCategory: TaskCategory): UseTrackerTasksReturn {
   const [allTasks, setAllTasks] = useState<FrontendTrackerTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +62,10 @@ export function useTrackerTasks(
 
   const categoryCounts = useMemo(() => {
     const counts: Record<TaskCategory, number> = {
-      SDTM: 0,
       ADaM: 0,
-      TFL: 0,
-      Other: 0
+      Other: 0,
+      SDTM: 0,
+      TFL: 0
     };
 
     allTasks.forEach(task => {
@@ -81,11 +76,11 @@ export function useTrackerTasks(
   }, [allTasks]);
 
   return {
-    tasks: currentTasks,
-    loading,
+    categoryCounts,
     error,
+    loading,
     refresh: fetchAllTasks,
-    categoryCounts
+    tasks: currentTasks
   };
 }
 

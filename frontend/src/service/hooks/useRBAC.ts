@@ -166,7 +166,8 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ data, userId }: { data: Api.RBAC.UpdateUserRequest; userId: number }) => fetchUpdateUser(userId, data),
+    mutationFn: ({ data, userId }: { data: Api.RBAC.UpdateUserRequest; userId: number }) =>
+      fetchUpdateUser(userId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rbac'] });
     }
@@ -177,7 +178,8 @@ export function useUpdateUserStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ isActive, userId }: { isActive: boolean; userId: number }) => fetchUpdateUserStatus(userId, isActive),
+    mutationFn: ({ isActive, userId }: { isActive: boolean; userId: number }) =>
+      fetchUpdateUserStatus(userId, isActive),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rbac'] });
     }

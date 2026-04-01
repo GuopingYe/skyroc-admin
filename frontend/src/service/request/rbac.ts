@@ -11,8 +11,8 @@ function isWrappedBackendResponse(data: unknown): data is App.Service.Response {
 }
 
 /**
- * RBAC endpoints currently return raw success payloads and wrapped error payloads.
- * This request instance accepts both so the UI can consume the real backend.
+ * RBAC endpoints currently return raw success payloads and wrapped error payloads. This request instance accepts both
+ * so the UI can consume the real backend.
  */
 export const rbacRequest = createRequest<App.Service.Response, RequestInstanceState>(
   {

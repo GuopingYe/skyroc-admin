@@ -39,7 +39,6 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
   const columns: ColumnsType<IExecutionJobDisplay> = useMemo(
     () => [
       {
-        title: t('page.mdr.pipelineManagement.jobs.cols.name'),
         dataIndex: 'name',
         key: 'name',
         render: (text: string, record) => (
@@ -47,14 +46,13 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
             <div className={typeConfig[record.type]?.icon || 'i-mdi-play-circle-outline'} />
             <span>{text}</span>
           </Space>
-        )
+        ),
+        title: t('page.mdr.pipelineManagement.jobs.cols.name')
       },
       {
         dataIndex: 'type',
         key: 'type',
-        render: (type: string) => (
-          <Tag color={typeConfig[type]?.color}>{type}</Tag>
-        ),
+        render: (type: string) => <Tag color={typeConfig[type]?.color}>{type}</Tag>,
         title: t('page.mdr.pipelineManagement.jobs.cols.type'),
         width: 100
       },
@@ -62,9 +60,13 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
         dataIndex: 'status',
         key: 'status',
         render: (status: string, record) => (
-          <Space direction="vertical" size={2} className="w-full">
+          <Space
+            className="w-full"
+            direction="vertical"
+            size={2}
+          >
             <Tag color={statusConfig[status]?.color}>
-              {status === 'Running' && <div className="i-mdi-loading animate-spin mr-4px" />}
+              {status === 'Running' && <div className="i-mdi-loading mr-4px animate-spin" />}
               {t(`page.mdr.pipelineManagement.jobs.status.${status}`)}
             </Tag>
             {(status === 'Running' || (status === 'Failed' && record.progress > 0)) && (
@@ -83,9 +85,7 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
       {
         dataIndex: 'environment',
         key: 'environment',
-        render: (env: string) => (
-          <Tag color={envConfig[env]?.color || 'default'}>{env}</Tag>
-        ),
+        render: (env: string) => <Tag color={envConfig[env]?.color || 'default'}>{env}</Tag>,
         title: 'Environment',
         width: 110
       },
@@ -97,26 +97,32 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
         width: 160
       },
       {
-        title: t('page.mdr.pipelineManagement.jobs.cols.duration'),
         dataIndex: 'duration',
         key: 'duration',
-        width: 100,
-        render: (duration: string) => duration || '-'
+        render: (duration: string) => duration || '-',
+        title: t('page.mdr.pipelineManagement.jobs.cols.duration'),
+        width: 100
       },
       {
         dataIndex: 'triggeredBy',
+        ellipsis: true,
         key: 'triggeredBy',
         title: t('page.mdr.pipelineManagement.jobs.cols.triggeredBy'),
-        width: 150,
-        ellipsis: true
+        width: 150
       },
       {
         key: 'error',
         render: (_: unknown, record) => {
           if (!record.error) return null;
           return (
-            <Tooltip title={record.error} color="red">
-              <Tag color="error" className="cursor-pointer">
+            <Tooltip
+              color="red"
+              title={record.error}
+            >
+              <Tag
+                className="cursor-pointer"
+                color="error"
+              >
                 <div className="i-mdi-alert-circle-outline mr-4px inline-block" />
                 Error
               </Tag>
@@ -138,7 +144,12 @@ const ExecutionJobsTable: React.FC<ExecutionJobsTableProps> = ({ jobs }) => {
         <div className="flex items-center gap-8px">
           <div className="i-mdi-play-circle-outline text-green-500" />
           <span>{t('page.mdr.pipelineManagement.jobs.title')}</span>
-          <Tag className="ml-8px" color="blue">{jobs.length} jobs</Tag>
+          <Tag
+            className="ml-8px"
+            color="blue"
+          >
+            {jobs.length} jobs
+          </Tag>
         </div>
       }
     >

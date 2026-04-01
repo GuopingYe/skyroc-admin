@@ -4,6 +4,7 @@
  * 支持创建和编辑不同类型的编程任务（SDTM/ADaM/TFL/Other）
  *
  * 域下拉列表特性:
+ *
  * 1. 从 Global Library 继承标准域（基于 Study 配置的标准版本）
  * 2. 支持 "Customized Domain" 自定义域输入
  */
@@ -67,9 +68,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
     const version = studyConfig?.sdtmIgVersion;
     if (version) {
       const spec = sdtmSpecifications.find(
-        s => s.standard_version === version ||
-             s.version === version ||
-             s.name.includes(version)
+        s => s.standard_version === version || s.version === version || s.name.includes(version)
       );
       if (spec) return spec.id;
     }
@@ -82,9 +81,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
     const version = studyConfig?.adamIgVersion;
     if (version) {
       const spec = adamSpecifications.find(
-        s => s.standard_version === version ||
-             s.version === version ||
-             s.name.includes(version)
+        s => s.standard_version === version || s.version === version || s.name.includes(version)
       );
       if (spec) return spec.id;
     }
@@ -102,8 +99,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   // Build SDTM domain options with "Customized Domain" option
   const sdtmDomainOptions = useMemo(() => {
-    const options: Array<{ domain: string; label: string; isCustom?: boolean }> = [
-      { domain: '__CUSTOM__', label: t('page.mdr.programmingTracker.form.customizedDomain'), isCustom: true }
+    const options: Array<{ domain: string; isCustom?: boolean; label: string }> = [
+      { domain: '__CUSTOM__', isCustom: true, label: t('page.mdr.programmingTracker.form.customizedDomain') }
     ];
     if (sdtmDatasetsData?.items) {
       sdtmDatasetsData.items.forEach(d => {
@@ -115,8 +112,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   // Build ADaM dataset options with "Customized Domain" option
   const adamDatasetOptions = useMemo(() => {
-    const options: Array<{ dataset: string; label: string; isCustom?: boolean }> = [
-      { dataset: '__CUSTOM__', label: t('page.mdr.programmingTracker.form.customizedDataset'), isCustom: true }
+    const options: Array<{ dataset: string; isCustom?: boolean; label: string }> = [
+      { dataset: '__CUSTOM__', isCustom: true, label: t('page.mdr.programmingTracker.form.customizedDataset') }
     ];
     if (adamDatasetsData?.items) {
       adamDatasetsData.items.forEach(d => {
@@ -314,7 +311,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       {d.isCustom ? (
                         <Tag color="gold">{d.label}</Tag>
                       ) : (
-                        <><Tag color="blue">{d.domain}</Tag> - {d.label}</>
+                        <>
+                          <Tag color="blue">{d.domain}</Tag> - {d.label}
+                        </>
                       )}
                     </Select.Option>
                   ))}
@@ -322,7 +321,10 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </Form.Item>
             </Spin>
             {/* Custom Domain Input - shows when __CUSTOM__ is selected */}
-            <Form.Item noStyle shouldUpdate>
+            <Form.Item
+              noStyle
+              shouldUpdate
+            >
               {({ getFieldValue }) => {
                 const domainValue = getFieldValue('domain');
                 return domainValue === '__CUSTOM__' ? (
@@ -330,8 +332,14 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     label={t('page.mdr.programmingTracker.form.customDomainName')}
                     name="customDomainName"
                     rules={[
-                      { message: t('page.mdr.programmingTracker.form.validateMsg.customDomainRequired'), required: true },
-                      { pattern: /^[A-Z]{2}$/, message: t('page.mdr.programmingTracker.form.validateMsg.domainNameFormat') }
+                      {
+                        message: t('page.mdr.programmingTracker.form.validateMsg.customDomainRequired'),
+                        required: true
+                      },
+                      {
+                        message: t('page.mdr.programmingTracker.form.validateMsg.domainNameFormat'),
+                        pattern: /^[A-Z]{2}$/
+                      }
                     ]}
                   >
                     <Input
@@ -386,7 +394,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       {d.isCustom ? (
                         <Tag color="gold">{d.label}</Tag>
                       ) : (
-                        <><Tag color="green">{d.dataset}</Tag> - {d.label}</>
+                        <>
+                          <Tag color="green">{d.dataset}</Tag> - {d.label}
+                        </>
                       )}
                     </Select.Option>
                   ))}
@@ -394,7 +404,10 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </Form.Item>
             </Spin>
             {/* Custom Dataset Input - shows when __CUSTOM__ is selected */}
-            <Form.Item noStyle shouldUpdate>
+            <Form.Item
+              noStyle
+              shouldUpdate
+            >
               {({ getFieldValue }) => {
                 const datasetValue = getFieldValue('dataset');
                 return datasetValue === '__CUSTOM__' ? (
@@ -402,8 +415,14 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     label={t('page.mdr.programmingTracker.form.customDatasetName')}
                     name="customDatasetName"
                     rules={[
-                      { message: t('page.mdr.programmingTracker.form.validateMsg.customDatasetRequired'), required: true },
-                      { pattern: /^AD[A-Z]{1,3}$/, message: t('page.mdr.programmingTracker.form.validateMsg.datasetNameFormat') }
+                      {
+                        message: t('page.mdr.programmingTracker.form.validateMsg.customDatasetRequired'),
+                        required: true
+                      },
+                      {
+                        message: t('page.mdr.programmingTracker.form.validateMsg.datasetNameFormat'),
+                        pattern: /^AD[A-Z]{1,3}$/
+                      }
                     ]}
                   >
                     <Input

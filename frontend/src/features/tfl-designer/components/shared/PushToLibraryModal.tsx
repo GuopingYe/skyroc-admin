@@ -3,19 +3,9 @@
  *
  * Modal for pushing shells/templates to Global/TA Library via PR workflow.
  */
-import { useState } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  Space,
-  Typography,
-  Divider,
-  Alert,
-  Button,
-} from 'antd';
 import { SendOutlined } from '@ant-design/icons';
+import { Alert, Button, Divider, Form, Input, Modal, Select, Space, Typography } from 'antd';
+import { useState } from 'react';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -23,22 +13,15 @@ const { TextArea } = Input;
 type TargetLevel = 'global' | 'ta';
 
 interface Props {
-  open: boolean;
   onClose: () => void;
-  sourceType: 'analysis' | 'study' | 'ta';
+  open: boolean;
+  shellSchema: object;
   sourceId: number;
   sourceName: string;
-  shellSchema: object;
+  sourceType: 'analysis' | 'study' | 'ta';
 }
 
-export default function PushToLibraryModal({
-  open,
-  onClose,
-  sourceType,
-  sourceId,
-  sourceName,
-  shellSchema,
-}: Props) {
+export default function PushToLibraryModal({ onClose, open, shellSchema, sourceId, sourceName, sourceType }: Props) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const targetLevel = Form.useWatch('targetLevel', form);
@@ -50,12 +33,12 @@ export default function PushToLibraryModal({
 
       // TODO: Call API POST /api/v1/shell-library/push-request
       console.log('Push request:', {
-        sourceType,
-        sourceId,
-        targetLevel: values.targetLevel,
-        targetScopeNodeId: values.targetScopeNodeId,
-        prTitle: values.prTitle,
         prDescription: values.prDescription,
+        prTitle: values.prTitle,
+        sourceId,
+        sourceType,
+        targetLevel: values.targetLevel,
+        targetScopeNodeId: values.targetScopeNodeId
       });
 
       window.$message?.success('Push request submitted for review');
@@ -75,52 +58,59 @@ export default function PushToLibraryModal({
 
   return (
     <Modal
-      title={
-        <Space>
-          <SendOutlined />
-          <span>Push to Library</span>
-        </Space>
-      }
       open={open}
-      onCancel={handleClose}
       width={600}
       footer={
         <Space>
           <Text type="secondary">This will create a PR for review</Text>
           <span style={{ flex: 1 }} />
           <Button onClick={handleClose}>Cancel</Button>
-          <Button type="primary" loading={submitting} onClick={handleSubmit}>
+          <Button
+            loading={submitting}
+            type="primary"
+            onClick={handleSubmit}
+          >
             Submit PR
           </Button>
         </Space>
       }
+      title={
+        <Space>
+          <SendOutlined />
+          <span>Push to Library</span>
+        </Space>
+      }
+      onCancel={handleClose}
     >
       <Alert
-        type="info"
         showIcon
         message={`Push "${sourceName}" to ${targetLevel === 'global' ? 'Global' : 'TA'} Library`}
         style={{ marginBottom: 16 }}
+        type="info"
       />
 
-      <Form form={form} layout="vertical">
+      <Form
+        form={form}
+        layout="vertical"
+      >
         <Form.Item
-          name="targetLevel"
           label="Target Level"
+          name="targetLevel"
           rules={[{ required: true }]}
         >
           <Select
             options={[
               { label: 'Global Library', value: 'global' },
-              { label: 'TA Library', value: 'ta' },
+              { label: 'TA Library', value: 'ta' }
             ]}
           />
         </Form.Item>
 
         {targetLevel === 'ta' && (
           <Form.Item
-            name="targetScopeNodeId"
             label="Target TA"
-            rules={[{ required: true, message: 'Select a TA' }]}
+            name="targetScopeNodeId"
+            rules={[{ message: 'Select a TA', required: true }]}
           >
             <Select
               placeholder="Select Therapeutic Area"
@@ -128,28 +118,37 @@ export default function PushToLibraryModal({
                 // TODO: Load from API
                 { label: 'Oncology', value: 1 },
                 { label: 'Cardiovascular', value: 2 },
-                { label: 'CNS', value: 3 },
+                { label: 'CNS', value: 3 }
               ]}
             />
           </Form.Item>
         )}
 
         <Form.Item
-          name="prTitle"
           label="PR Title"
-          rules={[{ required: true, message: 'Enter a title' }]}
+          name="prTitle"
+          rules={[{ message: 'Enter a title', required: true }]}
         >
           <Input placeholder="e.g., Add Demographics shell template" />
         </Form.Item>
 
-        <Form.Item name="prDescription" label="Description">
-          <TextArea rows={3} placeholder="Describe the changes and rationale..." />
+        <Form.Item
+          label="Description"
+          name="prDescription"
+        >
+          <TextArea
+            placeholder="Describe the changes and rationale..."
+            rows={3}
+          />
         </Form.Item>
       </Form>
 
       <Divider orientation="left">Preview</Divider>
-      <div style={{ padding: 12, background: '#fafafa', borderRadius: 4 }}>
-        <Text code style={{ fontSize: 11 }}>
+      <div style={{ background: '#fafafa', borderRadius: 4, padding: 12 }}>
+        <Text
+          code
+          style={{ fontSize: 11 }}
+        >
           {JSON.stringify(shellSchema, null, 2).slice(0, 500)}...
         </Text>
       </div>

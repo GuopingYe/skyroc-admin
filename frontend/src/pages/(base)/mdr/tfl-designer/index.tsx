@@ -2,6 +2,7 @@
  * TFL Designer - Main Page
  *
  * Implements the POC's tabbed editor pattern:
+ *
  * - Left sidebar: Outputs tree with filter tabs (All/Tables/Figures/Listings)
  * - Center: Tabbed editor (Table/Figure/Listing) based on selected output type
  * - Study overview when nothing is selected
@@ -10,94 +11,100 @@
  * Uses Zustand + Immer for independent state management (frontend-arch rule).
  */
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  CopyOutlined,
-  FileTextOutlined,
-  BarChartOutlined,
-  TableOutlined,
-  UnorderedListOutlined,
-  SaveOutlined,
-  UndoOutlined,
-  RedoOutlined,
-  ExclamationCircleOutlined,
   AppstoreOutlined,
-  FilterOutlined,
-  SettingOutlined,
-  ExportOutlined,
-  TeamOutlined,
-  ColumnWidthOutlined,
+  BarChartOutlined,
   BgColorsOutlined,
+  ColumnWidthOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  ExportOutlined,
+  FileTextOutlined,
+  FilterOutlined,
   LayoutOutlined,
   LoadingOutlined,
-  ReloadOutlined,
   NumberOutlined,
+  PlusOutlined,
+  RedoOutlined,
+  ReloadOutlined,
+  SaveOutlined,
   SendOutlined,
+  SettingOutlined,
+  TableOutlined,
+  TeamOutlined,
+  UndoOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
 import {
-  Tabs,
-  Card,
+  Alert,
+  Breadcrumb,
   Button,
-  Space,
-  Typography,
+  Card,
   Dropdown,
   Empty,
-  Popconfirm,
-  Modal,
-  Tag,
-  Tooltip,
-  Breadcrumb,
-  Segmented,
   Input,
   InputNumber,
+  Modal,
+  Popconfirm,
+  Segmented,
   Select,
-  Alert,
+  Space,
   Spin,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography
 } from 'antd';
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useClinicalContext } from '@/features/clinical-context';
-
 import {
-  useStudyStore,
-  useTableStore,
-  useFigureStore,
-  useListingStore,
-  createNewFigure,
-  categoryOptions,
-  datasetOptions,
-  NestedRowEditor,
-  TablePreview,
-  TreatmentArmEditor,
-  TemplateSelector,
-  FigurePreview,
-  ChartTypeSelector,
   AxesConfig,
-  SeriesConfig,
-  ListingPreview,
-  SortConfigEditor,
-  FilterConfigEditor,
-  ExportModal,
-  getTemplatesByType,
-  searchTemplates,
-  HeaderEditor,
+  ChartTypeSelector,
   ColumnSourceEditor,
-  PopulationManager,
-  StatisticsSetManager,
-  HeaderStyleSelector,
-  InteractiveOutputEditor,
+  DEFAULT_HEADER_FONT_STYLE,
   DecimalDefaultsEditor,
   DecimalSettingsTab,
-  StudyShellLibrary,
-  TemplatePickerModal,
+  ExportModal,
+  FigurePreview,
+  FilterConfigEditor,
+  HeaderEditor,
+  HeaderStyleSelector,
+  InteractiveOutputEditor,
+  ListingPreview,
+  NestedRowEditor,
+  PopulationManager,
   PushToStudyModal,
+  SeriesConfig,
+  SortConfigEditor,
+  StatisticsSetManager,
+  StudyShellLibrary,
+  TablePreview,
+  TemplatePickerModal,
+  TemplateSelector,
+  TreatmentArmEditor,
+  categoryOptions,
+  createNewFigure,
+  datasetOptions,
+  generateId,
+  getTemplatesByType,
+  searchTemplates,
+  useFigureStore,
+  useListingStore,
+  useStudyStore,
   useTFLDesignerData,
+  useTableStore
 } from '@/features/tfl-designer';
-import type { Template, InteractiveOutputEditorRef } from '@/features/tfl-designer';
-
-import type { TableShell, FigureShell, ListingShell, IARSDocument, ColumnHeaderGroup } from '@/features/tfl-designer';
-import { generateId, DEFAULT_HEADER_FONT_STYLE } from '@/features/tfl-designer';
+import type {
+  ColumnHeaderGroup,
+  FigureShell,
+  IARSDocument,
+  InteractiveOutputEditorRef,
+  ListingShell,
+  TableShell,
+  Template
+} from '@/features/tfl-designer';
 import { useUserInfo } from '@/service/hooks';
 
 const { Text, Title } = Typography;
@@ -108,12 +115,12 @@ export const handle = {
   i18nKey: 'route.(base)_mdr_tfl-designer',
   icon: 'mdi:table-large',
   order: 5,
-  title: 'TFL Designer',
+  title: 'TFL Designer'
 };
 
 // ==================== Sidebar Filter Tabs ====================
 
-type SidebarFilter = 'all' | 'table' | 'figure' | 'listing';
+type SidebarFilter = 'all' | 'figure' | 'listing' | 'table';
 
 type SidebarView = 'items' | 'settings';
 
@@ -121,25 +128,23 @@ type SidebarView = 'items' | 'settings';
 
 const TflDesigner: React.FC = () => {
   const { t } = useTranslation();
-  const { isReady, isStudyReady, isAnalysisReady } = useClinicalContext();
-  
+  const { isAnalysisReady, isReady, isStudyReady } = useClinicalContext();
+
   // Get current user for audit trail
   const { data: userInfo } = useUserInfo();
   // Backend data integration
   const {
-    loading: tflLoading,
-    saving: tflSaving,
-    error: tflError,
-    refresh: refreshTFLData,
-    saveCurrentTable,
-    saveCurrentFigure,
-    saveCurrentListing,
-    deleteCurrentTable,
     deleteCurrentFigure,
     deleteCurrentListing,
+    deleteCurrentTable,
+    error: tflError,
+    loading: tflLoading,
+    refresh: refreshTFLData,
+    saveCurrentFigure,
+    saveCurrentListing,
+    saveCurrentTable,
+    saving: tflSaving
   } = useTFLDesignerData();
-
-
 
   // Zustand stores
   const studyStore = useStudyStore();
@@ -148,27 +153,27 @@ const TflDesigner: React.FC = () => {
   const listingStore = useListingStore();
 
   // Population options from study store (dynamic, data-driven)
-  const populationSets = useStudyStore((s) => s.populationSets);
+  const populationSets = useStudyStore(s => s.populationSets);
   const populationOptions = useMemo(
-    () => populationSets.map((p) => ({ value: p.name, label: p.name })),
+    () => populationSets.map(p => ({ label: p.name, value: p.name })),
     [populationSets]
   );
 
   // Statistics Set options from study store (for metadata dropdown)
-  const statisticsSets = useStudyStore((s) => s.statisticsSets);
+  const statisticsSets = useStudyStore(s => s.statisticsSets);
   const statisticsSetOptions = useMemo(
-    () => statisticsSets.map((s) => ({ value: s.id, label: s.name })),
+    () => statisticsSets.map(s => ({ label: s.name, value: s.id })),
     [statisticsSets]
   );
 
   // Study defaults (decimal rules, header style, etc.)
-  const studyDefaults = useStudyStore((s) => s.studyDefaults);
-  const updateHeaderStyle = useStudyStore((s) => s.updateHeaderStyle);
+  const studyDefaults = useStudyStore(s => s.studyDefaults);
+  const updateHeaderStyle = useStudyStore(s => s.updateHeaderStyle);
   const headerFontStyle = studyDefaults?.headerStyle ?? DEFAULT_HEADER_FONT_STYLE;
 
   // Column headers from the currently selected treatment arm set
-  const treatmentArmSets = useStudyStore((s) => s.treatmentArmSets);
-  const updateTreatmentArmSet = useStudyStore((s) => s.updateTreatmentArmSet);
+  const treatmentArmSets = useStudyStore(s => s.treatmentArmSets);
+  const updateTreatmentArmSet = useStudyStore(s => s.updateTreatmentArmSet);
 
   // Buffer column header edits locally — NOT applied to study store until save
   const [localColumnHeaders, setLocalColumnHeaders] = useState<Record<string, ColumnHeaderGroup[]>>({});
@@ -183,11 +188,14 @@ const TflDesigner: React.FC = () => {
   }, [tableStore.currentTable?.treatmentArmSetId, treatmentArmSets, localColumnHeaders]);
 
   // Handle column header edits — buffer locally instead of mutating study store
-  const handleColumnHeadersChange = useCallback((newHeaders: ColumnHeaderGroup[]) => {
-    const tasId = tableStore.currentTable?.treatmentArmSetId;
-    if (!tasId) return;
-    setLocalColumnHeaders(prev => ({ ...prev, [tasId]: newHeaders }));
-  }, [tableStore.currentTable?.treatmentArmSetId]);
+  const handleColumnHeadersChange = useCallback(
+    (newHeaders: ColumnHeaderGroup[]) => {
+      const tasId = tableStore.currentTable?.treatmentArmSetId;
+      if (!tasId) return;
+      setLocalColumnHeaders(prev => ({ ...prev, [tasId]: newHeaders }));
+    },
+    [tableStore.currentTable?.treatmentArmSetId]
+  );
 
   // Check if there are unsaved study-level changes
   const hasUnsavedStudyChanges = Object.keys(localColumnHeaders).length > 0;
@@ -198,7 +206,12 @@ const TflDesigner: React.FC = () => {
     const tasId = tableStore.currentTable?.treatmentArmSetId;
     if (!tasId) return 0;
     return tableStore.tables.filter(t => t.treatmentArmSetId === tasId && t.id !== tableStore.currentTable?.id).length;
-  }, [hasUnsavedStudyChanges, tableStore.currentTable?.treatmentArmSetId, tableStore.currentTable?.id, tableStore.tables]);
+  }, [
+    hasUnsavedStudyChanges,
+    tableStore.currentTable?.treatmentArmSetId,
+    tableStore.currentTable?.id,
+    tableStore.tables
+  ]);
 
   // Apply buffered study-level changes on save
   const applyStudyChanges = useCallback(() => {
@@ -233,13 +246,16 @@ const TflDesigner: React.FC = () => {
   const [studySettingsTab, setStudySettingsTab] = useState('tableHeaders');
 
   // Study settings tabs configuration (shared between two views)
-  const studySettingsTabs = useMemo(() => [
-    { key: 'tableHeaders', icon: <ColumnWidthOutlined />, label: 'Table Headers' },
-    { key: 'populations', icon: <TeamOutlined />, label: t('page.mdr.tflDesigner.tabs.population') },
-    { key: 'shellTemplates', icon: <FileTextOutlined />, label: 'Shell Templates' },
-    { key: 'headerFormatting', icon: <BgColorsOutlined />, label: 'Header Formatting' },
-    { key: 'statistics', icon: <BarChartOutlined />, label: t('page.mdr.tflDesigner.tabs.statistics') },
-  ], [t]);
+  const studySettingsTabs = useMemo(
+    () => [
+      { icon: <ColumnWidthOutlined />, key: 'tableHeaders', label: 'Table Headers' },
+      { icon: <TeamOutlined />, key: 'populations', label: t('page.mdr.tflDesigner.tabs.population') },
+      { icon: <FileTextOutlined />, key: 'shellTemplates', label: 'Shell Templates' },
+      { icon: <BgColorsOutlined />, key: 'headerFormatting', label: 'Header Formatting' },
+      { icon: <BarChartOutlined />, key: 'statistics', label: t('page.mdr.tflDesigner.tabs.statistics') }
+    ],
+    [t]
+  );
 
   // Render study settings content based on active tab
   const renderStudySettingsContent = useCallback(() => {
@@ -251,7 +267,12 @@ const TflDesigner: React.FC = () => {
       case 'shellTemplates':
         return <StudyShellLibrary />;
       case 'headerFormatting':
-        return <HeaderStyleSelector value={headerFontStyle} onChange={updateHeaderStyle} />;
+        return (
+          <HeaderStyleSelector
+            value={headerFontStyle}
+            onChange={updateHeaderStyle}
+          />
+        );
       case 'statistics':
         return <StatisticsSetManager />;
       default:
@@ -279,10 +300,10 @@ const TflDesigner: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [editorPanelWidth, setEditorPanelWidth] = useState(380);
   const [isResizing, setIsResizing] = useState(false);
-  const [resizingTarget, setResizingTarget] = useState<'sidebar' | 'editor'>('sidebar');
+  const [resizingTarget, setResizingTarget] = useState<'editor' | 'sidebar'>('sidebar');
 
   const handleResizeStart = useCallback(
-    (e: React.MouseEvent, target: 'sidebar' | 'editor') => {
+    (e: React.MouseEvent, target: 'editor' | 'sidebar') => {
       e.preventDefault();
       setIsResizing(true);
       setResizingTarget(target);
@@ -312,111 +333,122 @@ const TflDesigner: React.FC = () => {
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [sidebarWidth, editorPanelWidth],
+    [sidebarWidth, editorPanelWidth]
   );
 
   // ============ Derived state ============
 
-  const hasSelection = !!(tableStore.currentTable || figureStore.currentFigure || listingStore.currentListing);
+  const hasSelection = Boolean(tableStore.currentTable || figureStore.currentFigure || listingStore.currentListing);
 
   // ============ Helper functions to convert store state to Template ============
 
   const convertTableToTemplate = useCallback((table: TableShell | null): Template | null => {
     if (!table) return null;
     return {
-      id: table.id,
-      type: 'table',
-      name: table.title || 'Untitled Table',
       category: table.category || 'Other',
-      description: '',
-      shell: table,
       createdAt: new Date().toISOString().split('T')[0],
+      description: '',
+      id: table.id,
+      name: table.title || 'Untitled Table',
+      shell: table,
+      type: 'table'
     };
   }, []);
 
   const convertFigureToTemplate = useCallback((figure: FigureShell | null): Template | null => {
     if (!figure) return null;
     return {
-      id: figure.id,
-      type: 'figure',
-      name: figure.title || 'Untitled Figure',
-      category: 'Other', // Figure doesn't have category, use default
-      description: '',
-      shell: figure,
+      category: 'Other',
       createdAt: new Date().toISOString().split('T')[0],
+      // Figure doesn't have category, use default
+      description: '',
+      id: figure.id,
+      name: figure.title || 'Untitled Figure',
+      shell: figure,
+      type: 'figure'
     };
   }, []);
 
   const convertListingToTemplate = useCallback((listing: ListingShell | null): Template | null => {
     if (!listing) return null;
     return {
-      id: listing.id,
-      type: 'listing',
-      name: listing.title || 'Untitled Listing',
-      category: 'Other', // Listing doesn't have category, use default
-      description: '',
-      shell: listing,
+      category: 'Other',
       createdAt: new Date().toISOString().split('T')[0],
+      // Listing doesn't have category, use default
+      description: '',
+      id: listing.id,
+      name: listing.title || 'Untitled Listing',
+      shell: listing,
+      type: 'listing'
     };
   }, []);
 
   // Handle template changes from InteractiveOutputEditor
-  const handleTableTemplateChange = useCallback((template: Template) => {
-    if (template.type === 'table' && tableStore.currentTable) {
-      // Spread all shell properties to preserve custom fields (extraTitleLines, rowLabel, etc.)
-      tableStore.updateMetadata({ ...(template.shell as TableShell) });
-    }
-  }, [tableStore]);
+  const handleTableTemplateChange = useCallback(
+    (template: Template) => {
+      if (template.type === 'table' && tableStore.currentTable) {
+        // Spread all shell properties to preserve custom fields (extraTitleLines, rowLabel, etc.)
+        tableStore.updateMetadata({ ...(template.shell as TableShell) });
+      }
+    },
+    [tableStore]
+  );
 
-  const handleFigureTemplateChange = useCallback((template: Template) => {
-    if (template.type === 'figure' && figureStore.currentFigure) {
-      figureStore.updateMetadata({ ...(template.shell as FigureShell) });
-    }
-  }, [figureStore]);
+  const handleFigureTemplateChange = useCallback(
+    (template: Template) => {
+      if (template.type === 'figure' && figureStore.currentFigure) {
+        figureStore.updateMetadata({ ...(template.shell as FigureShell) });
+      }
+    },
+    [figureStore]
+  );
 
-  const handleListingTemplateChange = useCallback((template: Template) => {
-    if (template.type === 'listing' && listingStore.currentListing) {
-      listingStore.updateMetadata({ ...(template.shell as ListingShell) });
-    }
-  }, [listingStore]);
+  const handleListingTemplateChange = useCallback(
+    (template: Template) => {
+      if (template.type === 'listing' && listingStore.currentListing) {
+        listingStore.updateMetadata({ ...(template.shell as ListingShell) });
+      }
+    },
+    [listingStore]
+  );
 
   // Build sidebar items from all stores
   const sidebarItems = useMemo(() => {
     const items: Array<{
+      category: string;
       id: string;
       name: string;
       number: string;
-      type: 'table' | 'figure' | 'listing';
-      category: string;
+      type: 'figure' | 'listing' | 'table';
     }> = [];
 
-    tableStore.tables.forEach((tbl) => {
+    tableStore.tables.forEach(tbl => {
       items.push({
+        category: tbl.category,
         id: tbl.id,
         name: tbl.title,
         number: tbl.shellNumber,
-        type: 'table',
-        category: tbl.category,
+        type: 'table'
       });
     });
 
-    figureStore.figures.forEach((fig) => {
+    figureStore.figures.forEach(fig => {
       items.push({
+        category: '',
         id: fig.id,
         name: fig.title,
         number: fig.figureNumber,
-        type: 'figure',
-        category: '',
+        type: 'figure'
       });
     });
 
-    listingStore.listings.forEach((lst) => {
+    listingStore.listings.forEach(lst => {
       items.push({
+        category: '',
         id: lst.id,
         name: lst.title,
         number: lst.listingNumber,
-        type: 'listing',
-        category: '',
+        type: 'listing'
       });
     });
 
@@ -425,15 +457,18 @@ const TflDesigner: React.FC = () => {
 
   const filteredItems = useMemo(() => {
     if (sidebarFilter === 'all') return sidebarItems;
-    return sidebarItems.filter((item) => item.type === sidebarFilter);
+    return sidebarItems.filter(item => item.type === sidebarFilter);
   }, [sidebarItems, sidebarFilter]);
 
   // Sidebar type counts
-  const typeCounts = useMemo(() => ({
-    table: tableStore.tables.length,
-    figure: figureStore.figures.length,
-    listing: listingStore.listings.length,
-  }), [tableStore.tables.length, figureStore.figures.length, listingStore.listings.length]);
+  const typeCounts = useMemo(
+    () => ({
+      figure: figureStore.figures.length,
+      listing: listingStore.listings.length,
+      table: tableStore.tables.length
+    }),
+    [tableStore.tables.length, figureStore.figures.length, listingStore.listings.length]
+  );
 
   // ============ Handlers ============
 
@@ -441,17 +476,17 @@ const TflDesigner: React.FC = () => {
     (item: (typeof sidebarItems)[0]) => {
       setSidebarView('items');
       if (item.type === 'table') {
-        const tbl = tableStore.tables.find((t) => t.id === item.id);
+        const tbl = tableStore.tables.find(t => t.id === item.id);
         if (tbl) tableStore.setCurrentTable(tbl);
         figureStore.setCurrentFigure(null);
         listingStore.setCurrentListing(null);
       } else if (item.type === 'figure') {
-        const fig = figureStore.figures.find((f) => f.id === item.id);
+        const fig = figureStore.figures.find(f => f.id === item.id);
         if (fig) figureStore.setCurrentFigure(fig);
         tableStore.setCurrentTable(null);
         listingStore.setCurrentListing(null);
       } else {
-        const lst = listingStore.listings.find((l) => l.id === item.id);
+        const lst = listingStore.listings.find(l => l.id === item.id);
         if (lst) listingStore.setCurrentListing(lst);
         tableStore.setCurrentTable(null);
         figureStore.setCurrentFigure(null);
@@ -473,16 +508,16 @@ const TflDesigner: React.FC = () => {
 
   const handleNewTable = useCallback(() => {
     const newTable: TableShell = {
-      id: generateId('table'),
-      shellNumber: `Table 14.${tableStore.tables.length + 1}.1`,
-      title: 'New Table',
-      population: 'Safety',
       category: 'Demographics',
       dataset: 'ADSL',
-      treatmentArmSetId: studyStore.treatmentArmSets[0]?.id || 'tas1',
-      statisticsSetId: 'ss1',
+      footer: { notes: [], source: 'ADSL' },
+      id: generateId('table'),
+      population: 'Safety',
       rows: [],
-      footer: { source: 'ADSL', notes: [] },
+      shellNumber: `Table 14.${tableStore.tables.length + 1}.1`,
+      statisticsSetId: 'ss1',
+      title: 'New Table',
+      treatmentArmSetId: studyStore.treatmentArmSets[0]?.id || 'tas1'
     };
     tableStore.addTable(newTable);
     tableStore.setCurrentTable(newTable);
@@ -502,13 +537,13 @@ const TflDesigner: React.FC = () => {
 
   const handleNewListing = useCallback(() => {
     const newList: ListingShell = {
+      columns: [],
+      dataset: 'ADAE',
       id: generateId('listing'),
       listingNumber: `Listing 16.${listingStore.listings.length + 1}.1`,
-      title: 'New Listing',
-      population: 'Safety',
-      dataset: 'ADAE',
-      columns: [],
       pageSize: 20,
+      population: 'Safety',
+      title: 'New Listing'
     };
     listingStore.addListing(newList);
     listingStore.setCurrentListing(newList);
@@ -522,8 +557,8 @@ const TflDesigner: React.FC = () => {
     const dup: TableShell = {
       ...JSON.parse(JSON.stringify(tableStore.currentTable)),
       id: generateId('table'),
-      shellNumber: tableStore.currentTable.shellNumber + ' (copy)',
-      title: tableStore.currentTable.title + ' (copy)',
+      shellNumber: `${tableStore.currentTable.shellNumber} (copy)`,
+      title: `${tableStore.currentTable.title} (copy)`
     };
     tableStore.addTable(dup);
     tableStore.setCurrentTable(dup);
@@ -619,57 +654,55 @@ const TflDesigner: React.FC = () => {
     }
   }, [saveCurrentListing, listingStore.currentListing]);
 
-
-
   // ============ Export ============
 
   const exportDocument = useMemo((): IARSDocument | null => {
     if (!studyStore.currentStudy) return null;
     const displays = [
-      ...tableStore.tables.map((tbl) => ({
+      ...tableStore.tables.map(tbl => ({
+        category: tbl.category,
+        dataset: tbl.dataset,
+        displaySections: [],
+        displayTitle: tbl.shellNumber,
+        displayType: 'table' as const,
         id: tbl.id,
         name: tbl.title,
-        type: 'Table' as const,
-        displayType: 'table' as const,
-        displayTitle: tbl.shellNumber,
-        shellNumber: tbl.shellNumber,
         population: tbl.population,
-        dataset: tbl.dataset,
-        category: tbl.category,
-        displaySections: [],
+        shellNumber: tbl.shellNumber,
+        type: 'Table' as const
       })),
-      ...figureStore.figures.map((fig) => ({
+      ...figureStore.figures.map(fig => ({
+        displaySections: [],
+        displayTitle: fig.figureNumber,
+        displayType: 'figure' as const,
         id: fig.id,
         name: fig.title,
-        type: 'Figure' as const,
-        displayType: 'figure' as const,
-        displayTitle: fig.figureNumber,
         population: fig.population,
-        displaySections: [],
+        type: 'Figure' as const
       })),
-      ...listingStore.listings.map((lst) => ({
-        id: lst.id,
-        name: lst.title,
-        type: 'Listing' as const,
-        displayType: 'listing' as const,
-        displayTitle: lst.listingNumber,
-        population: lst.population,
+      ...listingStore.listings.map(lst => ({
         dataset: lst.dataset,
         displaySections: [],
-      })),
+        displayTitle: lst.listingNumber,
+        displayType: 'listing' as const,
+        id: lst.id,
+        name: lst.title,
+        population: lst.population,
+        type: 'Listing' as const
+      }))
     ];
     return {
+      displays,
       id: generateId('doc'),
+      outputs: [],
       studyId: studyStore.currentStudy.studyId,
       studyInfo: {
+        compoundUnderStudy: studyStore.currentStudy.compound,
+        phase: [studyStore.currentStudy.phase],
         studyId: studyStore.currentStudy.studyId,
         studyTitle: studyStore.currentStudy.title,
-        phase: [studyStore.currentStudy.phase],
-        compoundUnderStudy: studyStore.currentStudy.compound,
-        therapeuticArea: studyStore.currentStudy.therapeuticArea,
-      },
-      displays,
-      outputs: [],
+        therapeuticArea: studyStore.currentStudy.therapeuticArea
+      }
     };
   }, [studyStore.currentStudy, tableStore.tables, figureStore.figures, listingStore.listings]);
 
@@ -680,59 +713,81 @@ const TflDesigner: React.FC = () => {
     const table = tableStore.currentTable;
 
     return (
-      <div className="flex h-full flex-col gap-8px">
+      <div className="h-full flex flex-col gap-8px">
         {/* Breadcrumb header */}
         <div className="flex items-center justify-between">
           <Space>
             <Breadcrumb
               items={[
                 { title: <Text type="secondary">{table.shellNumber}</Text> },
-                { title: <Text strong>{table.title}</Text> },
+                { title: <Text strong>{table.title}</Text> }
               ]}
             />
             {tableStore.isDirty && (
-              <Tag color="warning" className="ml-8px">
+              <Tag
+                className="ml-8px"
+                color="warning"
+              >
                 <ExclamationCircleOutlined className="mr-4px" />
                 Unsaved
               </Tag>
             )}
             {hasUnsavedStudyChanges && (
-              <Tag color="orange" className="ml-4px">
+              <Tag
+                className="ml-4px"
+                color="orange"
+              >
                 Study Settings Modified
               </Tag>
             )}
           </Space>
           <Space>
-            <Button size="small" icon={<CopyOutlined />} onClick={handleDuplicateTable}>
+            <Button
+              icon={<CopyOutlined />}
+              size="small"
+              onClick={handleDuplicateTable}
+            >
               {t('page.mdr.tflDesigner.actions.duplicate')}
             </Button>
             <Popconfirm
               title={t('page.mdr.tflDesigner.actions.confirmDelete')}
               onConfirm={() => handleDeleteTable(table.id)}
             >
-              <Button size="small" danger icon={<DeleteOutlined />}>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+              >
                 {t('page.mdr.tflDesigner.actions.delete')}
               </Button>
             </Popconfirm>
-            <Button size="small" icon={<UndoOutlined />} onClick={() => tableEditorRef.current?.undo()}>
+            <Button
+              icon={<UndoOutlined />}
+              size="small"
+              onClick={() => tableEditorRef.current?.undo()}
+            >
               Undo
             </Button>
-            <Button size="small" icon={<RedoOutlined />} onClick={() => tableEditorRef.current?.redo()}>
+            <Button
+              icon={<RedoOutlined />}
+              size="small"
+              onClick={() => tableEditorRef.current?.redo()}
+            >
               Redo
             </Button>
             <Button
-              size="small"
               icon={<SendOutlined />}
-              style={{ color: '#722ed1', borderColor: '#722ed1' }}
+              size="small"
+              style={{ borderColor: '#722ed1', color: '#722ed1' }}
               onClick={() => setPushToStudyOpen(true)}
             >
               Push to Study
             </Button>
-            <Button 
-              size="small" 
-              type="primary" 
+            <Button
               icon={<SaveOutlined />}
               loading={tflSaving}
+              size="small"
+              type="primary"
               onClick={handleSaveTable}
             >
               {t('page.mdr.tflDesigner.toolbar.save')}
@@ -741,203 +796,292 @@ const TflDesigner: React.FC = () => {
         </div>
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
-        <div className="flex min-h-0 flex-1 gap-8px overflow-hidden">
+        <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
           {/* Left: Editor Tabs */}
-          <Card className="flex-shrink-0 overflow-auto" size="small" variant="borderless" style={{ width: editorPanelWidth }}>
+          <Card
+            className="flex-shrink-0 overflow-auto"
+            size="small"
+            style={{ width: editorPanelWidth }}
+            variant="borderless"
+          >
             <Tabs
               activeKey={tableEditorTab}
-              onChange={setTableEditorTab}
-              type="card"
+              popupClassName="editor-tab-nav"
               size="small"
               tabBarStyle={{ marginBottom: 0 }}
-              popupClassName="editor-tab-nav"
+              type="card"
               items={[
                 {
-                  key: 'metadata',
-                  label: t('page.mdr.tflDesigner.tabs.metadata'),
                   children: (
                     <div className="flex flex-col gap-12px">
-                      <Card size="small" title={t('page.mdr.tflDesigner.tableMeta.basicInfo')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.tableMeta.basicInfo')}
+                      >
                         <div className="grid grid-cols-2 gap-8px">
                           <div>
-                            <Text type="secondary" className="text-11px">Shell Number</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Shell Number
+                            </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={table.shellNumber}
-                              onChange={(e) => tableStore.updateMetadata({ shellNumber: e.target.value })}
+                              onChange={e => tableStore.updateMetadata({ shellNumber: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Title</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Title
+                            </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={table.title}
-                              onChange={(e) => tableStore.updateMetadata({ title: e.target.value })}
+                              onChange={e => tableStore.updateMetadata({ title: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Population</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Population
+                            </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={populationOptions}
                               size="small"
                               value={table.population}
-                              onChange={(v) => tableStore.updateMetadata({ population: v })}
-                              options={populationOptions}
+                              onChange={v => tableStore.updateMetadata({ population: v })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Category</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Category
+                            </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={categoryOptions}
                               size="small"
                               value={table.category}
-                              onChange={(v) => tableStore.updateMetadata({ category: v as any })}
-                              options={categoryOptions}
+                              onChange={v => tableStore.updateMetadata({ category: v as any })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Dataset</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Dataset
+                            </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={datasetOptions}
                               size="small"
                               value={table.dataset}
-                              onChange={(v) => tableStore.updateMetadata({ dataset: v })}
-                              options={datasetOptions}
+                              onChange={v => tableStore.updateMetadata({ dataset: v })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Statistics Set</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Statistics Set
+                            </Text>
                             <Select
                               className="mt-4px w-full"
-                              size="small"
-                              value={table.statisticsSetId || undefined}
-                              onChange={(v) => tableStore.updateMetadata({ statisticsSetId: v })}
                               options={statisticsSetOptions}
                               placeholder="Select statistics set"
+                              size="small"
+                              value={table.statisticsSetId || undefined}
+                              onChange={v => tableStore.updateMetadata({ statisticsSetId: v })}
                             />
                           </div>
                         </div>
                       </Card>
-                      <Card size="small" title={t('page.mdr.tflDesigner.tableMeta.treatmentArms')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.tableMeta.treatmentArms')}
+                      >
                         <ColumnSourceEditor />
                       </Card>
-                      <Card size="small" title={t('page.mdr.tflDesigner.tableMeta.analysisFilter')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.tableMeta.analysisFilter')}
+                      >
                         <div className="flex flex-col gap-8px">
                           <div>
-                            <Text type="secondary" className="text-11px">{t('page.mdr.tflDesigner.tableMeta.whereClause')}</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              {t('page.mdr.tflDesigner.tableMeta.whereClause')}
+                            </Text>
                             <Input.TextArea
                               className="mt-4px"
-                              rows={2}
                               placeholder="e.g. AGE >= 18 AND SEX='M'"
+                              rows={2}
                               value={table.whereClause || ''}
-                              onChange={(e) => tableStore.updateMetadata({ whereClause: e.target.value || undefined })}
+                              onChange={e => tableStore.updateMetadata({ whereClause: e.target.value || undefined })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">{t('page.mdr.tflDesigner.tableMeta.analysisSubset')}</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              {t('page.mdr.tflDesigner.tableMeta.analysisSubset')}
+                            </Text>
                             <Input
                               className="mt-4px"
                               placeholder="e.g. Post-Baseline"
                               value={table.analysisSubset || ''}
-                              onChange={(e) => tableStore.updateMetadata({ analysisSubset: e.target.value || undefined })}
+                              onChange={e => tableStore.updateMetadata({ analysisSubset: e.target.value || undefined })}
                             />
                           </div>
                         </div>
                       </Card>
-                      <Card size="small" title="Decimal Settings">
+                      <Card
+                        size="small"
+                        title="Decimal Settings"
+                      >
                         <DecimalSettingsTab />
                       </Card>
                     </div>
                   ),
+                  key: 'metadata',
+                  label: t('page.mdr.tflDesigner.tabs.metadata')
                 },
                 {
-                  key: 'footer',
-                  label: t('page.mdr.tflDesigner.tabs.footer'),
                   children: (
                     <div className="p-8px">
                       <div className="mb-8px">
-                        <Text type="secondary" className="text-11px">Source Dataset</Text>
+                        <Text
+                          className="text-11px"
+                          type="secondary"
+                        >
+                          Source Dataset
+                        </Text>
                         <Input
                           size="small"
                           value={table.footer.source || ''}
-                          onChange={(e) => tableStore.updateMetadata({ footer: { ...table.footer, source: e.target.value || undefined } })}
+                          onChange={e =>
+                            tableStore.updateMetadata({
+                              footer: { ...table.footer, source: e.target.value || undefined }
+                            })
+                          }
                         />
                       </div>
                       <div>
-                        <Text type="secondary" className="mb-4px block text-11px">Footnotes</Text>
+                        <Text
+                          className="mb-4px block text-11px"
+                          type="secondary"
+                        >
+                          Footnotes
+                        </Text>
                         {table.footer.notes?.length ? (
-                          <ul className="list-inside list-disc space-y-2px text-12px">
+                          <ul className="list-disc list-inside text-12px space-y-2px">
                             {table.footer.notes.map((note, i) => (
                               <li key={i}>{note}</li>
                             ))}
                           </ul>
                         ) : (
-                          <Text type="secondary" className="text-12px">No footnotes</Text>
+                          <Text
+                            className="text-12px"
+                            type="secondary"
+                          >
+                            No footnotes
+                          </Text>
                         )}
                       </div>
                     </div>
                   ),
+                  key: 'footer',
+                  label: t('page.mdr.tflDesigner.tabs.footer')
                 },
                 {
-                  key: 'programmingNotes',
-                  label: t('page.mdr.tflDesigner.tabs.programmingNotes'),
                   children: (
                     <div className="p-8px">
                       <Input.TextArea
-                        rows={8}
                         placeholder="e.g. Use ADaM dataset ADRS for overall survival. Hazard ratio from Cox model."
-                        value={table.programmingNotes || ''}
-                        onChange={(e) => tableStore.updateMetadata({ programmingNotes: e.target.value || undefined })}
+                        rows={8}
                         style={{ fontSize: 12 }}
+                        value={table.programmingNotes || ''}
+                        onChange={e => tableStore.updateMetadata({ programmingNotes: e.target.value || undefined })}
                       />
                     </div>
                   ),
-                },
+                  key: 'programmingNotes',
+                  label: t('page.mdr.tflDesigner.tabs.programmingNotes')
+                }
               ]}
+              onChange={setTableEditorTab}
             />
           </Card>
 
           {/* Resize handle — editor panel */}
           <div
-            onMouseDown={(e) => handleResizeStart(e, 'editor')}
             style={{
-              width: 4,
-              cursor: 'col-resize',
               backgroundColor: isResizing && resizingTarget === 'editor' ? '#1890ff' : 'transparent',
-              transition: 'background-color 0.15s',
+              cursor: 'col-resize',
               flexShrink: 0,
-              zIndex: 10,
+              transition: 'background-color 0.15s',
+              width: 4,
+              zIndex: 10
             }}
-            onMouseEnter={(e) => { if (!isResizing) (e.currentTarget.style.backgroundColor = '#d9d9d9'); }}
-            onMouseLeave={(e) => { if (!(isResizing && resizingTarget === 'editor')) (e.currentTarget.style.backgroundColor = 'transparent'); }}
+            onMouseDown={e => handleResizeStart(e, 'editor')}
+            onMouseEnter={e => {
+              if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
+            }}
+            onMouseLeave={e => {
+              if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           />
 
           {/* Right: Live Preview - Interactive */}
-          <Card className="min-w-0 flex-1 overflow-auto" size="small" variant="borderless"
-            title={<Text type="secondary" className="text-12px">Live Preview (Interactive)</Text>}
+          <Card
+            className="min-w-0 flex-1 overflow-auto"
+            size="small"
+            variant="borderless"
+            title={
+              <Text
+                className="text-12px"
+                type="secondary"
+              >
+                Live Preview (Interactive)
+              </Text>
+            }
           >
             <InteractiveOutputEditor
+              compact
+              columnHeaders={activeArmHeaders}
+              editable={true}
+              headerStyle={headerFontStyle}
               ref={tableEditorRef}
               template={convertTableToTemplate(tableStore.currentTable)}
-              onTemplateChange={handleTableTemplateChange}
-              editable={true}
-              compact
-              headerStyle={headerFontStyle}
-              columnHeaders={activeArmHeaders}
-              onColumnHeadersChange={handleColumnHeadersChange}
               decimalConfig={{
                 shellDefaults: table.decimalOverride,
-                studyDefaults: studyStore.studyDefaults?.decimalRules,
+                studyDefaults: studyStore.studyDefaults?.decimalRules
               }}
+              onColumnHeadersChange={handleColumnHeadersChange}
+              onTemplateChange={handleTableTemplateChange}
             />
           </Card>
         </div>
       </div>
     );
   };
-
 
   // ============ Render: Figure Editor ============
 
@@ -946,18 +1090,21 @@ const TflDesigner: React.FC = () => {
     const fig = figureStore.currentFigure;
 
     return (
-      <div className="flex h-full flex-col gap-8px">
+      <div className="h-full flex flex-col gap-8px">
         {/* Breadcrumb header */}
         <div className="flex items-center justify-between">
           <Space>
             <Breadcrumb
               items={[
                 { title: <Text type="secondary">{fig.figureNumber}</Text> },
-                { title: <Text strong>{fig.title}</Text> },
+                { title: <Text strong>{fig.title}</Text> }
               ]}
             />
             {figureStore.isDirty && (
-              <Tag color="warning" className="ml-8px">
+              <Tag
+                className="ml-8px"
+                color="warning"
+              >
                 <ExclamationCircleOutlined className="mr-4px" />
                 Unsaved
               </Tag>
@@ -968,15 +1115,19 @@ const TflDesigner: React.FC = () => {
               title={t('page.mdr.tflDesigner.actions.confirmDelete')}
               onConfirm={() => handleDeleteFigure(fig.id)}
             >
-              <Button size="small" danger icon={<DeleteOutlined />}>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+              >
                 {t('page.mdr.tflDesigner.actions.delete')}
               </Button>
             </Popconfirm>
-            <Button 
-              size="small" 
-              type="primary" 
+            <Button
               icon={<SaveOutlined />}
               loading={tflSaving}
+              size="small"
+              type="primary"
               onClick={handleSaveFigure}
             >
               {t('page.mdr.tflDesigner.toolbar.save')}
@@ -985,63 +1136,89 @@ const TflDesigner: React.FC = () => {
         </div>
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
-        <div className="flex min-h-0 flex-1 gap-8px overflow-hidden">
+        <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
           {/* Left: Editor Tabs */}
-          <Card className="flex-shrink-0 overflow-auto" size="small" variant="borderless" style={{ width: editorPanelWidth }}>
+          <Card
+            className="flex-shrink-0 overflow-auto"
+            size="small"
+            style={{ width: editorPanelWidth }}
+            variant="borderless"
+          >
             <Tabs
               activeKey={figureEditorTab}
-              onChange={setFigureEditorTab}
-              type="card"
+              popupClassName="editor-tab-nav"
               size="small"
               tabBarStyle={{ marginBottom: 0 }}
-              popupClassName="editor-tab-nav"
+              type="card"
               items={[
                 {
-                  key: 'metadata',
-                  label: t('page.mdr.tflDesigner.tabs.metadata'),
                   children: (
                     <div className="flex flex-col gap-12px">
-                      <Card size="small" title={t('page.mdr.tflDesigner.figureMeta.basicInfo')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.figureMeta.basicInfo')}
+                      >
                         <div className="grid grid-cols-2 gap-8px">
                           <div>
-                            <Text type="secondary" className="text-11px">Figure Number</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Figure Number
+                            </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={fig.figureNumber}
-                              onChange={(e) => figureStore.updateMetadata({ figureNumber: e.target.value })}
+                              onChange={e => figureStore.updateMetadata({ figureNumber: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Title</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Title
+                            </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={fig.title}
-                              onChange={(e) => figureStore.updateMetadata({ title: e.target.value })}
+                              onChange={e => figureStore.updateMetadata({ title: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">Population</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              Population
+                            </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={populationOptions}
                               size="small"
                               value={fig.population}
-                              onChange={(v) => figureStore.updateMetadata({ population: v })}
-                              options={populationOptions}
+                              onChange={v => figureStore.updateMetadata({ population: v })}
                             />
                           </div>
                         </div>
                       </Card>
-                      <Card size="small" title={t('page.mdr.tflDesigner.figureMeta.chartType')}>
-                        <ChartTypeSelector value={fig.chartType} onChange={figureStore.setChartType} />
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.figureMeta.chartType')}
+                      >
+                        <ChartTypeSelector
+                          value={fig.chartType}
+                          onChange={figureStore.setChartType}
+                        />
                       </Card>
                     </div>
                   ),
+                  key: 'metadata',
+                  label: t('page.mdr.tflDesigner.tabs.metadata')
                 },
                 {
-                  key: 'axes',
-                  label: t('page.mdr.tflDesigner.tabs.axes'),
                   children: (
                     <AxesConfig
                       xAxis={fig.xAxis}
@@ -1050,75 +1227,92 @@ const TflDesigner: React.FC = () => {
                       onYAxisChange={figureStore.updateYAxis}
                     />
                   ),
+                  key: 'axes',
+                  label: t('page.mdr.tflDesigner.tabs.axes')
                 },
                 {
+                  children: (
+                    <SeriesConfig
+                      chartType={fig.chartType}
+                      series={fig.series}
+                      onAdd={() => figureStore.addSeries()}
+                      onDelete={id => figureStore.removeSeries(id)}
+                      onReorder={(from, to) => figureStore.reorderSeries(from, to)}
+                      onUpdate={(id, updates) => figureStore.updateSeries(id, updates)}
+                    />
+                  ),
                   key: 'series',
                   label: (
                     <Space size={4}>
                       {t('page.mdr.tflDesigner.tabs.series')}
                       <Tag className="ml-4px">{fig.series.length}</Tag>
                     </Space>
-                  ),
-                  children: (
-                    <SeriesConfig
-                      series={fig.series}
-                      chartType={fig.chartType}
-                      onAdd={() => figureStore.addSeries()}
-                      onUpdate={(id, updates) => figureStore.updateSeries(id, updates)}
-                      onDelete={(id) => figureStore.removeSeries(id)}
-                      onReorder={(from, to) => figureStore.reorderSeries(from, to)}
-                    />
-                  ),
+                  )
                 },
                 {
-                  key: 'programmingNotes',
-                  label: t('page.mdr.tflDesigner.tabs.programmingNotes'),
                   children: (
                     <div className="p-8px">
                       <Input.TextArea
-                        rows={8}
                         placeholder="e.g. KM curve using survfit(Surv(time, status) ~ arm). Log-rank p-value at alpha=0.05."
-                        value={fig.programmingNotes || ''}
-                        onChange={(e) => figureStore.updateMetadata({ programmingNotes: e.target.value })}
+                        rows={8}
                         style={{ fontSize: 12 }}
+                        value={fig.programmingNotes || ''}
+                        onChange={e => figureStore.updateMetadata({ programmingNotes: e.target.value })}
                       />
                     </div>
                   ),
-                },
+                  key: 'programmingNotes',
+                  label: t('page.mdr.tflDesigner.tabs.programmingNotes')
+                }
               ]}
+              onChange={setFigureEditorTab}
             />
           </Card>
 
           {/* Resize handle — editor panel */}
           <div
-            onMouseDown={(e) => handleResizeStart(e, 'editor')}
             style={{
-              width: 4,
-              cursor: 'col-resize',
               backgroundColor: isResizing && resizingTarget === 'editor' ? '#1890ff' : 'transparent',
-              transition: 'background-color 0.15s',
+              cursor: 'col-resize',
               flexShrink: 0,
-              zIndex: 10,
+              transition: 'background-color 0.15s',
+              width: 4,
+              zIndex: 10
             }}
-            onMouseEnter={(e) => { if (!isResizing) (e.currentTarget.style.backgroundColor = '#d9d9d9'); }}
-            onMouseLeave={(e) => { if (!(isResizing && resizingTarget === 'editor')) (e.currentTarget.style.backgroundColor = 'transparent'); }}
+            onMouseDown={e => handleResizeStart(e, 'editor')}
+            onMouseEnter={e => {
+              if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
+            }}
+            onMouseLeave={e => {
+              if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           />
 
           {/* Right: Live Preview - ECharts */}
-          <Card className="min-w-0 flex-1 overflow-auto" size="small" variant="borderless"
-            title={<Text type="secondary" className="text-12px">Live Preview (Chart)</Text>}
+          <Card
+            className="min-w-0 flex-1 overflow-auto"
+            size="small"
+            variant="borderless"
+            title={
+              <Text
+                className="text-12px"
+                type="secondary"
+              >
+                Live Preview (Chart)
+              </Text>
+            }
           >
             <FigurePreview
               config={{
                 chartType: fig.chartType,
-                xAxis: fig.xAxis,
-                yAxis: fig.yAxis,
-                series: fig.series,
-                title: fig.title,
                 legend: fig.legend,
+                series: fig.series,
                 style: fig.style,
+                title: fig.title,
+                xAxis: fig.xAxis,
+                yAxis: fig.yAxis
               }}
-              onStyleChange={(style) => figureStore.updateStyle(style)}
+              onStyleChange={style => figureStore.updateStyle(style)}
             />
           </Card>
         </div>
@@ -1133,18 +1327,21 @@ const TflDesigner: React.FC = () => {
     const lst = listingStore.currentListing;
 
     return (
-      <div className="flex h-full flex-col gap-8px">
+      <div className="h-full flex flex-col gap-8px">
         {/* Breadcrumb header */}
         <div className="flex items-center justify-between">
           <Space>
             <Breadcrumb
               items={[
                 { title: <Text type="secondary">{lst.listingNumber}</Text> },
-                { title: <Text strong>{lst.title}</Text> },
+                { title: <Text strong>{lst.title}</Text> }
               ]}
             />
             {listingStore.isDirty && (
-              <Tag color="warning" className="ml-8px">
+              <Tag
+                className="ml-8px"
+                color="warning"
+              >
                 <ExclamationCircleOutlined className="mr-4px" />
                 Unsaved
               </Tag>
@@ -1155,21 +1352,33 @@ const TflDesigner: React.FC = () => {
               title={t('page.mdr.tflDesigner.actions.confirmDelete')}
               onConfirm={() => handleDeleteListing(lst.id)}
             >
-              <Button size="small" danger icon={<DeleteOutlined />}>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+              >
                 {t('page.mdr.tflDesigner.actions.delete')}
               </Button>
             </Popconfirm>
-            <Button size="small" icon={<UndoOutlined />} onClick={() => listingEditorRef.current?.undo()}>
+            <Button
+              icon={<UndoOutlined />}
+              size="small"
+              onClick={() => listingEditorRef.current?.undo()}
+            >
               Undo
             </Button>
-            <Button size="small" icon={<RedoOutlined />} onClick={() => listingEditorRef.current?.redo()}>
+            <Button
+              icon={<RedoOutlined />}
+              size="small"
+              onClick={() => listingEditorRef.current?.redo()}
+            >
               Redo
             </Button>
-            <Button 
-              size="small" 
-              type="primary" 
+            <Button
               icon={<SaveOutlined />}
               loading={tflSaving}
+              size="small"
+              type="primary"
               onClick={handleSaveListing}
             >
               {t('page.mdr.tflDesigner.toolbar.save')}
@@ -1178,195 +1387,247 @@ const TflDesigner: React.FC = () => {
         </div>
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
-        <div className="flex min-h-0 flex-1 gap-8px overflow-hidden">
+        <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
           {/* Left: Editor Tabs */}
-          <Card className="flex-shrink-0 overflow-auto" size="small" variant="borderless" style={{ width: editorPanelWidth }}>
+          <Card
+            className="flex-shrink-0 overflow-auto"
+            size="small"
+            style={{ width: editorPanelWidth }}
+            variant="borderless"
+          >
             <Tabs
               activeKey={listingEditorTab}
-              onChange={setListingEditorTab}
-              type="card"
+              popupClassName="editor-tab-nav"
               size="small"
               tabBarStyle={{ marginBottom: 0 }}
-              popupClassName="editor-tab-nav"
+              type="card"
               items={[
                 {
-                  key: 'metadata',
-                  label: t('page.mdr.tflDesigner.tabs.metadata'),
                   children: (
                     <div className="flex flex-col gap-12px">
-                      <Card size="small" title={t('page.mdr.tflDesigner.listingMeta.basicInfo')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.listingMeta.basicInfo')}
+                      >
                         <div className="grid grid-cols-2 gap-12px">
                           <div>
-                            <Text type="secondary" className="text-12px">
+                            <Text
+                              className="text-12px"
+                              type="secondary"
+                            >
                               Listing Number
                             </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={lst.listingNumber}
-                              onChange={(e) => listingStore.updateMetadata({ listingNumber: e.target.value })}
+                              onChange={e => listingStore.updateMetadata({ listingNumber: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-12px">
+                            <Text
+                              className="text-12px"
+                              type="secondary"
+                            >
                               Title
                             </Text>
                             <Input
                               className="mt-4px"
                               size="small"
                               value={lst.title}
-                              onChange={(e) => listingStore.updateMetadata({ title: e.target.value })}
+                              onChange={e => listingStore.updateMetadata({ title: e.target.value })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-12px">
+                            <Text
+                              className="text-12px"
+                              type="secondary"
+                            >
                               Population
                             </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={populationOptions}
                               size="small"
                               value={lst.population}
-                              onChange={(v) => listingStore.updateMetadata({ population: v })}
-                              options={populationOptions}
+                              onChange={v => listingStore.updateMetadata({ population: v })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-12px">
+                            <Text
+                              className="text-12px"
+                              type="secondary"
+                            >
                               Dataset
                             </Text>
                             <Select
                               className="mt-4px w-full"
+                              options={datasetOptions}
                               size="small"
                               value={lst.dataset}
-                              onChange={(v) => listingStore.updateMetadata({ dataset: v })}
-                              options={datasetOptions}
+                              onChange={v => listingStore.updateMetadata({ dataset: v })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-12px">
+                            <Text
+                              className="text-12px"
+                              type="secondary"
+                            >
                               Page Size
                             </Text>
                             <InputNumber
                               className="mt-4px w-full"
-                              size="small"
-                              min={5}
                               max={200}
+                              min={5}
+                              size="small"
                               value={lst.pageSize || 20}
-                              onChange={(v) => listingStore.updateMetadata({ pageSize: v || 20 })}
+                              onChange={v => listingStore.updateMetadata({ pageSize: v || 20 })}
                             />
                           </div>
                         </div>
                       </Card>
-                      <Card size="small" title={t('page.mdr.tflDesigner.listingMeta.analysisFilter')}>
+                      <Card
+                        size="small"
+                        title={t('page.mdr.tflDesigner.listingMeta.analysisFilter')}
+                      >
                         <div className="flex flex-col gap-8px">
                           <div>
-                            <Text type="secondary" className="text-11px">{t('page.mdr.tflDesigner.listingMeta.whereClause')}</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              {t('page.mdr.tflDesigner.listingMeta.whereClause')}
+                            </Text>
                             <Input.TextArea
                               className="mt-4px"
-                              rows={2}
                               placeholder="e.g. AGE >= 18"
+                              rows={2}
                               value={lst.whereClause || ''}
-                              onChange={(e) => listingStore.updateMetadata({ whereClause: e.target.value || undefined })}
+                              onChange={e => listingStore.updateMetadata({ whereClause: e.target.value || undefined })}
                             />
                           </div>
                           <div>
-                            <Text type="secondary" className="text-11px">{t('page.mdr.tflDesigner.listingMeta.analysisSubset')}</Text>
+                            <Text
+                              className="text-11px"
+                              type="secondary"
+                            >
+                              {t('page.mdr.tflDesigner.listingMeta.analysisSubset')}
+                            </Text>
                             <Input
                               className="mt-4px"
                               placeholder="e.g. Safety Subjects with TEAE"
                               value={lst.analysisSubset || ''}
-                              onChange={(e) => listingStore.updateMetadata({ analysisSubset: e.target.value || undefined })}
+                              onChange={e =>
+                                listingStore.updateMetadata({ analysisSubset: e.target.value || undefined })
+                              }
                             />
                           </div>
                         </div>
                       </Card>
                     </div>
                   ),
+                  key: 'metadata',
+                  label: t('page.mdr.tflDesigner.tabs.metadata')
                 },
                 {
+                  children: (
+                    <SortConfigEditor
+                      columns={lst.columns.map(c => ({ id: c.id, label: c.label, name: c.name }))}
+                      displayId={lst.id}
+                      sortRules={lst.sortBy || []}
+                      onAdd={() => listingStore.addSort()}
+                      onDelete={index => listingStore.deleteSort(index)}
+                      onReorder={(from, to) => listingStore.reorderSort(from, to)}
+                      onUpdate={(index, updates) => listingStore.updateSort(index, updates)}
+                    />
+                  ),
                   key: 'sort',
                   label: (
                     <Space size={4}>
                       {t('page.mdr.tflDesigner.tabs.sortOrder')}
                       <Tag className="ml-4px">{lst.sortBy?.length || 0}</Tag>
                     </Space>
-                  ),
-                  children: (
-                    <SortConfigEditor
-                      displayId={lst.id}
-                      sortRules={lst.sortBy || []}
-                      columns={lst.columns.map((c) => ({ id: c.id, name: c.name, label: c.label }))}
-                      onAdd={() => listingStore.addSort()}
-                      onUpdate={(index, updates) => listingStore.updateSort(index, updates)}
-                      onReorder={(from, to) => listingStore.reorderSort(from, to)}
-                      onDelete={(index) => listingStore.deleteSort(index)}
-                    />
-                  ),
+                  )
                 },
                 {
+                  children: (
+                    <FilterConfigEditor
+                      columns={lst.columns.map(c => ({ id: c.id, label: c.label, name: c.name }))}
+                      displayId={lst.id}
+                      filters={lst.filter || []}
+                      onAdd={() => listingStore.addFilter()}
+                      onDelete={index => listingStore.deleteFilter(index)}
+                      onUpdate={(index, updates) => listingStore.updateFilter(index, updates)}
+                    />
+                  ),
                   key: 'filter',
                   label: (
                     <Space size={4}>
                       {t('page.mdr.tflDesigner.tabs.filter')}
                       <Tag className="ml-4px">{lst.filter?.length || 0}</Tag>
                     </Space>
-                  ),
-                  children: (
-                    <FilterConfigEditor
-                      displayId={lst.id}
-                      filters={lst.filter || []}
-                      columns={lst.columns.map((c) => ({ id: c.id, name: c.name, label: c.label }))}
-                      onAdd={() => listingStore.addFilter()}
-                      onUpdate={(index, updates) => listingStore.updateFilter(index, updates)}
-                      onDelete={(index) => listingStore.deleteFilter(index)}
-                    />
-                  ),
+                  )
                 },
                 {
-                  key: 'programmingNotes',
-                  label: t('page.mdr.tflDesigner.tabs.programmingNotes'),
                   children: (
                     <div className="p-8px">
                       <Input.TextArea
-                        rows={8}
                         placeholder="e.g. Include only subjects with at least one post-baseline lab value. Sort by visit date."
-                        value={lst.programmingNotes || ''}
-                        onChange={(e) => listingStore.updateMetadata({ programmingNotes: e.target.value || undefined })}
+                        rows={8}
                         style={{ fontSize: 12 }}
+                        value={lst.programmingNotes || ''}
+                        onChange={e => listingStore.updateMetadata({ programmingNotes: e.target.value || undefined })}
                       />
                     </div>
                   ),
-                },
+                  key: 'programmingNotes',
+                  label: t('page.mdr.tflDesigner.tabs.programmingNotes')
+                }
               ]}
+              onChange={setListingEditorTab}
             />
           </Card>
 
           {/* Resize handle — editor panel */}
           <div
-            onMouseDown={(e) => handleResizeStart(e, 'editor')}
             style={{
-              width: 4,
-              cursor: 'col-resize',
               backgroundColor: isResizing && resizingTarget === 'editor' ? '#1890ff' : 'transparent',
-              transition: 'background-color 0.15s',
+              cursor: 'col-resize',
               flexShrink: 0,
-              zIndex: 10,
+              transition: 'background-color 0.15s',
+              width: 4,
+              zIndex: 10
             }}
-            onMouseEnter={(e) => { if (!isResizing) (e.currentTarget.style.backgroundColor = '#d9d9d9'); }}
-            onMouseLeave={(e) => { if (!(isResizing && resizingTarget === 'editor')) (e.currentTarget.style.backgroundColor = 'transparent'); }}
+            onMouseDown={e => handleResizeStart(e, 'editor')}
+            onMouseEnter={e => {
+              if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
+            }}
+            onMouseLeave={e => {
+              if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           />
 
           {/* Right: Live Preview - Interactive */}
-          <Card className="min-w-0 flex-1 overflow-auto" size="small" variant="borderless"
-            title={<Text type="secondary" className="text-12px">Live Preview (Interactive)</Text>}
+          <Card
+            className="min-w-0 flex-1 overflow-auto"
+            size="small"
+            variant="borderless"
+            title={
+              <Text
+                className="text-12px"
+                type="secondary"
+              >
+                Live Preview (Interactive)
+              </Text>
+            }
           >
             <InteractiveOutputEditor
+              compact
+              editable={true}
+              headerStyle={headerFontStyle}
               ref={listingEditorRef}
               template={convertListingToTemplate(lst)}
               onTemplateChange={handleListingTemplateChange}
-              editable={true}
-              compact
-              headerStyle={headerFontStyle}
             />
           </Card>
         </div>
@@ -1383,37 +1644,48 @@ const TflDesigner: React.FC = () => {
     const totalCount = tableCount + figureCount + listingCount;
 
     return (
-      <div className="flex h-full flex-col overflow-y-auto p-16px gap-16px">
+      <div className="h-full flex flex-col gap-16px overflow-y-auto p-16px">
         {/* Summary cards row */}
-        <div className="grid grid-cols-3 gap-12px flex-shrink-0">
-          <div className="rounded-lg border border-gray-200 p-12px text-center transition-shadow hover:shadow-sm">
-            <TableOutlined className="text-20px text-blue-500 mb-4px" />
-            <div className="text-20px font-semibold text-gray-800">{tableCount}</div>
+        <div className="grid grid-cols-3 flex-shrink-0 gap-12px">
+          <div className="border border-gray-200 rounded-lg p-12px text-center transition-shadow hover:shadow-sm">
+            <TableOutlined className="mb-4px text-20px text-blue-500" />
+            <div className="text-20px text-gray-800 font-semibold">{tableCount}</div>
             <div className="text-11px text-gray-500">Tables</div>
           </div>
-          <div className="rounded-lg border border-gray-200 p-12px text-center transition-shadow hover:shadow-sm">
-            <BarChartOutlined className="text-20px text-green-500 mb-4px" />
-            <div className="text-20px font-semibold text-gray-800">{figureCount}</div>
+          <div className="border border-gray-200 rounded-lg p-12px text-center transition-shadow hover:shadow-sm">
+            <BarChartOutlined className="mb-4px text-20px text-green-500" />
+            <div className="text-20px text-gray-800 font-semibold">{figureCount}</div>
             <div className="text-11px text-gray-500">Figures</div>
           </div>
-          <div className="rounded-lg border border-gray-200 p-12px text-center transition-shadow hover:shadow-sm">
-            <UnorderedListOutlined className="text-20px text-orange-500 mb-4px" />
-            <div className="text-20px font-semibold text-gray-800">{listingCount}</div>
+          <div className="border border-gray-200 rounded-lg p-12px text-center transition-shadow hover:shadow-sm">
+            <UnorderedListOutlined className="mb-4px text-20px text-orange-500" />
+            <div className="text-20px text-gray-800 font-semibold">{listingCount}</div>
             <div className="text-11px text-gray-500">Listings</div>
           </div>
         </div>
 
         {/* Quick actions */}
-        <div className="flex items-center justify-between flex-shrink-0">
-          <Text type="secondary" className="text-12px">
+        <div className="flex flex-shrink-0 items-center justify-between">
+          <Text
+            className="text-12px"
+            type="secondary"
+          >
             {t('page.mdr.tflDesigner.overview.selectOrCreate')}
           </Text>
           <Space size="small">
-            <Button size="small" icon={<PlusOutlined />} onClick={() => setTemplateModalOpen(true)}>
+            <Button
+              icon={<PlusOutlined />}
+              size="small"
+              onClick={() => setTemplateModalOpen(true)}
+            >
               {t('page.mdr.tflDesigner.actions.fromTemplate')}
             </Button>
             {totalCount > 0 && (
-              <Button size="small" icon={<ExportOutlined />} onClick={() => setExportModalOpen(true)}>
+              <Button
+                icon={<ExportOutlined />}
+                size="small"
+                onClick={() => setExportModalOpen(true)}
+              >
                 {t('page.mdr.tflDesigner.toolbar.export')}
               </Button>
             )}
@@ -1421,11 +1693,11 @@ const TflDesigner: React.FC = () => {
         </div>
 
         {/* ======= Global Study Management ======= */}
-        <div className="flex flex-col gap-12px min-w-0">
+        <div className="min-w-0 flex flex-col gap-12px">
           <div className="flex items-center gap-8px">
             <SettingOutlined className="text-gray-400" />
-            <span className="text-13px font-medium text-gray-600">Study Configuration</span>
-            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-13px text-gray-600 font-medium">Study Configuration</span>
+            <div className="h-px flex-1 bg-gray-200" />
           </div>
           <PopulationManager />
           <TreatmentArmEditor />
@@ -1461,37 +1733,49 @@ const TflDesigner: React.FC = () => {
       {!isStudyReady && (
         <div className="flex flex-1 items-center justify-center">
           <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
-              <Space direction="vertical" align="center" size={8}>
-                <Text type="secondary" className="text-14px">
+              <Space
+                align="center"
+                direction="vertical"
+                size={8}
+              >
+                <Text
+                  className="text-14px"
+                  type="secondary"
+                >
                   Select a study to start designing
                 </Text>
-                <Text type="secondary" className="text-12px">
+                <Text
+                  className="text-12px"
+                  type="secondary"
+                >
                   Choose a product and study from the global context above.
                 </Text>
               </Space>
             }
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>
       )}
 
       {/* Study selected but no analysis — show study-level settings */}
       {isStudyReady && !isAnalysisReady && (
-        <Card className="flex-1 overflow-hidden" size="small" variant="borderless">
+        <Card
+          className="flex-1 overflow-hidden"
+          size="small"
+          variant="borderless"
+        >
           <div className="h-full flex gap-8px overflow-hidden">
             {/* Study settings sidebar */}
-            <div className="w-260px flex-shrink-0 border-r border-gray-200 pr-8px overflow-y-auto">
-              <div className="mb-8px text-12px font-medium text-gray-500">
-                Study-Level Configuration
-              </div>
+            <div className="w-260px flex-shrink-0 overflow-y-auto border-r border-gray-200 pr-8px">
+              <div className="mb-8px text-12px text-gray-500 font-medium">Study-Level Configuration</div>
               {studySettingsTabs.map(tab => (
                 <div
+                  className="flex cursor-pointer items-center gap-8px rounded px-8px py-6px text-12px transition-colors"
                   key={tab.key}
-                  className="flex items-center gap-8px px-8px py-6px rounded cursor-pointer text-12px transition-colors"
                   style={{
                     background: studySettingsTab === tab.key ? '#e6f4ff' : 'transparent',
-                    color: studySettingsTab === tab.key ? '#1890ff' : '#666',
+                    color: studySettingsTab === tab.key ? '#1890ff' : '#666'
                   }}
                   onClick={() => setStudySettingsTab(tab.key)}
                 >
@@ -1502,9 +1786,7 @@ const TflDesigner: React.FC = () => {
             </div>
 
             {/* Settings content */}
-            <div className="flex-1 overflow-y-auto py-4px">
-              {renderStudySettingsContent()}
-            </div>
+            <div className="flex-1 overflow-y-auto py-4px">{renderStudySettingsContent()}</div>
           </div>
         </Card>
       )}
@@ -1512,256 +1794,347 @@ const TflDesigner: React.FC = () => {
       {/* Analysis selected — show full TFL workspace */}
       {isAnalysisReady && (
         <>
-      {/* Toolbar */}
-      <Card className="card-wrapper flex-shrink-0" size="small" variant="borderless" styles={{ body: { padding: '6px 16px', borderBottom: '1px solid #f0f0f0' } }}>
-        <div className="flex items-center justify-between">
-          <Space size="small">
-            <AppstoreOutlined className="text-16px text-blue-600" />
-            <Title className="m-0" level={5} style={{ fontSize: 15 }}>
-              TFL Designer
-            </Title>
-          </Space>
-          <Space>
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'newTable',
-                    icon: <TableOutlined />,
-                    label: t('page.mdr.tflDesigner.actions.newTable'),
-                    onClick: handleNewTable,
-                  },
-                  {
-                    key: 'newFigure',
-                    icon: <BarChartOutlined />,
-                    label: t('page.mdr.tflDesigner.actions.newFigure'),
-                    onClick: handleNewFigure,
-                  },
-                  {
-                    key: 'newListing',
-                    icon: <UnorderedListOutlined />,
-                    label: t('page.mdr.tflDesigner.actions.newListing'),
-                    onClick: handleNewListing,
-                  },
-                  { type: 'divider' },
-                  {
-                    key: 'fromTemplate',
-                    icon: <FileTextOutlined />,
-                    label: t('page.mdr.tflDesigner.actions.fromTemplate'),
-                    onClick: () => setTemplatePickerOpen(true),
-                  },
-                ],
-              }}
-            >
-              <Button icon={<PlusOutlined />} type="primary">
-                {t('page.mdr.tflDesigner.toolbar.newShell')}
-              </Button>
-            </Dropdown>
-            <Button icon={<ExportOutlined />} onClick={() => setExportModalOpen(true)}>
-              {t('page.mdr.tflDesigner.toolbar.export')}
-            </Button>
-          </Space>
-        </div>
-      </Card>
+          {/* Toolbar */}
+          <Card
+            className="flex-shrink-0 card-wrapper"
+            size="small"
+            styles={{ body: { borderBottom: '1px solid #f0f0f0', padding: '6px 16px' } }}
+            variant="borderless"
+          >
+            <div className="flex items-center justify-between">
+              <Space size="small">
+                <AppstoreOutlined className="text-16px text-blue-600" />
+                <Title
+                  className="m-0"
+                  level={5}
+                  style={{ fontSize: 15 }}
+                >
+                  TFL Designer
+                </Title>
+              </Space>
+              <Space>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        icon: <TableOutlined />,
+                        key: 'newTable',
+                        label: t('page.mdr.tflDesigner.actions.newTable'),
+                        onClick: handleNewTable
+                      },
+                      {
+                        icon: <BarChartOutlined />,
+                        key: 'newFigure',
+                        label: t('page.mdr.tflDesigner.actions.newFigure'),
+                        onClick: handleNewFigure
+                      },
+                      {
+                        icon: <UnorderedListOutlined />,
+                        key: 'newListing',
+                        label: t('page.mdr.tflDesigner.actions.newListing'),
+                        onClick: handleNewListing
+                      },
+                      { type: 'divider' },
+                      {
+                        icon: <FileTextOutlined />,
+                        key: 'fromTemplate',
+                        label: t('page.mdr.tflDesigner.actions.fromTemplate'),
+                        onClick: () => setTemplatePickerOpen(true)
+                      }
+                    ]
+                  }}
+                >
+                  <Button
+                    icon={<PlusOutlined />}
+                    type="primary"
+                  >
+                    {t('page.mdr.tflDesigner.toolbar.newShell')}
+                  </Button>
+                </Dropdown>
+                <Button
+                  icon={<ExportOutlined />}
+                  onClick={() => setExportModalOpen(true)}
+                >
+                  {t('page.mdr.tflDesigner.toolbar.export')}
+                </Button>
+              </Space>
+            </div>
+          </Card>
 
-      
-
-      {/* Loading and Error States */}
-      {tflLoading && (
-        <div className="flex items-center justify-center py-16px">
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-          <Text type="secondary" className="ml-8px">Loading TFL data...</Text>
-        </div>
-      )}
-      {tflError && (
-        <Alert 
-          type="error" 
-          message="Failed to load TFL data" 
-          description={tflError}
-          showIcon
-          action={
-            <Button size="small" onClick={refreshTFLData}>
-              Retry
-            </Button>
-          }
-          className="mx-16px"
-        />
-      )}
-
-      {/* Main content: Left sidebar + Center editor */}
-      <div className="min-h-0 flex flex-1 overflow-hidden">
-        {/* Left sidebar - Outputs Tree (resizable) */}
-        <Card
-          className="flex flex-shrink-0 flex-col overflow-hidden card-wrapper"
-          style={{ width: sidebarWidth }}
-          size="small"
-          variant="borderless"
-        >
-          {/* Study Settings button */}
-          <div className="mb-8px">
-            <Tooltip title={t('page.mdr.tflDesigner.sidebar.studySettings')}>
-              <Button
-                block
-                size="small"
-                icon={<SettingOutlined />}
-                type={sidebarView === 'settings' ? 'primary' : 'default'}
-                ghost={sidebarView === 'settings'}
-                onClick={() => {
-                  if (sidebarView === 'settings') {
-                    setSidebarView('items');
-                  } else {
-                    handleShowStudySettings();
-                  }
-                }}
+          {/* Loading and Error States */}
+          {tflLoading && (
+            <div className="flex items-center justify-center py-16px">
+              <Spin
+                indicator={
+                  <LoadingOutlined
+                    spin
+                    style={{ fontSize: 24 }}
+                  />
+                }
+              />
+              <Text
+                className="ml-8px"
+                type="secondary"
               >
-                {t('page.mdr.tflDesigner.sidebar.studySettings')}
-              </Button>
-            </Tooltip>
-          </div>
-
-          {/* Filter tabs — only show in items view */}
-          {sidebarView !== 'settings' && (
-            <Segmented
-              block
-              size="small"
-              value={sidebarFilter}
-              options={[
-                { label: `All ${typeCounts.table + typeCounts.figure + typeCounts.listing}`, value: 'all' },
-                { label: <Space size={2}>T<sup>{typeCounts.table}</sup></Space>, value: 'table' },
-                { label: <Space size={2}>F<sup>{typeCounts.figure}</sup></Space>, value: 'figure' },
-                { label: <Space size={2}>L<sup>{typeCounts.listing}</sup></Space>, value: 'listing' },
-              ]}
-              onChange={(v) => setSidebarFilter(v as SidebarFilter)}
+                Loading TFL data...
+              </Text>
+            </div>
+          )}
+          {tflError && (
+            <Alert
+              showIcon
+              className="mx-16px"
+              description={tflError}
+              message="Failed to load TFL data"
+              type="error"
+              action={
+                <Button
+                  size="small"
+                  onClick={refreshTFLData}
+                >
+                  Retry
+                </Button>
+              }
             />
           )}
 
-          {/* Items list or Study Settings view */}
-          <div className="flex-1 overflow-auto">
-            {sidebarView === 'settings' ? (
-              <div className="flex flex-col gap-2px pt-4px">
-                {/* Study settings vertical tabs */}
-                {studySettingsTabs.map(tab => (
-                  <div
-                    key={tab.key}
-                    className={`flex cursor-pointer items-center gap-6px rounded px-8px py-6px transition-colors ${
-                      studySettingsTab === tab.key ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-600'
-                    }`}
-                    onClick={() => setStudySettingsTab(tab.key)}
+          {/* Main content: Left sidebar + Center editor */}
+          <div className="min-h-0 flex flex-1 overflow-hidden">
+            {/* Left sidebar - Outputs Tree (resizable) */}
+            <Card
+              className="flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
+              size="small"
+              style={{ width: sidebarWidth }}
+              variant="borderless"
+            >
+              {/* Study Settings button */}
+              <div className="mb-8px">
+                <Tooltip title={t('page.mdr.tflDesigner.sidebar.studySettings')}>
+                  <Button
+                    block
+                    ghost={sidebarView === 'settings'}
+                    icon={<SettingOutlined />}
+                    size="small"
+                    type={sidebarView === 'settings' ? 'primary' : 'default'}
+                    onClick={() => {
+                      if (sidebarView === 'settings') {
+                        setSidebarView('items');
+                      } else {
+                        handleShowStudySettings();
+                      }
+                    }}
                   >
-                    {tab.icon}
-                    <span className="text-13px">{tab.label}</span>
-                  </div>
-                ))}
-                {/* Back to Outputs */}
-                <div
-                  className="cursor-pointer rounded px-8px py-4px transition-colors hover:bg-gray-50"
-                  onClick={() => setSidebarView('items')}
-                >
-                  <Space size={6}>
-                    <AppstoreOutlined className="text-blue-500" />
-                    <span className="text-13px">{t('page.mdr.tflDesigner.sidebar.studySettingsBack')}</span>
-                  </Space>
-                </div>
+                    {t('page.mdr.tflDesigner.sidebar.studySettings')}
+                  </Button>
+                </Tooltip>
               </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32px">
-                <Text type="secondary" className="text-12px">
-                  {t('page.mdr.tflDesigner.sidebar.empty')}
-                </Text>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2px pt-8px">
-                {filteredItems.map((item) => {
-                  const isActive =
-                    (item.type === 'table' && tableStore.currentTable?.id === item.id) ||
-                    (item.type === 'figure' && figureStore.currentFigure?.id === item.id) ||
-                    (item.type === 'listing' && listingStore.currentListing?.id === item.id);
 
-                  const typeColor = item.type === 'table' ? '#1890ff' : item.type === 'figure' ? '#52c41a' : '#fa8c16';
-                  const icon =
-                    item.type === 'table' ? (
-                      <TableOutlined style={{ color: isActive ? typeColor : undefined }} />
-                    ) : item.type === 'figure' ? (
-                      <BarChartOutlined style={{ color: isActive ? typeColor : undefined }} />
-                    ) : (
-                      <UnorderedListOutlined style={{ color: isActive ? typeColor : undefined }} />
-                    );
+              {/* Filter tabs — only show in items view */}
+              {sidebarView !== 'settings' && (
+                <Segmented
+                  block
+                  size="small"
+                  value={sidebarFilter}
+                  options={[
+                    { label: `All ${typeCounts.table + typeCounts.figure + typeCounts.listing}`, value: 'all' },
+                    {
+                      label: (
+                        <Space size={2}>
+                          T<sup>{typeCounts.table}</sup>
+                        </Space>
+                      ),
+                      value: 'table'
+                    },
+                    {
+                      label: (
+                        <Space size={2}>
+                          F<sup>{typeCounts.figure}</sup>
+                        </Space>
+                      ),
+                      value: 'figure'
+                    },
+                    {
+                      label: (
+                        <Space size={2}>
+                          L<sup>{typeCounts.listing}</sup>
+                        </Space>
+                      ),
+                      value: 'listing'
+                    }
+                  ]}
+                  onChange={v => setSidebarFilter(v as SidebarFilter)}
+                />
+              )}
 
-                  return (
+              {/* Items list or Study Settings view */}
+              <div className="flex-1 overflow-auto">
+                {sidebarView === 'settings' ? (
+                  <div className="flex flex-col gap-2px pt-4px">
+                    {/* Study settings vertical tabs */}
+                    {studySettingsTabs.map(tab => (
+                      <div
+                        key={tab.key}
+                        className={`flex cursor-pointer items-center gap-6px rounded px-8px py-6px transition-colors ${
+                          studySettingsTab === tab.key ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-600'
+                        }`}
+                        onClick={() => setStudySettingsTab(tab.key)}
+                      >
+                        {tab.icon}
+                        <span className="text-13px">{tab.label}</span>
+                      </div>
+                    ))}
+                    {/* Back to Outputs */}
                     <div
-                      key={item.id}
-                      className={`flex cursor-pointer items-center justify-between rounded-md px-8px py-5px transition-all duration-150 ${
-                        isActive ? 'bg-blue-50 shadow-sm' : 'hover:bg-gray-50'
-                      }`}
-                      style={isActive ? { borderLeft: `3px solid ${typeColor}`, paddingLeft: 5 } : { borderLeft: '3px solid transparent', paddingLeft: 5 }}
-                      onClick={() => handleSelectItem(item)}
+                      className="cursor-pointer rounded px-8px py-4px transition-colors hover:bg-gray-50"
+                      onClick={() => setSidebarView('items')}
                     >
                       <Space size={6}>
-                        {icon}
-                        <span className="text-13px leading-tight">
-                          <Text type="secondary" className="text-10px mr-4px block">{item.number}</Text>
-                          <span className={isActive ? 'text-gray-900 font-medium' : 'text-gray-700'}>{item.name}</span>
-                        </span>
-                      </Space>
-                      <Space size={2}>
-                        {item.category && (
-                          <Tag className="m-0 text-10px" color="green">
-                            {item.category.replace(/_/g, ' ')}
-                          </Tag>
-                        )}
+                        <AppstoreOutlined className="text-blue-500" />
+                        <span className="text-13px">{t('page.mdr.tflDesigner.sidebar.studySettingsBack')}</span>
                       </Space>
                     </div>
-                  );
-                })}
+                  </div>
+                ) : filteredItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-32px">
+                    <Text
+                      className="text-12px"
+                      type="secondary"
+                    >
+                      {t('page.mdr.tflDesigner.sidebar.empty')}
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2px pt-8px">
+                    {filteredItems.map(item => {
+                      const isActive =
+                        (item.type === 'table' && tableStore.currentTable?.id === item.id) ||
+                        (item.type === 'figure' && figureStore.currentFigure?.id === item.id) ||
+                        (item.type === 'listing' && listingStore.currentListing?.id === item.id);
+
+                      const typeColor =
+                        item.type === 'table' ? '#1890ff' : item.type === 'figure' ? '#52c41a' : '#fa8c16';
+                      const icon =
+                        item.type === 'table' ? (
+                          <TableOutlined style={{ color: isActive ? typeColor : undefined }} />
+                        ) : item.type === 'figure' ? (
+                          <BarChartOutlined style={{ color: isActive ? typeColor : undefined }} />
+                        ) : (
+                          <UnorderedListOutlined style={{ color: isActive ? typeColor : undefined }} />
+                        );
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex cursor-pointer items-center justify-between rounded-md px-8px py-5px transition-all duration-150 ${
+                            isActive ? 'bg-blue-50 shadow-sm' : 'hover:bg-gray-50'
+                          }`}
+                          style={
+                            isActive
+                              ? { borderLeft: `3px solid ${typeColor}`, paddingLeft: 5 }
+                              : { borderLeft: '3px solid transparent', paddingLeft: 5 }
+                          }
+                          onClick={() => handleSelectItem(item)}
+                        >
+                          <Space size={6}>
+                            {icon}
+                            <span className="text-13px leading-tight">
+                              <Text
+                                className="mr-4px block text-10px"
+                                type="secondary"
+                              >
+                                {item.number}
+                              </Text>
+                              <span className={isActive ? 'text-gray-900 font-medium' : 'text-gray-700'}>
+                                {item.name}
+                              </span>
+                            </span>
+                          </Space>
+                          <Space size={2}>
+                            {item.category && (
+                              <Tag
+                                className="m-0 text-10px"
+                                color="green"
+                              >
+                                {item.category.replace(/_/g, ' ')}
+                              </Tag>
+                            )}
+                          </Space>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </Card>
+
+            {/* Resize handle — sidebar */}
+            <div
+              style={{
+                backgroundColor: isResizing ? '#1890ff' : 'transparent',
+                cursor: 'col-resize',
+                flexShrink: 0,
+                transition: 'background-color 0.15s',
+                width: 4,
+                zIndex: 10
+              }}
+              onMouseDown={e => handleResizeStart(e, 'sidebar')}
+              onMouseEnter={e => {
+                if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
+              }}
+              onMouseLeave={e => {
+                if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            />
+
+            {/* Center - Editor area */}
+            <Card
+              className="min-w-0 flex flex-col flex-1 overflow-hidden card-wrapper"
+              size="small"
+              variant="borderless"
+            >
+              {sidebarView === 'settings' &&
+              !tableStore.currentTable &&
+              !figureStore.currentFigure &&
+              !listingStore.currentListing ? (
+                <div className="h-full overflow-y-auto p-12px">{renderStudySettingsContent()}</div>
+              ) : tableStore.currentTable ? (
+                renderTableEditor()
+              ) : figureStore.currentFigure ? (
+                renderFigureEditor()
+              ) : listingStore.currentListing ? (
+                renderListingEditor()
+              ) : (
+                renderStudyOverview()
+              )}
+            </Card>
           </div>
-        </Card>
 
-        {/* Resize handle — sidebar */}
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'sidebar')}
-          style={{
-            width: 4,
-            cursor: 'col-resize',
-            backgroundColor: isResizing ? '#1890ff' : 'transparent',
-            transition: 'background-color 0.15s',
-            flexShrink: 0,
-            zIndex: 10,
-          }}
-          onMouseEnter={(e) => { if (!isResizing) (e.currentTarget.style.backgroundColor = '#d9d9d9'); }}
-          onMouseLeave={(e) => { if (!isResizing) (e.currentTarget.style.backgroundColor = 'transparent'); }}
-        />
-
-        {/* Center - Editor area */}
-        <Card className="min-w-0 flex flex-1 flex-col overflow-hidden card-wrapper" size="small" variant="borderless">
-          {sidebarView === 'settings' && !tableStore.currentTable && !figureStore.currentFigure && !listingStore.currentListing ? (
-            <div className="h-full overflow-y-auto p-12px">
-              {renderStudySettingsContent()}
-            </div>
-          ) : tableStore.currentTable
-            ? renderTableEditor()
-            : figureStore.currentFigure
-              ? renderFigureEditor()
-              : listingStore.currentListing
-                ? renderListingEditor()
-                : renderStudyOverview()}
-        </Card>
-      </div>
-
-      {/* Template Selector Modal */}
+          {/* Template Selector Modal */}
         </>
       )}
-      <TemplateSelector open={templateModalOpen} onClose={() => setTemplateModalOpen(false)} />
+      <TemplateSelector
+        open={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+      />
 
       {/* Export Modal */}
-      <ExportModal open={exportModalOpen} onClose={() => setExportModalOpen(false)} document={exportDocument} />
+      <ExportModal
+        document={exportDocument}
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+      />
 
       {/* Template Picker from Study Templates */}
-      <TemplatePickerModal open={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} />
+      <TemplatePickerModal
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+      />
 
       {/* Push to Study PR Modal */}
-      <PushToStudyModal open={pushToStudyOpen} onClose={() => setPushToStudyOpen(false)} />
+      <PushToStudyModal
+        open={pushToStudyOpen}
+        onClose={() => setPushToStudyOpen(false)}
+      />
     </div>
   );
 };

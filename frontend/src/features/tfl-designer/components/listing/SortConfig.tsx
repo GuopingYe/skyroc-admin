@@ -3,47 +3,34 @@
  *
  * Multi-field sorting configuration for listings
  */
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Card, Divider, Select, Space, Tag, Typography, message } from 'antd';
 import { useMemo } from 'react';
-import {
-  Card,
-  Button,
-  Space,
-  Select,
-  Typography,
-  Tag,
-  Divider,
-  message
-} from 'antd';
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined
-} from '@ant-design/icons';
+
 import type { SortConfig, SortOperator } from '../../types';
 
 const { Text } = Typography;
 
 interface Props {
-  displayId: string;
-  sortRules: SortConfig[];
-  columns: Array<{ id: string; name: string; label: string }>;
-  onAdd: () => void;
-  onUpdate: (index: number, updates: Partial<SortConfig>) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
-  onDelete: (index: number) => void;
+  columns: Array<{ id: string; label: string; name: string }>;
   disabled?: boolean;
+  displayId: string;
+  onAdd: () => void;
+  onDelete: (index: number) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+  onUpdate: (index: number, updates: Partial<SortConfig>) => void;
+  sortRules: SortConfig[];
 }
 
 export default function SortConfig({
-  displayId,
-  sortRules,
   columns,
+  disabled = false,
+  displayId,
   onAdd,
-  onUpdate,
-  onReorder,
   onDelete,
-  disabled = false
+  onReorder,
+  onUpdate,
+  sortRules
 }: Props) {
   const sortedRules = useMemo(() => {
     return [...sortRules].sort((a, b) => a.priority - b.priority);
@@ -91,44 +78,54 @@ export default function SortConfig({
   };
 
   return (
-    <Card title="Sort Configuration" size="small">
-      <Space direction="vertical" style={{ width: '100%' }} size="small">
+    <Card
+      size="small"
+      title="Sort Configuration"
+    >
+      <Space
+        direction="vertical"
+        size="small"
+        style={{ width: '100%' }}
+      >
         {sortedRules.map((rule, index) => (
           <div
             key={`sort-${index}`}
             style={{
-              display: 'flex',
               alignItems: 'center',
-              marginBottom: 12,
-              padding: '12px',
               backgroundColor: '#fafafa',
               border: '1px solid #e8e8e8',
               borderRadius: 4,
+              display: 'flex',
+              marginBottom: 12,
+              padding: '12px'
             }}
           >
             <div style={{ flex: 1, marginRight: 12 }}>
-              <Tag color="blue" style={{ fontSize: 11 }}>
+              <Tag
+                color="blue"
+                style={{ fontSize: 11 }}
+              >
                 Priority {rule.priority}
               </Tag>
             </div>
 
             <div style={{ flex: 3, marginRight: 12 }}>
               <Select
-                placeholder="Select column"
-                value={rule.columnId}
                 disabled={disabled}
+                options={columns.map(c => ({ label: c.label || c.name, value: c.id }))}
+                placeholder="Select column"
+                style={{ fontSize: 12, width: '100%' }}
+                value={rule.columnId}
                 onChange={value => handleUpdateRule(index, 'columnId', value)}
-                style={{ width: '100%', fontSize: 12 }}
-                options={columns.map(c => ({ value: c.id, label: c.label || c.name }))}
               />
             </div>
 
             <div style={{ flex: 3, marginRight: 12 }}>
               <Select
-                value={rule.order}
                 disabled={disabled}
-                onChange={value => handleUpdateRule(index, 'order', value as SortOperator)}
                 style={{ fontSize: 12 }}
+                value={rule.order}
+                onChange={value => handleUpdateRule(index, 'order', value as SortOperator)}
               >
                 <Select.Option value="asc">Ascending &#8593;</Select.Option>
                 <Select.Option value="desc">Descending &#8595;</Select.Option>
@@ -137,37 +134,37 @@ export default function SortConfig({
 
             <Space>
               <Button
-                size="small"
-                icon={<ArrowUpOutlined />}
                 disabled={disabled || index === 0}
+                icon={<ArrowUpOutlined />}
+                size="small"
                 onClick={() => handleMoveUp(index)}
               />
               <Button
-                size="small"
-                icon={<ArrowDownOutlined />}
                 disabled={disabled || index === sortedRules.length - 1}
+                icon={<ArrowDownOutlined />}
+                size="small"
                 onClick={() => handleMoveDown(index)}
               />
               <Button
-                size="small"
+                disabled={disabled}
                 icon={<ArrowUpOutlined />}
-                disabled={disabled}
-                onClick={() => handleMoveToTop(index)}
+                size="small"
                 title="Move to top"
+                onClick={() => handleMoveToTop(index)}
               />
               <Button
-                size="small"
-                icon={<ArrowDownOutlined />}
                 disabled={disabled || index === sortedRules.length - 1}
-                onClick={() => handleMoveToBottom(index)}
+                icon={<ArrowDownOutlined />}
+                size="small"
                 title="Move to bottom"
+                onClick={() => handleMoveToBottom(index)}
               />
               <Button
-                type="text"
                 danger
-                size="small"
-                icon={<DeleteOutlined />}
                 disabled={disabled}
+                icon={<DeleteOutlined />}
+                size="small"
+                type="text"
                 onClick={() => handleDeleteRule(index)}
               />
             </Space>
@@ -177,11 +174,11 @@ export default function SortConfig({
         <Divider />
 
         <Button
-          type="dashed"
-          icon={<PlusOutlined />}
-          onClick={handleAddRule}
-          disabled={disabled}
           block
+          disabled={disabled}
+          icon={<PlusOutlined />}
+          type="dashed"
+          onClick={handleAddRule}
         >
           Add Sort Rule
         </Button>

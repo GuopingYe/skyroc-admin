@@ -1,33 +1,22 @@
 /**
  * TFL Builder - Column Header Set Editor
  *
- * Study-level editor for managing reusable column header groupings.
- * Each set defines a nested column structure (e.g. SOC/PT, Visit-based)
- * that listings can reference via columnHeaderSetId.
+ * Study-level editor for managing reusable column header groupings. Each set defines a nested column structure (e.g.
+ * SOC/PT, Visit-based) that listings can reference via columnHeaderSetId.
  */
-import { useState, useMemo } from 'react';
 import {
-  Card,
-  Button,
-  Space,
-  Input,
-  Select,
-  Tag,
-  Tooltip,
-  Popconfirm,
-  Typography,
-  message,
-} from 'antd';
-import {
-  PlusOutlined,
   DeleteOutlined,
   EditOutlined,
-  SaveOutlined,
   GroupOutlined,
-  UngroupOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  UngroupOutlined
 } from '@ant-design/icons';
-import type { ColumnHeaderSet, ColumnHeaderGroup } from '../../types';
+import { Button, Card, Input, Popconfirm, Select, Space, Tag, Tooltip, Typography, message } from 'antd';
+import { useMemo, useState } from 'react';
+
 import { useStudyStore } from '../../stores';
+import type { ColumnHeaderGroup, ColumnHeaderSet } from '../../types';
 import { countLeaves } from '../../utils/treeUtils';
 
 const { Text } = Typography;
@@ -35,15 +24,15 @@ const { Text } = Typography;
 // ==================== Helpers ====================
 
 interface FlatGroup {
-  group: ColumnHeaderGroup;
   depth: number;
+  group: ColumnHeaderGroup;
   parentId: string | null;
 }
 
 function flattenGroups(groups: ColumnHeaderGroup[], depth = 0, parentId: string | null = null): FlatGroup[] {
   const result: FlatGroup[] = [];
-  groups.forEach((g) => {
-    result.push({ group: g, depth, parentId });
+  groups.forEach(g => {
+    result.push({ depth, group: g, parentId });
     if (g.children?.length) {
       result.push(...flattenGroups(g.children, depth + 1, g.id));
     }
@@ -54,18 +43,16 @@ function flattenGroups(groups: ColumnHeaderGroup[], depth = 0, parentId: string 
 // ==================== Component ====================
 
 export default function ColumnHeaderSetEditor() {
-  const columnHeaderSets = useStudyStore((s) => s.columnHeaderSets);
-  const addColumnHeaderSet = useStudyStore((s) => s.addColumnHeaderSet);
-  const updateColumnHeaderSet = useStudyStore((s) => s.updateColumnHeaderSet);
-  const deleteColumnHeaderSet = useStudyStore((s) => s.deleteColumnHeaderSet);
-  const addHeaderGroup = useStudyStore((s) => s.addHeaderGroup);
-  const updateHeaderGroup = useStudyStore((s) => s.updateHeaderGroup);
-  const deleteHeaderGroup = useStudyStore((s) => s.deleteHeaderGroup);
-  const addChildGroup = useStudyStore((s) => s.addChildGroup);
+  const columnHeaderSets = useStudyStore(s => s.columnHeaderSets);
+  const addColumnHeaderSet = useStudyStore(s => s.addColumnHeaderSet);
+  const updateColumnHeaderSet = useStudyStore(s => s.updateColumnHeaderSet);
+  const deleteColumnHeaderSet = useStudyStore(s => s.deleteColumnHeaderSet);
+  const addHeaderGroup = useStudyStore(s => s.addHeaderGroup);
+  const updateHeaderGroup = useStudyStore(s => s.updateHeaderGroup);
+  const deleteHeaderGroup = useStudyStore(s => s.deleteHeaderGroup);
+  const addChildGroup = useStudyStore(s => s.addChildGroup);
 
-  const [activeSetId, setActiveSetId] = useState<string | null>(
-    columnHeaderSets[0]?.id || null,
-  );
+  const [activeSetId, setActiveSetId] = useState<string | null>(columnHeaderSets[0]?.id || null);
 
   // Edit states
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
@@ -73,19 +60,19 @@ export default function ColumnHeaderSetEditor() {
   const [editLabel, setEditLabel] = useState('');
   const [editVariable, setEditVariable] = useState('');
 
-  const activeSet = columnHeaderSets.find((s) => s.id === activeSetId);
+  const activeSet = columnHeaderSets.find(s => s.id === activeSetId);
   const flatGroups = useMemo(() => (activeSet ? flattenGroups(activeSet.headers) : []), [activeSet]);
 
   // ==================== Set handlers ====================
 
   const handleAddSet = () => {
-    addColumnHeaderSet({ name: 'New Header Set', description: '', headers: [] });
+    addColumnHeaderSet({ description: '', headers: [], name: 'New Header Set' });
     message.success('Header set created');
   };
 
   const handleDeleteSet = (id: string) => {
     deleteColumnHeaderSet(id);
-    if (activeSetId === id) setActiveSetId(columnHeaderSets.find((s) => s.id !== id)?.id || null);
+    if (activeSetId === id) setActiveSetId(columnHeaderSets.find(s => s.id !== id)?.id || null);
     message.success('Deleted');
   };
 
@@ -154,7 +141,7 @@ export default function ColumnHeaderSetEditor() {
     if (!activeSetId || !editingGroupId) return;
     updateHeaderGroup(activeSetId, editingGroupId, {
       label: editLabel.trim(),
-      variable: editVariable.trim() || undefined,
+      variable: editVariable.trim() || undefined
     });
     setEditingGroupId(null);
     message.success('Saved');
@@ -164,6 +151,17 @@ export default function ColumnHeaderSetEditor() {
 
   return (
     <Card
+      size="small"
+      extra={
+        <Button
+          icon={<PlusOutlined />}
+          size="small"
+          type="primary"
+          onClick={handleAddSet}
+        >
+          Add Set
+        </Button>
+      }
       title={
         <Space>
           <GroupOutlined />
@@ -171,25 +169,19 @@ export default function ColumnHeaderSetEditor() {
           <Tag color="blue">{columnHeaderSets.length}</Tag>
         </Space>
       }
-      extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddSet} size="small">
-          Add Set
-        </Button>
-      }
-      size="small"
     >
       {/* Set selector */}
       {columnHeaderSets.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 24, color: '#999' }}>
+        <div style={{ color: '#999', padding: 24, textAlign: 'center' }}>
           <Text type="secondary">No header sets defined. Create one to get started.</Text>
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            {columnHeaderSets.map((set) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {columnHeaderSets.map(set => (
               <Tag
-                key={set.id}
                 color={activeSetId === set.id ? 'blue' : undefined}
+                key={set.id}
                 style={{ cursor: 'pointer', fontSize: 13, padding: '2px 8px' }}
                 onClick={() => setActiveSetId(set.id)}
               >
@@ -204,25 +196,53 @@ export default function ColumnHeaderSetEditor() {
               {editingSetId === activeSet.id ? (
                 <Space size={4}>
                   <Input
-                    size="small"
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
-                    onPressEnter={saveEditSet}
-                    style={{ width: 200 }}
                     autoFocus
+                    size="small"
+                    style={{ width: 200 }}
+                    value={editLabel}
+                    onChange={e => setEditLabel(e.target.value)}
+                    onPressEnter={saveEditSet}
                   />
-                  <Button size="small" type="primary" icon={<SaveOutlined />} onClick={saveEditSet} />
-                  <Button size="small" onClick={() => setEditingSetId(null)}>Cancel</Button>
+                  <Button
+                    icon={<SaveOutlined />}
+                    size="small"
+                    type="primary"
+                    onClick={saveEditSet}
+                  />
+                  <Button
+                    size="small"
+                    onClick={() => setEditingSetId(null)}
+                  >
+                    Cancel
+                  </Button>
                 </Space>
               ) : (
                 <Space>
                   <Text strong>{activeSet.name}</Text>
                   {activeSet.description && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>{activeSet.description}</Text>
+                    <Text
+                      style={{ fontSize: 12 }}
+                      type="secondary"
+                    >
+                      {activeSet.description}
+                    </Text>
                   )}
-                  <Button size="small" type="text" icon={<EditOutlined />} onClick={() => startEditSet(activeSet)} />
-                  <Popconfirm title="Delete this header set?" onConfirm={() => handleDeleteSet(activeSet.id)}>
-                    <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                  <Button
+                    icon={<EditOutlined />}
+                    size="small"
+                    type="text"
+                    onClick={() => startEditSet(activeSet)}
+                  />
+                  <Popconfirm
+                    title="Delete this header set?"
+                    onConfirm={() => handleDeleteSet(activeSet.id)}
+                  >
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      size="small"
+                      type="text"
+                    />
                   </Popconfirm>
                 </Space>
               )}
@@ -232,53 +252,66 @@ export default function ColumnHeaderSetEditor() {
           {/* Group tree */}
           {activeSet && (
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-              {flatGroups.map(({ group, depth }) => (
+              {flatGroups.map(({ depth, group }) => (
                 <div
                   key={group.id}
                   style={{
-                    display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
-                    padding: '5px 8px',
-                    paddingLeft: 8 + depth * 24,
                     backgroundColor: group.children?.length ? '#f0f7ff' : depth % 2 === 0 ? '#fff' : '#fafafa',
                     border: '1px solid #f0f0f0',
                     borderRadius: 4,
+                    display: 'flex',
+                    gap: 6,
                     marginBottom: 2,
+                    padding: '5px 8px',
+                    paddingLeft: 8 + depth * 24
                   }}
                 >
                   {group.children?.length ? (
                     <GroupOutlined style={{ color: '#1890ff', fontSize: 12 }} />
                   ) : (
-                    <span style={{ width: 12, display: 'inline-block' }} />
+                    <span style={{ display: 'inline-block', width: 12 }} />
                   )}
 
                   {editingGroupId === group.id ? (
                     <Space size={4}>
                       <Input
-                        size="small"
-                        value={editLabel}
-                        onChange={(e) => setEditLabel(e.target.value)}
-                        placeholder="Label"
-                        style={{ width: 120 }}
                         autoFocus
+                        placeholder="Label"
+                        size="small"
+                        style={{ width: 120 }}
+                        value={editLabel}
+                        onChange={e => setEditLabel(e.target.value)}
                       />
                       <Input
-                        size="small"
-                        value={editVariable}
-                        onChange={(e) => setEditVariable(e.target.value)}
                         placeholder="Variable"
+                        size="small"
                         style={{ width: 100 }}
+                        value={editVariable}
+                        onChange={e => setEditVariable(e.target.value)}
                       />
-                      <Button size="small" type="primary" icon={<SaveOutlined />} onClick={saveEditGroup} />
-                      <Button size="small" onClick={() => setEditingGroupId(null)}>Cancel</Button>
+                      <Button
+                        icon={<SaveOutlined />}
+                        size="small"
+                        type="primary"
+                        onClick={saveEditGroup}
+                      />
+                      <Button
+                        size="small"
+                        onClick={() => setEditingGroupId(null)}
+                      >
+                        Cancel
+                      </Button>
                     </Space>
                   ) : (
                     <>
                       <Text style={{ flex: 1, fontSize: 12 }}>
                         {group.label}
                         {group.variable && (
-                          <Text type="secondary" style={{ fontSize: 11, marginLeft: 6 }}>
+                          <Text
+                            style={{ fontSize: 11, marginLeft: 6 }}
+                            type="secondary"
+                          >
                             [{group.variable}]
                           </Text>
                         )}
@@ -287,18 +320,39 @@ export default function ColumnHeaderSetEditor() {
                         {group.children?.length && (
                           <>
                             <Tooltip title="Add child column">
-                              <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => handleAddSubGroup(group.id)} />
+                              <Button
+                                icon={<PlusOutlined />}
+                                size="small"
+                                type="text"
+                                onClick={() => handleAddSubGroup(group.id)}
+                              />
                             </Tooltip>
                             <Tooltip title="Ungroup children">
-                              <Button type="text" size="small" icon={<UngroupOutlined />} onClick={() => handleUngroup(group.id)} />
+                              <Button
+                                icon={<UngroupOutlined />}
+                                size="small"
+                                type="text"
+                                onClick={() => handleUngroup(group.id)}
+                              />
                             </Tooltip>
                           </>
                         )}
                         <Tooltip title="Edit">
-                          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => startEditGroup(group)} />
+                          <Button
+                            icon={<EditOutlined />}
+                            size="small"
+                            type="text"
+                            onClick={() => startEditGroup(group)}
+                          />
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeleteGroup(group.id)} />
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            type="text"
+                            onClick={() => handleDeleteGroup(group.id)}
+                          />
                         </Tooltip>
                       </Space>
                     </>
@@ -306,7 +360,7 @@ export default function ColumnHeaderSetEditor() {
                 </div>
               ))}
               {flatGroups.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>
+                <div style={{ color: '#999', padding: 16, textAlign: 'center' }}>
                   <Text type="secondary">No columns in this set</Text>
                 </div>
               )}
@@ -315,8 +369,12 @@ export default function ColumnHeaderSetEditor() {
 
           {/* Add column button */}
           {activeSet && (
-            <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-              <Button size="small" icon={<PlusOutlined />} onClick={handleAddGroup}>
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
+              <Button
+                icon={<PlusOutlined />}
+                size="small"
+                onClick={handleAddGroup}
+              >
                 Add Column
               </Button>
             </div>

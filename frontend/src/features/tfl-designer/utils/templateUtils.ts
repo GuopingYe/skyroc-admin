@@ -2,30 +2,29 @@
 /**
  * TFL Builder - Template Utilities
  *
- * Functions for importing, parsing, and applying templates
- * from JSON metadata exports and RTF files
+ * Functions for importing, parsing, and applying templates from JSON metadata exports and RTF files
  */
 
 import type {
+  AnalysisCategory,
   IARSDocument,
-  IDisplay,
-  IOutput,
   IAnalysis,
-  IGrouping,
-  IMethod,
-  Template,
-  ITemplateShell,
-  IBodyRow,
   IAxisConfig,
+  IBodyRow,
   IChartSeries,
-  IListingColumn,
-  ISortConfig,
+  IDisplay,
   IFilterConfig,
-  IStudyInfo,
+  IGrouping,
+  IListingColumn,
+  IMethod,
+  IOutput,
   IPopulationDefinition,
-  TableShell,
+  ISortConfig,
+  IStudyInfo,
+  ITemplateShell,
   TableRow,
-  AnalysisCategory
+  TableShell,
+  Template
 } from '../types';
 
 // ==================== JSON Import Types ====================
@@ -33,68 +32,67 @@ import type {
 interface CommercialExport {
   about?: {
     generatedUsing?: string;
-    version?: string;
     note?: string;
+    version?: string;
   };
-  studyInfo?: {
-    studyId: string;
-    studyTitle: string;
-    phase: string[];
-    compoundUnderStudy: string;
-    diseaseArea: string;
-    therapeuticArea: string;
-    description?: string;
-  };
-  name: string;
+  analyses?: IAnalysis[];
+  displayDocuments?: any[];
   id: string;
   mainListOfContents?: {
-    name: string;
-    label: string;
     contentsList: {
       listItems: LOPAListItem[];
     };
+    label: string;
+    name: string;
   };
-  analyses?: IAnalysis[];
   methods?: IMethod[];
+  name: string;
   outputs?: OutputData[];
-  displayDocuments?: any[];
+  studyInfo?: {
+    compoundUnderStudy: string;
+    description?: string;
+    diseaseArea: string;
+    phase: string[];
+    studyId: string;
+    studyTitle: string;
+    therapeuticArea: string;
+  };
 }
 
 interface LOPAListItem {
-  name: string;
+  analysisId?: string;
   level: number;
+  name: string;
   order: number;
   outputId?: string;
-  analysisId?: string;
   sublist?: {
     listItems: LOPAListItem[];
   };
 }
 
 interface OutputData {
-  name: string;
-  id: string;
-  version: number;
-  fileSpecifications?: any[];
-  displays?: DisplayData[];
   categoryIds?: string[];
+  displays?: DisplayData[];
   documentRefs?: any[];
+  fileSpecifications?: any[];
+  id: string;
+  name: string;
   programmingCode?: any;
+  version: number;
 }
 
 interface DisplayData {
-  order: number;
   display: {
-    name: string;
-    id: string;
-    version: number;
-    displayTitle?: string;
     displaySections: DisplaySection[];
+    displayTitle?: string;
+    id: string;
+    name: string;
+    version: number;
   };
+  order: number;
 }
 
 interface DisplaySection {
-  sectionType: string;
   orderedSubSections?: Array<{
     order: number;
     subSection: {
@@ -102,29 +100,26 @@ interface DisplaySection {
       text: string;
     };
   }>;
+  sectionType: string;
 }
 
 // ==================== Study Info Import ====================
 
-/**
- * Extract study-level metadata from commercial JSON export
- */
+/** Extract study-level metadata from commercial JSON export */
 export function importStudyMetadata(json: CommercialExport): IStudyInfo {
   return {
+    compoundUnderStudy: json.studyInfo?.compoundUnderStudy || '',
+    description: json.studyInfo?.description,
+    diseaseArea: json.studyInfo?.diseaseArea || '',
+    phase: json.studyInfo?.phase || [],
     studyId: json.studyInfo?.studyId || '',
     studyTitle: json.studyInfo?.studyTitle || '',
-    phase: json.studyInfo?.phase || [],
-    compoundUnderStudy: json.studyInfo?.compoundUnderStudy || '',
-    diseaseArea: json.studyInfo?.diseaseArea || '',
     therapeuticArea: json.studyInfo?.therapeuticArea || '',
-    description: json.studyInfo?.description,
-    version: 1,
+    version: 1
   };
 }
 
-/**
- * Extract population definitions from analysis sets
- */
+/** Extract population definitions from analysis sets */
 export function importPopulations(json: CommercialExport): IPopulationDefinition[] {
   const populations: IPopulationDefinition[] = [];
   const categoryIds = new Set<string>();
@@ -136,23 +131,23 @@ export function importPopulations(json: CommercialExport): IPopulationDefinition
 
   // Create population definitions from category IDs
   const populationMap: Record<string, string> = {
-    'ANSET_02': 'All Enrolled Population',
-    'ANSET_03': 'Safety Population',
-    'ANSET_04': 'Intent-To-Treat (ITT)',
-    'ANSET_05': 'Full Analysis Set (FAS)',
-    'ANSET_06': 'Per-Protocol Set (PPS)',
+    ANSET_02: 'All Enrolled Population',
+    ANSET_03: 'Safety Population',
+    ANSET_04: 'Intent-To-Treat (ITT)',
+    ANSET_05: 'Full Analysis Set (FAS)',
+    ANSET_06: 'Per-Protocol Set (PPS)'
   };
 
   categoryIds.forEach(catId => {
     if (populationMap[catId]) {
       populations.push({
-        id: catId,
-        name: populationMap[catId],
-        description: `Analysis population for ${catId}`,
-        dataset: json.analyses?.[0]?.dataset || 'ADSL',
         createdAt: new Date().toISOString(),
         createdBy: 'system',
-        version: 1,
+        dataset: json.analyses?.[0]?.dataset || 'ADSL',
+        description: `Analysis population for ${catId}`,
+        id: catId,
+        name: populationMap[catId],
+        version: 1
       });
     }
   });
@@ -162,18 +157,16 @@ export function importPopulations(json: CommercialExport): IPopulationDefinition
 
 // ==================== Table Template Import ====================
 
-/**
- * Parse LOPA structure to extract output hierarchy
- */
+/** Parse LOPA structure to extract output hierarchy */
 function parseLOPAHierarchy(listItems: LOPAListItem[]): ITemplateCategory[] {
   const categories: ITemplateCategory[] = [];
 
   listItems.forEach(item => {
     if (item.outputId) {
       categories.push({
-        name: item.name,
-        outputId: item.outputId,
         analyses: item.sublist?.listItems || [],
+        name: item.name,
+        outputId: item.outputId
       });
     }
   });
@@ -182,14 +175,12 @@ function parseLOPAHierarchy(listItems: LOPAListItem[]): ITemplateCategory[] {
 }
 
 interface TemplateCategory {
+  analyses: LOPAListItem[];
   name: string;
   outputId: string;
-  analyses: LOPAListItem[];
 }
 
-/**
- * Determine category from output name
- */
+/** Determine category from output name */
 function determineCategoryFromName(name: string): AnalysisCategory {
   const lower = name.toLowerCase();
 
@@ -202,7 +193,12 @@ function determineCategoryFromName(name: string): AnalysisCategory {
   if (lower.includes('adverse') || lower.includes('ae')) {
     return 'Adverse_Events';
   }
-  if (lower.includes('laboratory') || lower.includes('lab') || lower.includes('hematology') || lower.includes('chemistry')) {
+  if (
+    lower.includes('laboratory') ||
+    lower.includes('lab') ||
+    lower.includes('hematology') ||
+    lower.includes('chemistry')
+  ) {
     return 'Laboratory';
   }
   if (lower.includes('vital')) {
@@ -233,12 +229,8 @@ function determineCategoryFromName(name: string): AnalysisCategory {
   return 'Other';
 }
 
-/**
- * Import table templates from commercial JSON export
- */
-export async function importTableTemplatesFromJSON(
-  json: CommercialExport
-): Promise<Template[]> {
+/** Import table templates from commercial JSON export */
+export async function importTableTemplatesFromJSON(json: CommercialExport): Promise<Template[]> {
   const templates: ITemplate[] = [];
 
   if (!json.mainListOfContents || !json.outputs) {
@@ -259,13 +251,13 @@ export async function importTableTemplatesFromJSON(
 
     // Create template for each display
     const template: ITemplate = {
-      id: `tpl_${templateCategory.toLowerCase()}_${category.outputId}`,
-      type: 'table',
-      name: category.name,
       category: templateCategory,
-      description: `Imported from ${json.name} - ${category.name}`,
-      shell: createTableShellFromDisplay(display, templateCategory, output),
       createdAt: new Date().toISOString(),
+      description: `Imported from ${json.name} - ${category.name}`,
+      id: `tpl_${templateCategory.toLowerCase()}_${category.outputId}`,
+      name: category.name,
+      shell: createTableShellFromDisplay(display, templateCategory, output),
+      type: 'table'
     };
 
     templates.push(template);
@@ -274,24 +266,22 @@ export async function importTableTemplatesFromJSON(
   return templates;
 }
 
-/**
- * Create table shell structure from display data
- */
+/** Create table shell structure from display data */
 function createTableShellFromDisplay(
   display: DisplayData['display'],
   category: string,
   output: OutputData
 ): ITemplateShell {
   const shell: ITemplateShell = {
-    id: display.id,
-    shellNumber: 'Imported',
-    title: display.displayTitle || display.name,
-    population: 'Safety',
     category,
     dataset: 'ADSL',
-    treatmentArmSetId: '',
-    statisticsSetId: '',
+    id: display.id,
+    population: 'Safety',
     rows: [],
+    shellNumber: 'Imported',
+    statisticsSetId: '',
+    title: display.displayTitle || display.name,
+    treatmentArmSetId: ''
   };
 
   // Extract title sections
@@ -307,15 +297,15 @@ function createTableShellFromDisplay(
   const footnoteSection = display.displaySections.find(s => s.sectionType === 'Footnote');
   if (footnoteSection?.orderedSubSections) {
     shell.footer = {
-      source: '',
       notes: footnoteSection.orderedSubSections.map(s => s.subSection.text),
+      source: ''
     };
   }
 
   // Extract abbreviations
   const abbrevSection = display.displaySections.find(s => s.sectionType === 'Abbreviations');
   if (abbrevSection?.orderedSubSections) {
-    if (!shell.footer) shell.footer = { source: '', notes: [] };
+    if (!shell.footer) shell.footer = { notes: [], source: '' };
     const abbrevText = abbrevSection.orderedSubSections[0]?.subSection.text || '';
     shell.footer.abbreviations = parseAbbreviations(abbrevText);
   }
@@ -323,10 +313,7 @@ function createTableShellFromDisplay(
   return shell;
 }
 
-/**
- * Parse abbreviations from text
- * Format: "Abbreviations: N=Number of subjects; SD=Standard Deviation"
- */
+/** Parse abbreviations from text Format: "Abbreviations: N=Number of subjects; SD=Standard Deviation" */
 function parseAbbreviations(text: string): Record<string, string> {
   const abbreviations: Record<string, string> = {};
 
@@ -349,43 +336,40 @@ function parseAbbreviations(text: string): Record<string, string> {
 // ==================== Figure Template Import from RTF ====================
 
 interface RTFFigureSpec {
-  chartType: 'line' | 'scatter' | 'bar' | 'box' | 'violin' | 'waterfall' | 'km_curve' | 'forest';
-  title?: string;
-  xLabel?: string;
-  yLabel?: string;
-  xAxis?: IAxisConfig;
-  yAxis?: IAxisConfig;
-  series?: IChartSeries[];
+  chartType: 'bar' | 'box' | 'forest' | 'km_curve' | 'line' | 'scatter' | 'violin' | 'waterfall';
   legend?: any;
+  series?: IChartSeries[];
+  title?: string;
+  xAxis?: IAxisConfig;
+  xLabel?: string;
+  yAxis?: IAxisConfig;
+  yLabel?: string;
 }
 
-/**
- * Extract figure specification from RTF content
- */
+/** Extract figure specification from RTF content */
 export function extractFigureFromRTF(rtfContent: string): RTFFigureSpec {
   const spec: RTFFigureSpec = {
-    chartType: 'line',
+    chartType: 'line'
   };
 
   // Detect chart type from content
-  if (rtfContent.toLowerCase().includes('kaplan-meier') ||
-      rtfContent.toLowerCase().includes('survival probability')) {
+  if (rtfContent.toLowerCase().includes('kaplan-meier') || rtfContent.toLowerCase().includes('survival probability')) {
     spec.chartType = 'km_curve';
     spec.xLabel = 'Time (Days)';
     spec.yLabel = 'Survival Probability';
-  } else if (rtfContent.toLowerCase().includes('concentration') &&
-             rtfContent.toLowerCase().includes('time')) {
+  } else if (rtfContent.toLowerCase().includes('concentration') && rtfContent.toLowerCase().includes('time')) {
     spec.chartType = 'line';
     spec.xLabel = 'Time (h)';
     spec.yLabel = 'Concentration (ng/mL)';
-  } else if (rtfContent.toLowerCase().includes('bar') ||
-             rtfContent.toLowerCase().includes('response rate')) {
+  } else if (rtfContent.toLowerCase().includes('bar') || rtfContent.toLowerCase().includes('response rate')) {
     spec.chartType = 'bar';
     spec.xLabel = 'Treatment';
     spec.yLabel = 'Response Rate (%)';
-  } else if (rtfContent.toLowerCase().includes('forest') ||
-             rtfContent.toLowerCase().includes('odds ratio') ||
-             rtfContent.toLowerCase().includes('confidence interval')) {
+  } else if (
+    rtfContent.toLowerCase().includes('forest') ||
+    rtfContent.toLowerCase().includes('odds ratio') ||
+    rtfContent.toLowerCase().includes('confidence interval')
+  ) {
     spec.chartType = 'forest';
     spec.xLabel = 'Odds Ratio';
     spec.yLabel = 'Study';
@@ -411,30 +395,25 @@ export function extractFigureFromRTF(rtfContent: string): RTFFigureSpec {
   return spec;
 }
 
-/**
- * Create figure template from RTF specification
- */
-export function createFigureTemplateFromRTF(
-  rtfContent: string,
-  category: string
-): ITemplate {
+/** Create figure template from RTF specification */
+export function createFigureTemplateFromRTF(rtfContent: string, category: string): ITemplate {
   const spec = extractFigureFromRTF(rtfContent);
 
   return {
-    id: `tpl_figure_${Date.now()}`,
-    type: 'figure',
-    name: spec.title || 'Imported Figure',
     category,
+    createdAt: new Date().toISOString(),
     description: `Figure template extracted from RTF`,
+    id: `tpl_figure_${Date.now()}`,
+    name: spec.title || 'Imported Figure',
     shell: {
       chartType: spec.chartType,
+      legend: spec.legend,
+      series: spec.series || [],
       title: spec.title || '',
       xAxis: spec.xAxis || { label: spec.xLabel || '', type: 'continuous' },
-      yAxis: spec.yAxis || { label: spec.yLabel || '', type: 'continuous' },
-      series: spec.series || [],
-      legend: spec.legend,
+      yAxis: spec.yAxis || { label: spec.yLabel || '', type: 'continuous' }
     } as any,
-    createdAt: new Date().toISOString(),
+    type: 'figure'
   };
 }
 
@@ -442,17 +421,15 @@ export function createFigureTemplateFromRTF(
 
 interface RTFListingSpec {
   columns: Omit<IListingColumn, 'id'>[];
-  title?: string;
-  sortRules?: ISortConfig[];
   filterRules?: IFilterConfig[];
+  sortRules?: ISortConfig[];
+  title?: string;
 }
 
-/**
- * Extract listing specification from RTF content
- */
+/** Extract listing specification from RTF content */
 export function extractListingFromRTF(rtfContent: string): RTFListingSpec {
   const spec: RTFListingSpec = {
-    columns: [],
+    columns: []
   };
 
   // Extract title
@@ -470,17 +447,18 @@ export function extractListingFromRTF(rtfContent: string): RTFListingSpec {
     const cells = headerRow.match(/\\cellx\d+/g);
     if (cells) {
       // Calculate column widths
-      const widths = cells.map(cell => parseInt(cell.replace('\\cellx', '')));
+      const widths = cells.map(cell => Number.parseInt(cell.replace('\\cellx', '')));
       for (let i = 0; i < widths.length; i++) {
         const width = i === 0 ? widths[i] : widths[i] - widths[i - 1];
         spec.columns.push({
-          variable: `col_${i}`,
-          label: `Column ${i + 1}`,
-          width: Math.floor(width / 10), // Convert from twips to approximate pixels
+          // Convert from twips to approximate pixels
           alignment: 'left' as const,
           dataType: 'string' as const,
-          visible: true,
+          label: `Column ${i + 1}`,
           sortOrder: i,
+          variable: `col_${i}`,
+          visible: true,
+          width: Math.floor(width / 10)
         });
       }
     }
@@ -488,15 +466,15 @@ export function extractListingFromRTF(rtfContent: string): RTFListingSpec {
 
   // Detect common listing columns by name patterns
   const commonColumns = [
-    { var: 'USUBJID', label: 'Subject ID' },
-    { var: 'TRT01P', label: 'Treatment' },
-    { var: 'DSREAS', label: 'Discontinuation Reason' },
-    { var: 'AEBODSYS', label: 'Body System' },
-    { var: 'AEDECOD', label: 'Preferred Term' },
-    { var: 'AETOXGR', label: 'Severity' },
-    { var: 'AEREL', label: 'Relationship' },
-    { var: 'CMDECOD', label: 'Medication Name' },
-    { var: 'CMINDC', label: 'Indication' },
+    { label: 'Subject ID', var: 'USUBJID' },
+    { label: 'Treatment', var: 'TRT01P' },
+    { label: 'Discontinuation Reason', var: 'DSREAS' },
+    { label: 'Body System', var: 'AEBODSYS' },
+    { label: 'Preferred Term', var: 'AEDECOD' },
+    { label: 'Severity', var: 'AETOXGR' },
+    { label: 'Relationship', var: 'AEREL' },
+    { label: 'Medication Name', var: 'CMDECOD' },
+    { label: 'Indication', var: 'CMINDC' }
   ];
 
   const rtfLower = rtfContent.toLowerCase();
@@ -512,213 +490,178 @@ export function extractListingFromRTF(rtfContent: string): RTFListingSpec {
   return spec;
 }
 
-/**
- * Create listing template from RTF specification
- */
-export function createListingTemplateFromRTF(
-  rtfContent: string,
-  category: string
-): ITemplate {
+/** Create listing template from RTF specification */
+export function createListingTemplateFromRTF(rtfContent: string, category: string): ITemplate {
   const spec = extractListingFromRTF(rtfContent);
 
   return {
-    id: `tpl_listing_${Date.now()}`,
-    type: 'listing',
-    name: spec.title || 'Imported Listing',
     category,
+    createdAt: new Date().toISOString(),
     description: `Listing template extracted from RTF`,
+    id: `tpl_listing_${Date.now()}`,
+    name: spec.title || 'Imported Listing',
     shell: {
-      title: spec.title || '',
       columns: spec.columns.map((col, i) => ({ ...col, id: `col_${i}` })),
-      sortRules: spec.sortRules || [],
       filterRules: spec.filterRules || [],
       pageSize: 10,
+      sortRules: spec.sortRules || [],
+      title: spec.title || ''
     } as any,
-    createdAt: new Date().toISOString(),
+    type: 'listing'
   };
 }
 
 // ==================== Template Application ====================
 
-/**
- * Apply a table template to a display
- */
-export function applyTableTemplate(
-  displayId: string,
-  document: IARSDocument,
-  template: ITemplate
-): IARSDocument {
+/** Apply a table template to a display */
+export function applyTableTemplate(displayId: string, document: IARSDocument, template: ITemplate): IARSDocument {
   const shell = template.shell as ITemplateShell;
 
   // Create new display based on template
   const newDisplay: IDisplay = {
-    id: displayId,
-    name: template.name,
-    label: template.name,
-    displayTitle: shell.title,
-    displayOrder: document.displays.length + 1,
-    displayType: 'table',
-    resultDisplayType: 'table',
-    outputs: [],
     analysisId: '',
-    outputId: '',
+    displayOrder: document.displays.length + 1,
     displaySections: [
       {
-        type: 'Title',
         content: {
-          text: shell.title,
-          orderedSubsections: [
-            { id: `title_1`, text: shell.title, order: 1 },
-          ],
+          orderedSubsections: [{ id: `title_1`, order: 1, text: shell.title }],
+          text: shell.title
         },
+        type: 'Title'
       },
       {
-        type: 'Body',
         content: {
-          rows: createBodyRowsFromTemplate(shell.rows),
+          rows: createBodyRowsFromTemplate(shell.rows)
         },
-      },
+        type: 'Body'
+      }
     ],
+    displayTitle: shell.title,
+    displayType: 'table',
+    id: displayId,
+    label: template.name,
+    name: template.name,
+    outputId: '',
+    outputs: [],
+    resultDisplayType: 'table'
   };
 
   return {
     ...document,
-    displays: [...document.displays, newDisplay],
+    displays: [...document.displays, newDisplay]
   };
 }
 
-/**
- * Create body rows from template row definitions
- */
+/** Create body rows from template row definitions */
 function createBodyRowsFromTemplate(templateRows: any[]): IBodyRow[] {
   return templateRows.map(row => ({
-    id: `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    label: row.label,
-    indentLevel: row.level || 0,
-    rowType: row.stats?.[0]?.type === 'header' ? 'header' : 'data',
-    variable: row.variable,
+    boundMethod: row.stats?.[0]
+      ? {
+          decimalPlaces: row.stats[0].type === 'n' || row.stats[0].type === 'n_percent' ? 0 : 1,
+          methodId: '',
+          methodType: row.stats[0].type
+        }
+      : undefined,
     cells: [],
+    id: `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    indentLevel: row.level || 0,
     isDraggable: true,
     isExpanded: true,
-    boundMethod: row.stats?.[0] ? {
-      methodId: '',
-      methodType: row.stats[0].type,
-      decimalPlaces: row.stats[0].type === 'n' || row.stats[0].type === 'n_percent' ? 0 : 1,
-    } : undefined,
+    label: row.label,
+    rowType: row.stats?.[0]?.type === 'header' ? 'header' : 'data',
+    variable: row.variable
   }));
 }
 
-/**
- * Apply a figure template to a display
- */
-export function applyFigureTemplate(
-  displayId: string,
-  document: IARSDocument,
-  template: ITemplate
-): IARSDocument {
+/** Apply a figure template to a display */
+export function applyFigureTemplate(displayId: string, document: IARSDocument, template: ITemplate): IARSDocument {
   const shell = template.shell as any;
 
   const newDisplay: IDisplay = {
-    id: displayId,
-    name: template.name,
-    label: template.name,
-    displayTitle: shell.title,
-    displayOrder: document.displays.length + 1,
-    displayType: 'figure',
-    resultDisplayType: 'figure',
-    outputs: [],
     analysisId: '',
-    outputId: '',
+    displayOrder: document.displays.length + 1,
     displaySections: [
       {
-        type: 'Title',
         content: {
-          text: shell.title,
-          orderedSubsections: [
-            { id: `title_1`, text: shell.title, order: 1 },
-          ],
+          orderedSubsections: [{ id: `title_1`, order: 1, text: shell.title }],
+          text: shell.title
         },
+        type: 'Title'
       },
       {
-        type: 'Chart',
         content: {
           chartType: shell.chartType,
-          xAxis: shell.xAxis,
-          yAxis: shell.yAxis,
-          series: shell.series || [],
           legend: shell.legend,
+          series: shell.series || [],
           style: {
-            width: 800,
             height: 600,
+            width: 800
           },
+          xAxis: shell.xAxis,
+          yAxis: shell.yAxis
         },
-      },
+        type: 'Chart'
+      }
     ],
+    displayTitle: shell.title,
+    displayType: 'figure',
+    id: displayId,
+    label: template.name,
+    name: template.name,
+    outputId: '',
+    outputs: [],
+    resultDisplayType: 'figure'
   };
 
   return {
     ...document,
-    displays: [...document.displays, newDisplay],
+    displays: [...document.displays, newDisplay]
   };
 }
 
-/**
- * Apply a listing template to a display
- */
-export function applyListingTemplate(
-  displayId: string,
-  document: IARSDocument,
-  template: ITemplate
-): IARSDocument {
+/** Apply a listing template to a display */
+export function applyListingTemplate(displayId: string, document: IARSDocument, template: ITemplate): IARSDocument {
   const shell = template.shell as any;
 
   const newDisplay: IDisplay = {
-    id: displayId,
-    name: template.name,
-    label: template.name,
-    displayTitle: shell.title,
-    displayOrder: document.displays.length + 1,
-    displayType: 'listing',
-    resultDisplayType: 'listing',
-    outputs: [],
     analysisId: '',
-    outputId: '',
+    displayOrder: document.displays.length + 1,
     displaySections: [
       {
-        type: 'Title',
         content: {
-          text: shell.title,
-          orderedSubsections: [
-            { id: `title_1`, text: shell.title, order: 1 },
-          ],
+          orderedSubsections: [{ id: `title_1`, order: 1, text: shell.title }],
+          text: shell.title
         },
+        type: 'Title'
       },
       {
-        type: 'Listing',
         content: {
           columns: shell.columns || [],
-          sortRules: shell.sortRules || [],
           filterRules: shell.filterRules || [],
           pageSize: shell.pageSize || 10,
+          sortRules: shell.sortRules || []
         },
-      },
+        type: 'Listing'
+      }
     ],
+    displayTitle: shell.title,
+    displayType: 'listing',
+    id: displayId,
+    label: template.name,
+    name: template.name,
+    outputId: '',
+    outputs: [],
+    resultDisplayType: 'listing'
   };
 
   return {
     ...document,
-    displays: [...document.displays, newDisplay],
+    displays: [...document.displays, newDisplay]
   };
 }
 
-/**
- * Apply any template to a display
- */
-export function applyTemplate(
-  displayId: string,
-  document: IARSDocument,
-  template: ITemplate
-): IARSDocument {
+/** Apply any template to a display */
+export function applyTemplate(displayId: string, document: IARSDocument, template: ITemplate): IARSDocument {
   switch (template.type) {
     case 'table':
       return applyTableTemplate(displayId, document, template);
@@ -733,29 +676,25 @@ export function applyTemplate(
 
 // ==================== Import All Functions ====================
 
-/**
- * Import all templates from a JSON export file
- */
+/** Import all templates from a JSON export file */
 export async function importAllTemplatesFromJSON(
   json: CommercialExport
-): Promise<{ templates: ITemplate[]; studyInfo?: IStudyInfo; populations?: IPopulationDefinition[] }> {
+): Promise<{ populations?: IPopulationDefinition[]; studyInfo?: IStudyInfo; templates: ITemplate[] }> {
   const templates = await importTableTemplatesFromJSON(json);
   const studyInfo = importStudyMetadata(json);
   const populations = importPopulations(json);
 
   return {
-    templates,
-    studyInfo,
     populations,
+    studyInfo,
+    templates
   };
 }
 
-/**
- * Batch import from multiple JSON files
- */
+/** Batch import from multiple JSON files */
 export async function importMultipleJSONFiles(
   files: File[]
-): Promise<{ templates: ITemplate[]; studyInfo?: IStudyInfo; populations?: IPopulationDefinition[] }> {
+): Promise<{ populations?: IPopulationDefinition[]; studyInfo?: IStudyInfo; templates: ITemplate[] }> {
   const allTemplates: ITemplate[] = [];
   let combinedStudyInfo: IStudyInfo | undefined;
   const allPopulations: IPopulationDefinition[] = [];
@@ -779,22 +718,20 @@ export async function importMultipleJSONFiles(
   }
 
   // Deduplicate populations
-  const uniquePopulations = allPopulations.filter((pop, index, self) =>
-    index === self.findIndex(p => p.id === pop.id)
-  );
+  const uniquePopulations = allPopulations.filter((pop, index, self) => index === self.findIndex(p => p.id === pop.id));
 
   return {
-    templates: allTemplates,
-    studyInfo: combinedStudyInfo,
     populations: uniquePopulations,
+    studyInfo: combinedStudyInfo,
+    templates: allTemplates
   };
 }
 
 // ==================== Enhanced ARS Import ====================
 
 /**
- * Enhanced import function that properly converts CDISC ARS JSON to templates
- * Handles the complete export format with analyses, methods, and displays
+ * Enhanced import function that properly converts CDISC ARS JSON to templates Handles the complete export format with
+ * analyses, methods, and displays
  */
 export function importARSJSONToTemplates(json: CommercialExport): Template[] {
   const templates: Template[] = [];
@@ -814,27 +751,17 @@ export function importARSJSONToTemplates(json: CommercialExport): Template[] {
   return templates;
 }
 
-/**
- * Convert a CDISC ARS display to a Template object
- */
+/** Convert a CDISC ARS display to a Template object */
 function convertDisplayToTemplate(
   display: DisplayData['display'],
   output: OutputData,
   json: CommercialExport
 ): Template | null {
   // Extract title info
-  const titleSection = display.displaySections?.find(
-    (s: DisplaySection) => s.sectionType === 'Title'
-  );
-  const footnoteSection = display.displaySections?.find(
-    (s: DisplaySection) => s.sectionType === 'Footnote'
-  );
-  const abbrevSection = display.displaySections?.find(
-    (s: DisplaySection) => s.sectionType === 'Abbreviations'
-  );
-  const rowLabelHeader = display.displaySections?.find(
-    (s: DisplaySection) => s.sectionType === 'Rowlabel Header'
-  );
+  const titleSection = display.displaySections?.find((s: DisplaySection) => s.sectionType === 'Title');
+  const footnoteSection = display.displaySections?.find((s: DisplaySection) => s.sectionType === 'Footnote');
+  const abbrevSection = display.displaySections?.find((s: DisplaySection) => s.sectionType === 'Abbreviations');
+  const rowLabelHeader = display.displaySections?.find((s: DisplaySection) => s.sectionType === 'Rowlabel Header');
 
   // Parse title components
   let shellNumber = '';
@@ -877,46 +804,46 @@ function convertDisplayToTemplate(
 
   if (displayType === 'table') {
     shell = {
-      id: display.id,
-      shellNumber,
-      title,
-      population,
       category,
       dataset: 'ADSL',
-      treatmentArmSetId: '',
-      statisticsSetId: 'ss1',
-      rows,
       footer: {
-        source: 'ADSL',
-        notes: footnotes,
         abbreviations,
+        notes: footnotes,
+        source: 'ADSL'
       },
+      id: display.id,
+      population,
+      rows,
+      shellNumber,
+      statisticsSetId: 'ss1',
+      title,
+      treatmentArmSetId: ''
     };
   } else if (displayType === 'figure') {
     shell = {
-      id: display.id,
-      figureNumber: shellNumber,
-      title,
-      population,
       chartType: 'line' as const,
-      xAxis: { label: '', type: 'continuous' as const },
-      yAxis: { label: '', type: 'continuous' as const },
+      figureNumber: shellNumber,
+      id: display.id,
+      population,
       series: [],
+      title,
+      xAxis: { label: '', type: 'continuous' as const },
+      yAxis: { label: '', type: 'continuous' as const }
     };
   } else {
     // listing
     shell = {
-      id: display.id,
-      listingNumber: shellNumber,
-      title,
-      population,
-      dataset: 'ADSL',
       columns: rows.map((row: TableRow, idx: number) => ({
         id: `col_${idx}`,
-        name: row.label.replace(/[^\w]/g, '_').toLowerCase(),
         label: row.label,
-        width: 120,
+        name: row.label.replace(/[^\w]/g, '_').toLowerCase(),
+        width: 120
       })),
+      dataset: 'ADSL',
+      id: display.id,
+      listingNumber: shellNumber,
+      population,
+      title
     };
   }
 
@@ -924,24 +851,18 @@ function convertDisplayToTemplate(
   const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   return {
-    id: `tpl_ref_${display.id}_${uniqueSuffix}`,
-    type: displayType,
-    name: output.name,
     category,
-    description: `Imported from ${json.name || 'Reference Template'}`,
-    shell,
     createdAt: new Date().toISOString().split('T')[0],
+    description: `Imported from ${json.name || 'Reference Template'}`,
+    id: `tpl_ref_${display.id}_${uniqueSuffix}`,
+    name: output.name,
+    shell,
+    type: displayType
   };
 }
 
-/**
- * Build table rows from analyses in the JSON
- */
-function buildRowsFromAnalyses(
-  json: CommercialExport,
-  outputId: string,
-  rowLabelHeader?: DisplaySection
-): TableRow[] {
+/** Build table rows from analyses in the JSON */
+function buildRowsFromAnalyses(json: CommercialExport, outputId: string, rowLabelHeader?: DisplaySection): TableRow[] {
   const rows: TableRow[] = [];
 
   // Add row label header if present
@@ -951,7 +872,7 @@ function buildRowsFromAnalyses(
       id: `row_header_${0}`,
       label: headerText,
       level: 0,
-      stats: [{ type: 'header' }],
+      stats: [{ type: 'header' }]
     });
   }
 
@@ -964,8 +885,8 @@ function buildRowsFromAnalyses(
       id: `row_${analysis.id || idx}`,
       label: analysis.name || `Row ${idx + 1}`,
       level: 0,
-      variable: analysis.variable,
       stats: [{ type: 'n_percent' }],
+      variable: analysis.variable
     });
   });
 
@@ -980,9 +901,7 @@ function buildRowsFromAnalyses(
   return rows;
 }
 
-/**
- * Find analyses linked to an output via the LOPA structure
- */
+/** Find analyses linked to an output via the LOPA structure */
 function findAnalysesForOutput(json: CommercialExport, outputId: string): IAnalysis[] {
   const analyses: IAnalysis[] = [];
   const analysesMap = new Map((json.analyses || []).map((a: IAnalysis) => [a.id, a]));
@@ -995,9 +914,7 @@ function findAnalysesForOutput(json: CommercialExport, outputId: string): IAnaly
   return analyses;
 }
 
-/**
- * Recursively traverse LOPA structure to find linked analyses
- */
+/** Recursively traverse LOPA structure to find linked analyses */
 function traverseLOPAForAnalyses(
   items: LOPAListItem[],
   outputId: string,
@@ -1015,10 +932,8 @@ function traverseLOPAForAnalyses(
   }
 }
 
-/**
- * Determine display type from display content
- */
-function determineDisplayType(display: DisplayData['display'], json: CommercialExport): 'table' | 'figure' | 'listing' {
+/** Determine display type from display content */
+function determineDisplayType(display: DisplayData['display'], json: CommercialExport): 'figure' | 'listing' | 'table' {
   const name = (display.name || '').toLowerCase();
 
   if (name.includes('figure') || name.includes('chart') || name.includes('plot')) {
@@ -1035,6 +950,6 @@ interface TableRow {
   id: string;
   label: string;
   level: number;
+  stats?: Array<{ decimals?: number; type: string }>;
   variable?: string;
-  stats?: Array<{ type: string; decimals?: number }>;
 }

@@ -5,7 +5,7 @@
  *
  * Parse Clymb Clinical ARS format JSON into shell templates.
  */
-import type { TableShell, AnalysisCategory } from '../types';
+import type { AnalysisCategory, TableShell } from '../types';
 import { generateId } from '../types';
 
 // ARS JSON format interfaces
@@ -19,48 +19,46 @@ interface ARSStudyInfo {
 }
 
 interface ARSResult {
-  rawValue?: string;
   formattedValue?: string;
+  rawValue?: string;
 }
 
 interface ARSAnalysis {
+  dataset: string;
   id: string;
   name: string;
-  dataset: string;
-  variable: string;
   results: ARSResult[];
+  variable: string;
 }
 
 interface ARSDisplaySection {
-  sectionType: string;
   orderedSubSections?: Array<{
     subSection: { text: string };
   }>;
+  sectionType: string;
 }
 
 interface ARSDisplay {
+  displaySections: ARSDisplaySection[];
+  displayTitle: string;
   id: string;
   name: string;
-  displayTitle: string;
-  displaySections: ARSDisplaySection[];
 }
 
 interface ARSOutput {
+  displays: Array<{ display: ARSDisplay }>;
   id: string;
   name: string;
-  displays: Array<{ display: ARSDisplay }>;
 }
 
 interface ARSExportJSON {
   about: ARSAbout;
-  studyInfo: ARSStudyInfo;
   analyses: ARSAnalysis[];
   outputs: ARSOutput[];
+  studyInfo: ARSStudyInfo;
 }
 
-/**
- * Parse ARS JSON to TableShell templates
- */
+/** Parse ARS JSON to TableShell templates */
 export function parseARSJSONToShells(json: ARSExportJSON): Partial<TableShell>[] {
   const shells: Partial<TableShell>[] = [];
 
@@ -69,26 +67,26 @@ export function parseARSJSONToShells(json: ARSExportJSON): Partial<TableShell>[]
       const display = displayItem.display;
       const sections = display.displaySections || [];
 
-      const titleSection = sections.find((s) => s.sectionType === 'Title');
-      const footnoteSection = sections.find((s) => s.sectionType === 'Footnote');
+      const titleSection = sections.find(s => s.sectionType === 'Title');
+      const footnoteSection = sections.find(s => s.sectionType === 'Footnote');
 
       const shellNumber = titleSection?.orderedSubSections?.[0]?.subSection?.text || '';
       const title = titleSection?.orderedSubSections?.[1]?.subSection?.text || display.displayTitle;
 
-      const footerNotes = footnoteSection?.orderedSubSections?.map((s) => s.subSection.text) || [];
+      const footerNotes = footnoteSection?.orderedSubSections?.map(s => s.subSection.text) || [];
 
       const shell: Partial<TableShell> = {
-        id: generateId('table'),
-        shellNumber,
-        title,
-        population: 'Safety',
         category: inferCategory(display.name),
         dataset: 'ADSL',
-        rows: [],
         footer: {
-          source: 'ADSL',
           notes: footerNotes,
+          source: 'ADSL'
         },
+        id: generateId('table'),
+        population: 'Safety',
+        rows: [],
+        shellNumber,
+        title
       };
 
       shells.push(shell);
@@ -98,9 +96,7 @@ export function parseARSJSONToShells(json: ARSExportJSON): Partial<TableShell>[]
   return shells;
 }
 
-/**
- * Infer category from template name
- */
+/** Infer category from template name */
 function inferCategory(name: string): AnalysisCategory {
   const lowerName = name.toLowerCase();
 
@@ -126,9 +122,7 @@ function inferCategory(name: string): AnalysisCategory {
   return 'Other';
 }
 
-/**
- * Validate ARS JSON structure
- */
+/** Validate ARS JSON structure */
 export function validateARSJSON(json: unknown): json is ARSExportJSON {
   if (!json || typeof json !== 'object') return false;
 
@@ -141,4 +135,4 @@ export function validateARSJSON(json: unknown): json is ARSExportJSON {
   return true;
 }
 
-export type { ARSExportJSON, ARSAnalysis, ARSOutput };
+export type { ARSAnalysis, ARSExportJSON, ARSOutput };

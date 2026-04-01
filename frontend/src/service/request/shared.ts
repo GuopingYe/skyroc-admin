@@ -1,8 +1,8 @@
-import { localStg } from '@/utils/storage';
+import { setToken } from '@/features/auth/authStore';
 import { store } from '@/store';
+import { localStg } from '@/utils/storage';
 
 import { fetchRefreshToken } from '../api';
-import { setToken } from '@/features/auth/authStore';
 
 import type { RequestInstanceState } from './type';
 

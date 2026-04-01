@@ -3,8 +3,6 @@
  *
  * Modal that shows a summary of pending changes and asks for confirmation before saving.
  */
-import React from 'react';
-import { Alert, Button, Collapse, List, Modal, Space, Spin, Tag, Typography } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -14,6 +12,8 @@ import {
   FileAddOutlined,
   LoadingOutlined
 } from '@ant-design/icons';
+import { Alert, Button, Collapse, List, Modal, Space, Spin, Tag, Typography } from 'antd';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ChangeRecord } from '../stores';
@@ -22,19 +22,19 @@ import type { BatchSaveResponse, BatchSaveResult } from '../utils/batchSave';
 const { Text } = Typography;
 
 export interface SaveConfirmationModalProps {
-  open: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<boolean>;
-  onDiscard: () => void;
-  isSaving: boolean;
-  pendingChanges: Map<string, ChangeRecord>;
   changesSummary: {
-    nodes: { created: number; updated: number; deleted: number };
-    milestones: { created: number; updated: number; deleted: number };
+    milestones: { created: number; deleted: number; updated: number };
+    nodes: { created: number; deleted: number; updated: number };
     studyConfigs: number;
     total: number;
   } | null;
+  isSaving: boolean;
   lastSaveResult: BatchSaveResponse | null;
+  onClose: () => void;
+  onConfirm: () => Promise<boolean>;
+  onDiscard: () => void;
+  open: boolean;
+  pendingChanges: Map<string, ChangeRecord>;
 }
 
 const ChangeTypeIcon: React.FC<{ type: 'create' | 'delete' | 'update' }> = ({ type }) => {
@@ -53,8 +53,8 @@ const ChangeTypeTag: React.FC<{ type: 'create' | 'delete' | 'update' }> = ({ typ
 
   const config = {
     create: { color: 'success', label: t('page.mdr.pipelineManagement.saveModal.create', 'Create') },
-    update: { color: 'processing', label: t('page.mdr.pipelineManagement.saveModal.update', 'Update') },
-    delete: { color: 'error', label: t('page.mdr.pipelineManagement.saveModal.delete', 'Delete') }
+    delete: { color: 'error', label: t('page.mdr.pipelineManagement.saveModal.delete', 'Delete') },
+    update: { color: 'processing', label: t('page.mdr.pipelineManagement.saveModal.update', 'Update') }
   };
 
   return <Tag color={config[type].color}>{config[type].label}</Tag>;
@@ -64,8 +64,8 @@ const EntityTypeTag: React.FC<{ entityType: 'milestone' | 'node' | 'studyConfig'
   const { t } = useTranslation();
 
   const config = {
-    node: { color: 'blue', label: t('page.mdr.pipelineManagement.saveModal.node', 'Node') },
     milestone: { color: 'purple', label: t('page.mdr.pipelineManagement.saveModal.milestone', 'Milestone') },
+    node: { color: 'blue', label: t('page.mdr.pipelineManagement.saveModal.node', 'Node') },
     studyConfig: { color: 'orange', label: t('page.mdr.pipelineManagement.saveModal.studyConfig', 'Study Config') }
   };
 
@@ -73,14 +73,14 @@ const EntityTypeTag: React.FC<{ entityType: 'milestone' | 'node' | 'studyConfig'
 };
 
 export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
-  open,
+  changesSummary,
+  isSaving,
+  lastSaveResult,
   onClose,
   onConfirm,
   onDiscard,
-  isSaving,
-  pendingChanges,
-  changesSummary,
-  lastSaveResult
+  open,
+  pendingChanges
 }) => {
   const { t } = useTranslation();
 
@@ -99,35 +99,65 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
     if (success) {
       return (
         <Alert
-          type="success"
           showIcon
+          className="mt-16px"
+          type="success"
           message={t(
             'page.mdr.pipelineManagement.saveModal.successMessage',
             'All {{count}} changes saved successfully!',
             { count: summary.succeeded }
           )}
-          className="mt-16px"
         />
       );
     }
 
     return (
       <Alert
-        type="error"
         showIcon
+        className="mt-16px"
+        type="error"
         message={t(
           'page.mdr.pipelineManagement.saveModal.partialFailure',
           '{{failed}} of {{total}} changes failed to save',
           { failed: summary.failed, total: summary.total }
         )}
-        className="mt-16px"
       />
     );
   };
 
   return (
     <Modal
+      closable={!isSaving}
+      maskClosable={!isSaving}
       open={open}
+      width={600}
+      footer={
+        <div className="flex justify-between">
+          <Button
+            danger
+            disabled={isSaving}
+            onClick={onDiscard}
+          >
+            {t('page.mdr.pipelineManagement.saveModal.discardAll', 'Discard All Changes')}
+          </Button>
+          <Space>
+            <Button
+              disabled={isSaving}
+              onClick={onClose}
+            >
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              icon={isSaving ? <LoadingOutlined /> : <CheckCircleOutlined />}
+              loading={isSaving}
+              type="primary"
+              onClick={handleConfirm}
+            >
+              {t('page.mdr.pipelineManagement.saveModal.confirmSave', 'Save Changes')}
+            </Button>
+          </Space>
+        </div>
+      }
       title={
         <Space>
           <ExclamationCircleOutlined className="text-orange-500" />
@@ -135,33 +165,6 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
         </Space>
       }
       onCancel={isSaving ? undefined : onClose}
-      footer={
-        <div className="flex justify-between">
-          <Button
-            danger
-            onClick={onDiscard}
-            disabled={isSaving}
-          >
-            {t('page.mdr.pipelineManagement.saveModal.discardAll', 'Discard All Changes')}
-          </Button>
-          <Space>
-            <Button onClick={onClose} disabled={isSaving}>
-              {t('common.cancel', 'Cancel')}
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleConfirm}
-              loading={isSaving}
-              icon={isSaving ? <LoadingOutlined /> : <CheckCircleOutlined />}
-            >
-              {t('page.mdr.pipelineManagement.saveModal.confirmSave', 'Save Changes')}
-            </Button>
-          </Space>
-        </div>
-      }
-      width={600}
-      maskClosable={!isSaving}
-      closable={!isSaving}
     >
       {/* Summary */}
       {changesSummary && (
@@ -172,23 +175,19 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
             })}
           </Text>
 
-          <div className="mt-8px grid grid-cols-2 gap-8px">
+          <div className="grid grid-cols-2 mt-8px gap-8px">
             {/* Nodes summary */}
             {(changesSummary.nodes.created > 0 ||
               changesSummary.nodes.updated > 0 ||
               changesSummary.nodes.deleted > 0) && (
-              <div className="bg-gray-50 p-8px rounded">
+              <div className="rounded bg-gray-50 p-8px">
                 <Text type="secondary">Nodes:</Text>
                 <div className="mt-4px">
-                  {changesSummary.nodes.created > 0 && (
-                    <Tag color="success">{changesSummary.nodes.created} create</Tag>
-                  )}
+                  {changesSummary.nodes.created > 0 && <Tag color="success">{changesSummary.nodes.created} create</Tag>}
                   {changesSummary.nodes.updated > 0 && (
                     <Tag color="processing">{changesSummary.nodes.updated} update</Tag>
                   )}
-                  {changesSummary.nodes.deleted > 0 && (
-                    <Tag color="error">{changesSummary.nodes.deleted} delete</Tag>
-                  )}
+                  {changesSummary.nodes.deleted > 0 && <Tag color="error">{changesSummary.nodes.deleted} delete</Tag>}
                 </div>
               </div>
             )}
@@ -197,7 +196,7 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
             {(changesSummary.milestones.created > 0 ||
               changesSummary.milestones.updated > 0 ||
               changesSummary.milestones.deleted > 0) && (
-              <div className="bg-gray-50 p-8px rounded">
+              <div className="rounded bg-gray-50 p-8px">
                 <Text type="secondary">Milestones:</Text>
                 <div className="mt-4px">
                   {changesSummary.milestones.created > 0 && (
@@ -215,7 +214,7 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
 
             {/* Study config summary */}
             {changesSummary.studyConfigs > 0 && (
-              <div className="bg-gray-50 p-8px rounded">
+              <div className="rounded bg-gray-50 p-8px">
                 <Text type="secondary">Study Configurations:</Text>
                 <div className="mt-4px">
                   <Tag color="orange">{changesSummary.studyConfigs} update</Tag>
@@ -231,13 +230,12 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
         ghost
         items={[
           {
-            key: 'details',
-            label: t('page.mdr.pipelineManagement.saveModal.viewDetails', 'View detailed changes'),
             children: (
               <List
-                size="small"
                 dataSource={changeList}
-                renderItem={(change) => (
+                size="small"
+                style={{ maxHeight: 200, overflow: 'auto' }}
+                renderItem={change => (
                   <List.Item>
                     <Space>
                       <ChangeTypeIcon type={change.type} />
@@ -251,9 +249,10 @@ export const SaveConfirmationModal: React.FC<SaveConfirmationModalProps> = ({
                     </Space>
                   </List.Item>
                 )}
-                style={{ maxHeight: 200, overflow: 'auto' }}
               />
-            )
+            ),
+            key: 'details',
+            label: t('page.mdr.pipelineManagement.saveModal.viewDetails', 'View detailed changes')
           }
         ]}
       />

@@ -60,11 +60,11 @@ declare namespace Api.GlobalLibrary {
     sort_order: number;
     usage_restrictions: string | null;
     value_list: string[] | null;
+    // ADaM IG 专用字段
+    var_set: string | null;
     variable_ccode: string | null;
     variable_label: string | null;
     variable_name: string;
-    // ADaM IG 专用字段
-    var_set: string | null;
   }
 
   interface VariableListResponse {

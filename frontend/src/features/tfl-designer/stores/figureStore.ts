@@ -1,77 +1,80 @@
 /**
  * TFL Designer - Figure Store (Zustand + Immer)
  *
- * Manages figure shells with chart type, axes, series, legend, and style.
- * Follows the POC store pattern with immer middleware.
+ * Manages figure shells with chart type, axes, series, legend, and style. Follows the POC store pattern with immer
+ * middleware.
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { FigureShell, ChartType, AxisConfig, ChartSeries, LegendConfig, FigureStyle } from '../types';
+
+import type { AxisConfig, ChartSeries, ChartType, FigureShell, FigureStyle, LegendConfig } from '../types';
 import { generateId } from '../types';
 
 // ==================== State Interface ====================
 
 interface FigureState {
-  figures: FigureShell[];
+  // CRUD
+  addFigure: (figure: FigureShell) => void;
+  // Series
+  addSeries: (series?: Partial<ChartSeries>) => void;
   currentFigure: FigureShell | null;
+
+  deleteFigure: (id: string) => void;
+  figures: FigureShell[];
+
   isDirty: boolean;
+  markClean: () => void;
 
-  // Selection
-  setFigure: (figure: FigureShell) => void;
-  setCurrentFigure: (figure: FigureShell | null) => void;
+  removeSeries: (id: string) => void;
 
-  // Batch update from server
-  setFigures: (figures: FigureShell[]) => void;
-  setDirty: (dirty: boolean) => void;
+  reorderSeries: (fromIndex: number, toIndex: number) => void;
 
-  // Metadata
-  updateMetadata: (updates: Partial<Pick<FigureShell, 'figureNumber' | 'title' | 'population' | 'programmingNotes'>>) => void;
-
+  // Reset
+  resetFigure: () => void;
   // Chart type
   setChartType: (type: ChartType) => void;
+
+  setCurrentFigure: (figure: FigureShell | null) => void;
+  setDirty: (dirty: boolean) => void;
+  // Selection
+  setFigure: (figure: FigureShell) => void;
+  // Batch update from server
+  setFigures: (figures: FigureShell[]) => void;
+
+  // Legend & Style
+  updateLegend: (config: Partial<LegendConfig>) => void;
+  // Metadata
+  updateMetadata: (
+    updates: Partial<Pick<FigureShell, 'figureNumber' | 'population' | 'programmingNotes' | 'title'>>
+  ) => void;
+
+  updateSeries: (id: string, updates: Partial<ChartSeries>) => void;
+  updateStyle: (style: Partial<FigureStyle>) => void;
 
   // Axes
   updateXAxis: (config: Partial<AxisConfig>) => void;
   updateYAxis: (config: Partial<AxisConfig>) => void;
-
-  // Series
-  addSeries: (series?: Partial<ChartSeries>) => void;
-  updateSeries: (id: string, updates: Partial<ChartSeries>) => void;
-  removeSeries: (id: string) => void;
-  reorderSeries: (fromIndex: number, toIndex: number) => void;
-
-  // Legend & Style
-  updateLegend: (config: Partial<LegendConfig>) => void;
-  updateStyle: (style: Partial<FigureStyle>) => void;
-
-  // CRUD
-  addFigure: (figure: FigureShell) => void;
-  deleteFigure: (id: string) => void;
-
-  // Reset
-  resetFigure: () => void;
-  markClean: () => void;
 }
 
 // ==================== Defaults ====================
 
 const DEFAULT_AXIS_CONFIG: AxisConfig = {
   label: '',
-  type: 'continuous',
-  tickFormat: '',
   logScale: false,
+  tickFormat: '',
+  type: 'continuous'
 };
 
 const DEFAULT_LEGEND_CONFIG: LegendConfig = {
-  position: 'right',
   orientation: 'vertical',
+  position: 'right'
 };
 
 const DEFAULT_STYLE: FigureStyle = {
-  width: 800,
-  height: 600,
   fontFamily: 'Arial',
   fontSize: 12,
+  height: 600,
+  width: 800
 };
 
 const COLORS = [
@@ -82,181 +85,135 @@ const COLORS = [
   '#722ed1', // purple
   '#13c2c2', // cyan
   '#eb2f96', // magenta
-  '#fa8c16', // orange
+  '#fa8c16' // orange
 ];
 
 const createDefaultSeries = (index: number): ChartSeries => ({
-  id: generateId('series'),
-  name: `Series ${index + 1}`,
   color: COLORS[index % COLORS.length],
-  marker: {
-    symbol: 'circle',
-    size: 8,
-  },
+  id: generateId('series'),
   line: {
-    width: 2,
     dash: 'solid',
+    width: 2
   },
+  marker: {
+    size: 8,
+    symbol: 'circle'
+  },
+  name: `Series ${index + 1}`
 });
 
 // ==================== Factory ====================
 
 export function createNewFigure(figureNumber: string = 'Figure 14.1.1'): FigureShell {
   return {
-    id: generateId('figure'),
-    figureNumber,
-    title: 'New Figure',
-    population: 'ITT',
     chartType: 'line',
-    xAxis: { ...DEFAULT_AXIS_CONFIG, label: 'X-Axis' },
-    yAxis: { ...DEFAULT_AXIS_CONFIG, label: 'Y-Axis', range: [0, 100] },
-    series: [createDefaultSeries(0)],
+    figureNumber,
+    id: generateId('figure'),
     legend: { ...DEFAULT_LEGEND_CONFIG },
+    population: 'ITT',
+    series: [createDefaultSeries(0)],
     style: { ...DEFAULT_STYLE },
+    title: 'New Figure',
+    xAxis: { ...DEFAULT_AXIS_CONFIG, label: 'X-Axis' },
+    yAxis: { ...DEFAULT_AXIS_CONFIG, label: 'Y-Axis', range: [0, 100] }
   };
 }
 
-export { DEFAULT_AXIS_CONFIG, DEFAULT_LEGEND_CONFIG, DEFAULT_STYLE, COLORS };
+export { COLORS, DEFAULT_AXIS_CONFIG, DEFAULT_LEGEND_CONFIG, DEFAULT_STYLE };
 
 // ==================== Mock Figures ====================
 
 const mockFigures: FigureShell[] = [
   {
-    id: 'fig1',
-    figureNumber: 'Figure 14.1.1',
-    title: 'Kaplan-Meier Plot of Overall Survival',
-    population: 'ITT',
     chartType: 'km_curve',
-    xAxis: { label: 'Time (Months)', type: 'continuous', tickFormat: '', logScale: false },
-    yAxis: { label: 'Survival Probability', type: 'continuous', range: [0, 1], tickFormat: '', logScale: false },
+    figureNumber: 'Figure 14.1.1',
+    id: 'fig1',
+    legend: { ...DEFAULT_LEGEND_CONFIG },
+    population: 'ITT',
     series: [
       { ...createDefaultSeries(0), name: 'Placebo' },
       { ...createDefaultSeries(1), name: 'Drug X 10mg' },
-      { ...createDefaultSeries(2), name: 'Drug X 20mg' },
+      { ...createDefaultSeries(2), name: 'Drug X 20mg' }
     ],
-    legend: { ...DEFAULT_LEGEND_CONFIG },
     style: { ...DEFAULT_STYLE },
+    title: 'Kaplan-Meier Plot of Overall Survival',
+    xAxis: { label: 'Time (Months)', logScale: false, tickFormat: '', type: 'continuous' },
+    yAxis: { label: 'Survival Probability', logScale: false, range: [0, 1], tickFormat: '', type: 'continuous' }
   },
   {
-    id: 'fig2',
-    figureNumber: 'Figure 14.2.1',
-    title: 'Mean Change from Baseline in Primary Endpoint',
-    population: 'ITT',
     chartType: 'bar',
-    xAxis: { label: 'Visit', type: 'categorical', tickFormat: '', logScale: false },
-    yAxis: { label: 'Mean Change from Baseline', type: 'continuous', range: [-10, 10], tickFormat: '', logScale: false },
+    figureNumber: 'Figure 14.2.1',
+    id: 'fig2',
+    legend: { ...DEFAULT_LEGEND_CONFIG },
+    population: 'ITT',
     series: [
       { ...createDefaultSeries(0), name: 'Placebo' },
-      { ...createDefaultSeries(1), name: 'Treatment' },
+      { ...createDefaultSeries(1), name: 'Treatment' }
     ],
-    legend: { ...DEFAULT_LEGEND_CONFIG },
     style: { ...DEFAULT_STYLE },
+    title: 'Mean Change from Baseline in Primary Endpoint',
+    xAxis: { label: 'Visit', logScale: false, tickFormat: '', type: 'categorical' },
+    yAxis: { label: 'Mean Change from Baseline', logScale: false, range: [-10, 10], tickFormat: '', type: 'continuous' }
   },
   {
-    id: 'fig3',
-    figureNumber: 'Figure 14.3.1',
-    title: 'Forest Plot of Subgroup Analysis',
-    population: 'ITT',
     chartType: 'forest',
-    xAxis: { label: 'Hazard Ratio (95% CI)', type: 'continuous', tickFormat: '', logScale: true },
-    yAxis: { label: 'Subgroup', type: 'categorical', tickFormat: '', logScale: false },
-    series: [{ ...createDefaultSeries(0), name: 'HR (95% CI)' }],
+    figureNumber: 'Figure 14.3.1',
+    id: 'fig3',
     legend: { ...DEFAULT_LEGEND_CONFIG },
+    population: 'ITT',
+    series: [{ ...createDefaultSeries(0), name: 'HR (95% CI)' }],
     style: { ...DEFAULT_STYLE },
-  },
+    title: 'Forest Plot of Subgroup Analysis',
+    xAxis: { label: 'Hazard Ratio (95% CI)', logScale: true, tickFormat: '', type: 'continuous' },
+    yAxis: { label: 'Subgroup', logScale: false, tickFormat: '', type: 'categorical' }
+  }
 ];
 
 // ==================== Store ====================
 
 export const useFigureStore = create<FigureState>()(
-  immer((set) => ({
-    figures: mockFigures,
-    currentFigure: null,
-    isDirty: false,
-
-    setFigure: (figure) =>
-      set((state) => {
-        state.currentFigure = figure;
-        state.isDirty = false;
+  immer(set => ({
+    addFigure: figure =>
+      set(state => {
+        state.figures.push(figure);
       }),
-
-    setCurrentFigure: (figure) =>
-      set((state) => {
-        state.currentFigure = figure;
-      }),
-
-    setFigures: (figures) =>
-      set((state) => {
-        state.figures = figures;
-      }),
-
-    setDirty: (dirty) =>
-      set((state) => {
-        state.isDirty = dirty;
-      }),
-
-    updateMetadata: (updates) =>
-      set((state) => {
-        if (state.currentFigure) {
-          Object.assign(state.currentFigure, updates);
-          state.isDirty = true;
-        }
-      }),
-
-    setChartType: (type) =>
-      set((state) => {
-        if (state.currentFigure) {
-          state.currentFigure.chartType = type;
-          state.isDirty = true;
-        }
-      }),
-
-    updateXAxis: (config) =>
-      set((state) => {
-        if (state.currentFigure) {
-          Object.assign(state.currentFigure.xAxis, config);
-          state.isDirty = true;
-        }
-      }),
-
-    updateYAxis: (config) =>
-      set((state) => {
-        if (state.currentFigure) {
-          Object.assign(state.currentFigure.yAxis, config);
-          state.isDirty = true;
-        }
-      }),
-
-    addSeries: (series) =>
-      set((state) => {
+    addSeries: series =>
+      set(state => {
         if (!state.currentFigure) return;
 
         const newSeries = { ...createDefaultSeries(state.currentFigure.series.length), ...series };
         state.currentFigure.series.push(newSeries);
         state.isDirty = true;
       }),
+    currentFigure: null,
 
-    updateSeries: (id, updates) =>
-      set((state) => {
-        if (!state.currentFigure) return;
-
-        const series = state.currentFigure.series.find((s) => s.id === id);
-        if (series) {
-          Object.assign(series, updates);
-          state.isDirty = true;
+    deleteFigure: id =>
+      set(state => {
+        state.figures = state.figures.filter(f => f.id !== id);
+        if (state.currentFigure?.id === id) {
+          state.currentFigure = null;
         }
       }),
 
-    removeSeries: (id) =>
-      set((state) => {
+    figures: mockFigures,
+
+    isDirty: false,
+
+    markClean: () =>
+      set(state => {
+        state.isDirty = false;
+      }),
+
+    removeSeries: id =>
+      set(state => {
         if (!state.currentFigure) return;
 
-        state.currentFigure.series = state.currentFigure.series.filter((s) => s.id !== id);
+        state.currentFigure.series = state.currentFigure.series.filter(s => s.id !== id);
         state.isDirty = true;
       }),
 
     reorderSeries: (fromIndex, toIndex) =>
-      set((state) => {
+      set(state => {
         if (!state.currentFigure) return;
 
         const seriesList = state.currentFigure.series;
@@ -265,8 +222,43 @@ export const useFigureStore = create<FigureState>()(
         state.isDirty = true;
       }),
 
-    updateLegend: (config) =>
-      set((state) => {
+    resetFigure: () =>
+      set(state => {
+        state.currentFigure = null;
+        state.isDirty = false;
+      }),
+
+    setChartType: type =>
+      set(state => {
+        if (state.currentFigure) {
+          state.currentFigure.chartType = type;
+          state.isDirty = true;
+        }
+      }),
+
+    setCurrentFigure: figure =>
+      set(state => {
+        state.currentFigure = figure;
+      }),
+
+    setDirty: dirty =>
+      set(state => {
+        state.isDirty = dirty;
+      }),
+
+    setFigure: figure =>
+      set(state => {
+        state.currentFigure = figure;
+        state.isDirty = false;
+      }),
+
+    setFigures: figures =>
+      set(state => {
+        state.figures = figures;
+      }),
+
+    updateLegend: config =>
+      set(state => {
         if (!state.currentFigure) return;
 
         if (!state.currentFigure.legend) {
@@ -276,8 +268,27 @@ export const useFigureStore = create<FigureState>()(
         state.isDirty = true;
       }),
 
-    updateStyle: (style) =>
-      set((state) => {
+    updateMetadata: updates =>
+      set(state => {
+        if (state.currentFigure) {
+          Object.assign(state.currentFigure, updates);
+          state.isDirty = true;
+        }
+      }),
+
+    updateSeries: (id, updates) =>
+      set(state => {
+        if (!state.currentFigure) return;
+
+        const series = state.currentFigure.series.find(s => s.id === id);
+        if (series) {
+          Object.assign(series, updates);
+          state.isDirty = true;
+        }
+      }),
+
+    updateStyle: style =>
+      set(state => {
         if (!state.currentFigure) return;
 
         if (!state.currentFigure.style) {
@@ -287,28 +298,20 @@ export const useFigureStore = create<FigureState>()(
         state.isDirty = true;
       }),
 
-    addFigure: (figure) =>
-      set((state) => {
-        state.figures.push(figure);
-      }),
-
-    deleteFigure: (id) =>
-      set((state) => {
-        state.figures = state.figures.filter((f) => f.id !== id);
-        if (state.currentFigure?.id === id) {
-          state.currentFigure = null;
+    updateXAxis: config =>
+      set(state => {
+        if (state.currentFigure) {
+          Object.assign(state.currentFigure.xAxis, config);
+          state.isDirty = true;
         }
       }),
 
-    resetFigure: () =>
-      set((state) => {
-        state.currentFigure = null;
-        state.isDirty = false;
-      }),
-
-    markClean: () =>
-      set((state) => {
-        state.isDirty = false;
-      }),
+    updateYAxis: config =>
+      set(state => {
+        if (state.currentFigure) {
+          Object.assign(state.currentFigure.yAxis, config);
+          state.isDirty = true;
+        }
+      })
   }))
 );

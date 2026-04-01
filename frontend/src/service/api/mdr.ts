@@ -3,9 +3,7 @@ import { MDR_URLS } from '../urls';
 
 // ==================== Pipeline Management ====================
 
-/**
- * Get available versions for Study Config dropdowns
- */
+/** Get available versions for Study Config dropdowns */
 export function getAvailableVersions() {
   return request<{
     adamIgVersions: { label: string; value: string }[];
@@ -22,6 +20,7 @@ export function getAvailableVersions() {
 
 /**
  * Get the pipeline tree (TA → Compound → Study → Analysis)
+ *
  * @param scopeNodeId Optional - Filter tree to show only the branch for this scope node
  */
 export function getPipelineTree(scopeNodeId?: number) {
@@ -31,9 +30,7 @@ export function getPipelineTree(scopeNodeId?: number) {
   });
 }
 
-/**
- * Get all products (Compounds), optionally filtered by therapeutic area
- */
+/** Get all products (Compounds), optionally filtered by therapeutic area */
 export function getPipelineProducts(taId?: string) {
   return request<any[]>({
     params: taId ? { ta_id: taId } : undefined,
@@ -41,9 +38,7 @@ export function getPipelineProducts(taId?: string) {
   });
 }
 
-/**
- * Get studies filtered by product ID
- */
+/** Get studies filtered by product ID */
 export function getPipelineStudies(productId?: string) {
   return request<any[]>({
     params: productId ? { product_id: productId } : undefined,
@@ -51,9 +46,7 @@ export function getPipelineStudies(productId?: string) {
   });
 }
 
-/**
- * Get analyses filtered by study ID
- */
+/** Get analyses filtered by study ID */
 export function getPipelineAnalyses(studyId?: string) {
   return request<any[]>({
     params: studyId ? { study_id: studyId } : undefined,
@@ -61,16 +54,14 @@ export function getPipelineAnalyses(studyId?: string) {
   });
 }
 
-/**
- * Create a new node (TA, Compound, Study, or Analysis)
- */
+/** Create a new node (TA, Compound, Study, or Analysis) */
 export function createPipelineNode(data: {
-  title: string;
+  description?: string;
   node_type: string;
   parent_id?: string;
   phase?: string;
   protocol_title?: string;
-  description?: string;
+  title: string;
 }) {
   return request<any>({
     data,
@@ -79,9 +70,7 @@ export function createPipelineNode(data: {
   });
 }
 
-/**
- * Toggle archive status for a pipeline node
- */
+/** Toggle archive status for a pipeline node */
 export function archivePipelineNode(nodeId: string, status: 'Active' | 'Archived') {
   return request<any>({
     data: { status },
@@ -90,18 +79,14 @@ export function archivePipelineNode(nodeId: string, status: 'Active' | 'Archived
   });
 }
 
-/**
- * Get study configuration
- */
+/** Get study configuration */
 export function getPipelineStudyConfig(studyId: string) {
   return request<any>({
     url: MDR_URLS.PIPELINE_STUDY_CONFIG.replace(':id', studyId)
   });
 }
 
-/**
- * Update study configuration
- */
+/** Update study configuration */
 export function updatePipelineStudyConfig(
   studyId: string,
   data: {
@@ -122,9 +107,7 @@ export function updatePipelineStudyConfig(
   });
 }
 
-/**
- * Get milestones for a study (optionally filtered by analysis)
- */
+/** Get milestones for a study (optionally filtered by analysis) */
 export function getPipelineMilestones(studyId: string, analysisId?: string) {
   return request<any[]>({
     params: { analysis_id: analysisId, study_id: studyId },
@@ -132,9 +115,7 @@ export function getPipelineMilestones(studyId: string, analysisId?: string) {
   });
 }
 
-/**
- * Create a milestone
- */
+/** Create a milestone */
 export function createPipelineMilestone(data: {
   actual_date?: string | null;
   analysis_id?: string;
@@ -154,9 +135,7 @@ export function createPipelineMilestone(data: {
   });
 }
 
-/**
- * Update a milestone
- */
+/** Update a milestone */
 export function updatePipelineMilestone(
   milestoneId: string,
   data: {
@@ -175,9 +154,7 @@ export function updatePipelineMilestone(
   });
 }
 
-/**
- * Delete a milestone
- */
+/** Delete a milestone */
 export function deletePipelineMilestone(milestoneId: string) {
   return request<any>({
     method: 'delete',
@@ -185,9 +162,7 @@ export function deletePipelineMilestone(milestoneId: string) {
   });
 }
 
-/**
- * Get execution jobs for an analysis
- */
+/** Get execution jobs for an analysis */
 export function getPipelineExecutionJobs(analysisId: string) {
   return request<any[]>({
     params: { analysis_id: analysisId },
@@ -204,15 +179,15 @@ export function getPipelineExecutionJobs(analysisId: string) {
 export function getTrackerTaskList(analysisId: string, category?: Api.MDR.TaskCategory) {
   // Map category to backend deliverable_type
   const categoryMap: Record<Api.MDR.TaskCategory, string> = {
-    SDTM: 'SDTM',
     ADaM: 'ADaM',
-    TFL: 'TFL',
-    Other: 'OTHER_LOOKUP'
+    Other: 'OTHER_LOOKUP',
+    SDTM: 'SDTM',
+    TFL: 'TFL'
   };
 
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     params: {
-      analysisId,  // 使用 camelCase 匹配后端
+      analysisId, // 使用 camelCase 匹配后端
       ...(category ? { deliverable_type: categoryMap[category] } : {})
     },
     url: MDR_URLS.TRACKER_TASK_LIST
@@ -225,15 +200,16 @@ export function getTrackerTaskList(analysisId: string, category?: Api.MDR.TaskCa
  * @param data Task creation parameters
  */
 export function createTrackerTask(data: {
-  analysis_id: number;  // snake_case to match backend Pydantic schema
-  deliverable_type: string;
+  analysis_id: number;
+  created_by: string;
   deliverable_name: string;
-  task_name: string;
+  // snake_case to match backend Pydantic schema
+  deliverable_type: string;
   description?: string;
   prod_programmer_id?: string;
   qc_programmer_id?: string;
+  task_name: string;
   tfl_metadata?: Record<string, unknown>;
-  created_by: string;
 }) {
   return request<{ id: number }>({
     data,
@@ -304,7 +280,7 @@ export function transitionTrackerTask(
  * @param taskId Task ID
  */
 export function getTrackerIssues(taskId: string) {
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     url: MDR_URLS.TRACKER_ISSUES.replace(':taskId', taskId)
   });
 }
@@ -318,12 +294,12 @@ export function getTrackerIssues(taskId: string) {
 export function createTrackerIssue(
   taskId: string,
   data: {
-    qc_cycle: string;
-    finding_description: string;
     finding_category?: string;
-    severity?: string;
+    finding_description: string;
+    qc_cycle: string;
     raised_by: string;
     raised_by_name?: string;
+    severity?: string;
   }
 ) {
   return request<{ id: number }>({
@@ -409,55 +385,49 @@ export function getSpecVariableList(datasetKey: string, standard: Api.MDR.Standa
 // ==================== TFL Shells ====================
 
 /**
- * TFL Shell types for API requests (matches backend ARSDisplay schema)
- * Backend uses: display_id, display_type, display_config
+ * TFL Shell types for API requests (matches backend ARSDisplay schema) Backend uses: display_id, display_type,
+ * display_config
  */
 export interface TFLShellCreate {
-  scope_node_id: number;
-  display_id: string;  // e.g., "Table 14.1.1"
-  display_type: 'Table' | 'Figure' | 'Listing';
-  title: string;
-  subtitle?: string | null;
-  footnote?: string | null;
-  sort_order?: number;
   display_config?: Record<string, unknown> | null;
+  display_id: string; // e.g., "Table 14.1.1"
+  display_type: 'Figure' | 'Listing' | 'Table';
   extra_attrs?: Record<string, unknown> | null;
+  footnote?: string | null;
+  scope_node_id: number;
+  sort_order?: number;
+  subtitle?: string | null;
+  title: string;
 }
 
 export interface TFLShellUpdate {
+  display_config?: Record<string, unknown> | null;
   display_id?: string;
-  display_type?: 'Table' | 'Figure' | 'Listing';
-  title?: string;
-  subtitle?: string | null;
+  display_type?: 'Figure' | 'Listing' | 'Table';
+  extra_attrs?: Record<string, unknown> | null;
   footnote?: string | null;
   sort_order?: number;
-  display_config?: Record<string, unknown> | null;
-  extra_attrs?: Record<string, unknown> | null;
+  subtitle?: string | null;
+  title?: string;
   updated_by: string;
 }
 
-/**
- * Get all TFL shells for a scope (analysis)
- */
+/** Get all TFL shells for a scope (analysis) */
 export function getTFLShells(scopeNodeId: number) {
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     params: { scope_node_id: scopeNodeId },
     url: MDR_URLS.TFL_SHELLS
   });
 }
 
-/**
- * Get a single TFL shell by ID
- */
+/** Get a single TFL shell by ID */
 export function getTFLShellDetail(shellId: string) {
   return request<any>({
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
   });
 }
 
-/**
- * Create a new TFL shell
- */
+/** Create a new TFL shell */
 export function createTFLShell(data: TFLShellCreate) {
   return request<{ id: number; message: string; shell: any }>({
     data,
@@ -466,33 +436,27 @@ export function createTFLShell(data: TFLShellCreate) {
   });
 }
 
-/**
- * Update an existing TFL shell
- */
+/** Update an existing TFL shell */
 export function updateTFLShell(shellId: string, data: TFLShellUpdate) {
-  return request<{ success: boolean; message: string; shell: any }>({
+  return request<{ message: string; shell: any; success: boolean }>({
     data,
     method: 'put',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
   });
 }
 
-/**
- * Delete a TFL shell (soft delete)
- */
+/** Delete a TFL shell (soft delete) */
 export function deleteTFLShell(shellId: string) {
-  return request<{ success: boolean; message: string }>({
+  return request<{ message: string; success: boolean }>({
     method: 'delete',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', shellId)
   });
 }
 
-/**
- * Batch update shell order
- */
+/** Batch update shell order */
 export function updateTFLShellOrder(updates: Array<{ id: number; sort_order: number }>, updatedBy: string) {
-  return request<{ success: boolean; message: string }>({
-    data: { updates, updated_by: updatedBy },
+  return request<{ message: string; success: boolean }>({
+    data: { updated_by: updatedBy, updates },
     method: 'put',
     url: MDR_URLS.TFL_SHELLS_ORDER
   });
@@ -501,7 +465,7 @@ export function updateTFLShellOrder(updates: Array<{ id: number; sort_order: num
 // ==================== TFL Tables ====================
 
 export function getTFLTables(scopeNodeId: number) {
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     params: { display_type: 'Table', scope_node_id: scopeNodeId },
     url: MDR_URLS.TFL_SHELLS
   });
@@ -522,7 +486,7 @@ export function createTFLTable(data: Omit<TFLShellCreate, 'display_type'>) {
 }
 
 export function updateTFLTable(tableId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
-  return request<{ success: boolean; message: string; shell: any }>({
+  return request<{ message: string; shell: any; success: boolean }>({
     data,
     method: 'put',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', tableId)
@@ -530,7 +494,7 @@ export function updateTFLTable(tableId: string, data: Omit<TFLShellUpdate, 'disp
 }
 
 export function deleteTFLTable(tableId: string) {
-  return request<{ success: boolean; message: string }>({
+  return request<{ message: string; success: boolean }>({
     method: 'delete',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', tableId)
   });
@@ -539,7 +503,7 @@ export function deleteTFLTable(tableId: string) {
 // ==================== TFL Figures ====================
 
 export function getTFLFigures(scopeNodeId: number) {
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     params: { display_type: 'Figure', scope_node_id: scopeNodeId },
     url: MDR_URLS.TFL_SHELLS
   });
@@ -560,7 +524,7 @@ export function createTFLFigure(data: Omit<TFLShellCreate, 'display_type'>) {
 }
 
 export function updateTFLFigure(figureId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
-  return request<{ success: boolean; message: string; shell: any }>({
+  return request<{ message: string; shell: any; success: boolean }>({
     data,
     method: 'put',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', figureId)
@@ -568,7 +532,7 @@ export function updateTFLFigure(figureId: string, data: Omit<TFLShellUpdate, 'di
 }
 
 export function deleteTFLFigure(figureId: string) {
-  return request<{ success: boolean; message: string }>({
+  return request<{ message: string; success: boolean }>({
     method: 'delete',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', figureId)
   });
@@ -577,7 +541,7 @@ export function deleteTFLFigure(figureId: string) {
 // ==================== TFL Listings ====================
 
 export function getTFLListings(scopeNodeId: number) {
-  return request<{ total: number; items: any[] }>({
+  return request<{ items: any[]; total: number }>({
     params: { display_type: 'Listing', scope_node_id: scopeNodeId },
     url: MDR_URLS.TFL_SHELLS
   });
@@ -598,7 +562,7 @@ export function createTFLListing(data: Omit<TFLShellCreate, 'display_type'>) {
 }
 
 export function updateTFLListing(listingId: string, data: Omit<TFLShellUpdate, 'display_type'>) {
-  return request<{ success: boolean; message: string; shell: any }>({
+  return request<{ message: string; shell: any; success: boolean }>({
     data,
     method: 'put',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', listingId)
@@ -606,7 +570,7 @@ export function updateTFLListing(listingId: string, data: Omit<TFLShellUpdate, '
 }
 
 export function deleteTFLListing(listingId: string) {
-  return request<{ success: boolean; message: string }>({
+  return request<{ message: string; success: boolean }>({
     method: 'delete',
     url: MDR_URLS.TFL_SHELL_DETAIL.replace(':id', listingId)
   });

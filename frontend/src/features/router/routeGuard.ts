@@ -2,16 +2,16 @@ import type { NavigateFunction } from 'react-router-dom';
 
 const PAGE_PERMISSION_MAP: Record<string, string> = {
   '/mdr/global-library': 'page:global-library:view',
-  '/mdr/study-spec': 'page:study-spec:view',
   '/mdr/mapping-studio': 'page:mapping-studio:view',
-  '/mdr/tfl-designer': 'page:tfl-designer:view',
-  '/mdr/tfl-template-library': 'page:tfl-template-library:view',
   '/mdr/pipeline-management': 'page:pipeline-management:view',
   '/mdr/pr-approval': 'page:pr-approval:view',
   '/mdr/programming-tracker': 'page:programming-tracker:view',
+  '/mdr/study-spec': 'page:study-spec:view',
+  '/mdr/tfl-designer': 'page:tfl-designer:view',
+  '/mdr/tfl-template-library': 'page:tfl-template-library:view',
   '/mdr/tracker': 'page:tracker:view',
-  '/system/user-management': 'page:user-management:view',
-  '/system/role-permission': 'page:role-permission:view'
+  '/system/role-permission': 'page:role-permission:view',
+  '/system/user-management': 'page:user-management:view'
 };
 
 const SORTED_PAGE_PATHS = Object.keys(PAGE_PERMISSION_MAP).sort((left, right) => right.length - left.length);

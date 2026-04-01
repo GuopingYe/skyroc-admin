@@ -1,18 +1,16 @@
 /**
  * Generic Tree Utilities
  *
- * Shared utilities for manipulating tree structures (ColumnHeaderGroup, ListingColumn, etc.)
- * All functions are generic and work with any tree node type that has an `id` and optional `children`.
+ * Shared utilities for manipulating tree structures (ColumnHeaderGroup, ListingColumn, etc.) All functions are generic
+ * and work with any tree node type that has an `id` and optional `children`.
  */
 
 export interface TreeNode {
-  id: string;
   children?: TreeNode[];
+  id: string;
 }
 
-/**
- * Count leaf nodes in a tree (nodes without children)
- */
+/** Count leaf nodes in a tree (nodes without children) */
 export function countLeaves<T extends TreeNode>(nodes: T[]): number {
   let count = 0;
   for (const node of nodes) {
@@ -25,21 +23,13 @@ export function countLeaves<T extends TreeNode>(nodes: T[]): number {
   return count;
 }
 
-/**
- * Get the maximum depth of a tree
- */
+/** Get the maximum depth of a tree */
 export function getTreeDepth<T extends TreeNode>(nodes: T[]): number {
   if (nodes.length === 0) return 0;
-  return Math.max(
-    ...nodes.map((node) =>
-      node.children?.length ? 1 + getTreeDepth(node.children as T[]) : 1
-    )
-  );
+  return Math.max(...nodes.map(node => (node.children?.length ? 1 + getTreeDepth(node.children as T[]) : 1)));
 }
 
-/**
- * Collect all leaf nodes into a flat array
- */
+/** Collect all leaf nodes into a flat array */
 export function collectLeaves<T extends TreeNode>(nodes: T[]): T[] {
   const leaves: T[] = [];
   const walk = (items: T[]) => {
@@ -56,8 +46,8 @@ export function collectLeaves<T extends TreeNode>(nodes: T[]): T[] {
 }
 
 /**
- * Walk the tree and call an operation on the array containing the target node.
- * Returns a new tree with the operation applied, or the original tree if not found.
+ * Walk the tree and call an operation on the array containing the target node. Returns a new tree with the operation
+ * applied, or the original tree if not found.
  */
 export function walkTree<T extends TreeNode>(
   nodes: T[],
@@ -80,23 +70,15 @@ export function walkTree<T extends TreeNode>(
   return nodes;
 }
 
-/**
- * Update a node in the tree by ID
- */
-export function updateInTree<T extends TreeNode>(
-  nodes: T[],
-  id: string,
-  updates: Partial<T>
-): T[] {
+/** Update a node in the tree by ID */
+export function updateInTree<T extends TreeNode>(nodes: T[], id: string, updates: Partial<T>): T[] {
   return walkTree(nodes, id, (siblings, idx) => {
     siblings[idx] = { ...siblings[idx], ...updates };
     return siblings;
   });
 }
 
-/**
- * Delete a node from the tree by ID
- */
+/** Delete a node from the tree by ID */
 export function deleteFromTree<T extends TreeNode>(nodes: T[], id: string): T[] {
   return walkTree(nodes, id, (siblings, idx) => {
     siblings.splice(idx, 1);
@@ -104,32 +86,16 @@ export function deleteFromTree<T extends TreeNode>(nodes: T[], id: string): T[] 
   });
 }
 
-/**
- * Add a child node to a parent node in the tree
- */
-export function addChildToTree<T extends TreeNode>(
-  nodes: T[],
-  parentId: string,
-  child: T
-): T[] {
+/** Add a child node to a parent node in the tree */
+export function addChildToTree<T extends TreeNode>(nodes: T[], parentId: string, child: T): T[] {
   const result = walkTree(nodes, parentId, (siblings, idx) =>
-    siblings.map((s, i) =>
-      i === idx
-        ? { ...s, children: [...(s.children || []), child] }
-        : s
-    )
+    siblings.map((s, i) => (i === idx ? { ...s, children: [...(s.children || []), child] } : s))
   );
   return result !== nodes ? result : [...nodes, child];
 }
 
-/**
- * Insert a node after another node in the tree
- */
-export function insertAfterInTree<T extends TreeNode>(
-  nodes: T[],
-  afterId: string,
-  newNode: T
-): T[] {
+/** Insert a node after another node in the tree */
+export function insertAfterInTree<T extends TreeNode>(nodes: T[], afterId: string, newNode: T): T[] {
   const result = walkTree(nodes, afterId, (siblings, idx) => {
     siblings.splice(idx + 1, 0, newNode);
     return siblings;
@@ -137,14 +103,8 @@ export function insertAfterInTree<T extends TreeNode>(
   return result !== nodes ? result : [...nodes, newNode];
 }
 
-/**
- * Move a node up or down within its siblings
- */
-export function moveInTree<T extends TreeNode>(
-  nodes: T[],
-  id: string,
-  direction: 'up' | 'down'
-): T[] {
+/** Move a node up or down within its siblings */
+export function moveInTree<T extends TreeNode>(nodes: T[], id: string, direction: 'down' | 'up'): T[] {
   const delta = direction === 'up' ? -1 : 1;
   return walkTree(nodes, id, (siblings, idx) => {
     const newIdx = idx + delta;
@@ -154,9 +114,7 @@ export function moveInTree<T extends TreeNode>(
   });
 }
 
-/**
- * Find a node in the tree by ID
- */
+/** Find a node in the tree by ID */
 export function findInTree<T extends TreeNode>(nodes: T[], id: string): T | null {
   for (const node of nodes) {
     if (node.id === id) return node;
@@ -168,9 +126,7 @@ export function findInTree<T extends TreeNode>(nodes: T[], id: string): T | null
   return null;
 }
 
-/**
- * Flatten a tree to a flat array (depth-first)
- */
+/** Flatten a tree to a flat array (depth-first) */
 export function flattenTree<T extends TreeNode>(nodes: T[]): T[] {
   const result: T[] = [];
   const walk = (items: T[]) => {
@@ -185,9 +141,7 @@ export function flattenTree<T extends TreeNode>(nodes: T[]): T[] {
   return result;
 }
 
-/**
- * Ungroup a node - remove the group but keep its children at the same level
- */
+/** Ungroup a node - remove the group but keep its children at the same level */
 export function ungroupInTree<T extends TreeNode>(nodes: T[], id: string): T[] {
   return walkTree(nodes, id, (siblings, idx) => {
     const node = siblings[idx];

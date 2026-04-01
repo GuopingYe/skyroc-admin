@@ -32,9 +32,9 @@ export type NodeStatus = 'Active' | 'Archived';
 export interface PipelineNode {
   children?: PipelineNode[] | StudyNode[] | AnalysisNode[];
   createdAt: string;
-  id: string;
   /** 数据库主键 ID (ScopeNode.id) - 用于 API 查询 */
   dbId?: number;
+  id: string;
   /** 生命周期状态（状态机） */
   lifecycleStatus: NodeLifecycleStatus;
   nodeType: NodeType;

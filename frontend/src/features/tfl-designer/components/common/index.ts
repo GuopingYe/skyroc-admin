@@ -1,4 +1,2 @@
-/**
- * TFL Builder - Common Components
- */
+/** TFL Builder - Common Components */
 export { default as ExportModal } from './ExportModal';

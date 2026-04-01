@@ -1,6 +1,4 @@
-/**
- * TFL Designer Hooks
- */
+/** TFL Designer Hooks */
 export { useTFLData } from './useTFLData';
 export type { default as UseTFLData } from './useTFLData';
 

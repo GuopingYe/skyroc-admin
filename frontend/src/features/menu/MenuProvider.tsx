@@ -2,8 +2,8 @@ import type { FC, PropsWithChildren } from 'react';
 
 import type { IClinicalContextState } from '@/features/clinical-context';
 import { canAccessRoute, filterMenuItems, getEffectiveMenuPermissions } from '@/features/router/routeGuard';
-import { useMyPermissions } from '@/service/hooks';
 import { selectActiveFirstLevelMenuKey, setActiveFirstLevelMenuKey } from '@/features/tab/tabStore';
+import { useMyPermissions } from '@/service/hooks';
 
 import { useLang } from '../lang';
 import { useRoute, useRouter } from '../router';
@@ -22,9 +22,14 @@ const MenuProvider: FC<PropsWithChildren> = ({ children }) => {
   const { locale } = useLang();
 
   const activeFirstLevelMenuKey = useAppSelector(selectActiveFirstLevelMenuKey);
-  const clinicalContext = useAppSelector((state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context);
+  const clinicalContext = useAppSelector(
+    (state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context
+  );
   const currentScopeNodeId =
-    clinicalContext.analysis?.scopeNodeId ?? clinicalContext.study?.scopeNodeId ?? clinicalContext.product?.scopeNodeId ?? null;
+    clinicalContext.analysis?.scopeNodeId ??
+    clinicalContext.study?.scopeNodeId ??
+    clinicalContext.product?.scopeNodeId ??
+    null;
   const { data: myPermissions } = useMyPermissions(true);
 
   const rawMenus = useMemo(

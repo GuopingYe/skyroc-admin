@@ -1,8 +1,8 @@
 /**
  * Batch Save Utility for Pipeline Management
  *
- * Orchestrates saving all pending changes to the backend.
- * Handles create, update, and delete operations for nodes, milestones, and study config.
+ * Orchestrates saving all pending changes to the backend. Handles create, update, and delete operations for nodes,
+ * milestones, and study config.
  */
 import {
   archivePipelineNode,
@@ -13,26 +13,26 @@ import {
   updatePipelineStudyConfig
 } from '@/service/api/mdr';
 
+import type { NodeType, PipelineNode } from '../mockData';
 import type { ChangeRecord, StudyConfigState } from '../stores';
 import type { IProjectMilestone, MilestoneLevel, MilestoneStatus, PresetMilestoneType } from '../types';
-import type { NodeType, PipelineNode } from '../mockData';
 
 /** API result for a single change */
 export interface BatchSaveResult {
   changeId: string;
-  success: boolean;
-  error?: string;
   data?: unknown;
+  error?: string;
+  success: boolean;
 }
 
 /** Overall batch save result */
 export interface BatchSaveResponse {
-  success: boolean;
   results: BatchSaveResult[];
+  success: boolean;
   summary: {
-    total: number;
-    succeeded: number;
     failed: number;
+    succeeded: number;
+    total: number;
   };
 }
 
@@ -56,7 +56,7 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
   const milestoneDeletes: ChangeRecord[] = [];
   const studyConfigUpdates: ChangeRecord[] = [];
 
-  changes.forEach((change) => {
+  changes.forEach(change => {
     if (change.entityType === 'node') {
       if (change.type === 'create') nodeCreates.push(change);
       else if (change.type === 'update') nodeUpdates.push(change);
@@ -79,25 +79,25 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     try {
       const node = change.newState as PipelineNode;
       const result = await createPipelineNode({
-        title: node.title,
+        description: (node as any).description,
         node_type: node.nodeType,
         parent_id: change.parentId || undefined,
         phase: (node as any).phase,
         protocol_title: (node as any).protocolTitle,
-        description: (node as any).description
+        title: node.title
       });
 
       results.push({
         changeId: change.id,
-        success: true,
-        data: result
+        data: result,
+        success: true
       });
       succeeded++;
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to create node'
+        error: error?.message || 'Failed to create node',
+        success: false
       });
       failed++;
     }
@@ -120,8 +120,8 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to update node'
+        error: error?.message || 'Failed to update node',
+        success: false
       });
       failed++;
     }
@@ -132,16 +132,16 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     try {
       const milestone = change.newState as IProjectMilestone;
       await createPipelineMilestone({
-        study_id: milestone.studyId,
+        actual_date: milestone.actualDate,
         analysis_id: milestone.analysisId,
-        name: milestone.name,
+        assignee: milestone.assignee,
+        comment: milestone.comment,
         level: milestone.level as MilestoneLevel,
+        name: milestone.name,
+        planned_date: milestone.plannedDate,
         preset_type: milestone.presetType as PresetMilestoneType,
         status: milestone.status as MilestoneStatus,
-        planned_date: milestone.plannedDate,
-        actual_date: milestone.actualDate,
-        assignee: milestone.assignee,
-        comment: milestone.comment
+        study_id: milestone.studyId
       });
 
       results.push({
@@ -152,8 +152,8 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to create milestone'
+        error: error?.message || 'Failed to create milestone',
+        success: false
       });
       failed++;
     }
@@ -164,12 +164,12 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     try {
       const milestone = change.newState as IProjectMilestone;
       await updatePipelineMilestone(milestone.id, {
-        name: milestone.name,
-        status: milestone.status as MilestoneStatus,
-        planned_date: milestone.plannedDate,
         actual_date: milestone.actualDate,
         assignee: milestone.assignee,
-        comment: milestone.comment
+        comment: milestone.comment,
+        name: milestone.name,
+        planned_date: milestone.plannedDate,
+        status: milestone.status as MilestoneStatus
       });
 
       results.push({
@@ -180,8 +180,8 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to update milestone'
+        error: error?.message || 'Failed to update milestone',
+        success: false
       });
       failed++;
     }
@@ -200,8 +200,8 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to delete milestone'
+        error: error?.message || 'Failed to delete milestone',
+        success: false
       });
       failed++;
     }
@@ -212,13 +212,13 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     try {
       const config = change.newState as StudyConfigState;
       await updatePipelineStudyConfig(config.studyId, {
+        adam_ig_version: config.adamIgVersion,
+        adam_model_version: config.adamModelVersion,
+        meddra_version: config.meddraVersion,
         phase: config.phase,
         protocol_title: config.protocolTitle,
-        sdtm_model_version: config.sdtmModelVersion,
         sdtm_ig_version: config.sdtmIgVersion,
-        adam_model_version: config.adamModelVersion,
-        adam_ig_version: config.adamIgVersion,
-        meddra_version: config.meddraVersion,
+        sdtm_model_version: config.sdtmModelVersion,
         whodrug_version: config.whodrugVersion
       });
 
@@ -230,8 +230,8 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to update study config'
+        error: error?.message || 'Failed to update study config',
+        success: false
       });
       failed++;
     }
@@ -253,64 +253,64 @@ export async function executeBatchSave(changes: Map<string, ChangeRecord>): Prom
     } catch (error: any) {
       results.push({
         changeId: change.id,
-        success: false,
-        error: error?.message || 'Failed to delete node'
+        error: error?.message || 'Failed to delete node',
+        success: false
       });
       failed++;
     }
   }
 
   return {
-    success: failed === 0,
     results,
+    success: failed === 0,
     summary: {
-      total: changes.size,
+      failed,
       succeeded,
-      failed
+      total: changes.size
     }
   };
 }
 
-/**
- * Sort node changes by hierarchy level
- * TA (level 0) -> Compound (level 1) -> Study (level 2) -> Analysis (level 3)
- */
+/** Sort node changes by hierarchy level TA (level 0) -> Compound (level 1) -> Study (level 2) -> Analysis (level 3) */
 function sortByHierarchyLevel(changes: ChangeRecord[]): ChangeRecord[] {
   const hierarchyLevel = (node: PipelineNode | null | undefined): number => {
     if (!node) return 999;
     switch (node.nodeType) {
-      case 'TA': return 0;
-      case 'COMPOUND': return 1;
-      case 'STUDY': return 2;
-      case 'ANALYSIS': return 3;
-      default: return 999;
+      case 'TA':
+        return 0;
+      case 'COMPOUND':
+        return 1;
+      case 'STUDY':
+        return 2;
+      case 'ANALYSIS':
+        return 3;
+      default:
+        return 999;
     }
   };
 
   return [...changes].sort((a, b) => {
-    const levelA = hierarchyLevel(a.newState as PipelineNode || a.previousState as PipelineNode);
-    const levelB = hierarchyLevel(b.newState as PipelineNode || b.previousState as PipelineNode);
+    const levelA = hierarchyLevel((a.newState as PipelineNode) || (a.previousState as PipelineNode));
+    const levelB = hierarchyLevel((b.newState as PipelineNode) || (b.previousState as PipelineNode));
     return levelA - levelB;
   });
 }
 
-/**
- * Generate a human-readable summary of pending changes
- */
+/** Generate a human-readable summary of pending changes */
 export function getChangesSummary(changes: Map<string, ChangeRecord>): {
-  nodes: { created: number; updated: number; deleted: number };
-  milestones: { created: number; updated: number; deleted: number };
+  milestones: { created: number; deleted: number; updated: number };
+  nodes: { created: number; deleted: number; updated: number };
   studyConfigs: number;
   total: number;
 } {
   const result = {
-    nodes: { created: 0, updated: 0, deleted: 0 },
-    milestones: { created: 0, updated: 0, deleted: 0 },
+    milestones: { created: 0, deleted: 0, updated: 0 },
+    nodes: { created: 0, deleted: 0, updated: 0 },
     studyConfigs: 0,
     total: changes.size
   };
 
-  changes.forEach((change) => {
+  changes.forEach(change => {
     if (change.entityType === 'node') {
       if (change.type === 'create') result.nodes.created++;
       else if (change.type === 'update') result.nodes.updated++;

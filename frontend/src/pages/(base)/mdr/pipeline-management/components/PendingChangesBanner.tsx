@@ -1,11 +1,9 @@
 /**
  * Pending Changes Banner
  *
- * Shows a banner at the top of the page when there are unsaved changes.
- * Includes undo/redo buttons and save/discard actions.
+ * Shows a banner at the top of the page when there are unsaved changes. Includes undo/redo buttons and save/discard
+ * actions.
  */
-import React from 'react';
-import { Alert, Button, Space, Tooltip } from 'antd';
 import {
   CheckOutlined,
   CloseOutlined,
@@ -14,34 +12,36 @@ import {
   UndoOutlined,
   WarningOutlined
 } from '@ant-design/icons';
+import { Alert, Button, Space, Tooltip } from 'antd';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ChangeRecord } from '../stores';
 
 export interface PendingChangesBannerProps {
-  isDirty: boolean;
-  pendingChangesCount: number;
-  pendingChanges: Map<string, ChangeRecord>;
-  canUndo: boolean;
   canRedo: boolean;
-  onUndo: () => void;
+  canUndo: boolean;
+  isDirty: boolean;
+  isSaving?: boolean;
+  onDiscard: () => void;
   onRedo: () => void;
   onSave: () => void;
-  onDiscard: () => void;
-  isSaving?: boolean;
+  onUndo: () => void;
+  pendingChanges: Map<string, ChangeRecord>;
+  pendingChangesCount: number;
 }
 
 export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
-  isDirty,
-  pendingChangesCount,
-  pendingChanges,
-  canUndo,
   canRedo,
-  onUndo,
+  canUndo,
+  isDirty,
+  isSaving = false,
+  onDiscard,
   onRedo,
   onSave,
-  onDiscard,
-  isSaving = false
+  onUndo,
+  pendingChanges,
+  pendingChangesCount
 }) => {
   const { t } = useTranslation();
 
@@ -52,7 +52,7 @@ export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
   let updates = 0;
   let deletes = 0;
 
-  pendingChanges.forEach((change) => {
+  pendingChanges.forEach(change => {
     if (change.type === 'create') creates++;
     else if (change.type === 'update') updates++;
     else if (change.type === 'delete') deletes++;
@@ -62,14 +62,17 @@ export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
     creates > 0 && `${creates} create${creates > 1 ? 's' : ''}`,
     updates > 0 && `${updates} update${updates > 1 ? 's' : ''}`,
     deletes > 0 && `${deletes} delete${deletes > 1 ? 's' : ''}`
-  ].filter(Boolean).join(', ');
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <Alert
-      type="warning"
+      className="mb-12px"
       icon={<WarningOutlined />}
+      type="warning"
       message={
-        <div className="flex items-center justify-between w-full">
+        <div className="w-full flex items-center justify-between">
           <Space>
             <span>
               {t('page.mdr.pipelineManagement.pendingChanges.title', {
@@ -77,9 +80,7 @@ export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
                 defaultValue: `You have ${pendingChangesCount} unsaved change${pendingChangesCount > 1 ? 's' : ''}`
               })}
             </span>
-            <span className="text-gray-500 text-sm">
-              ({changeDescription})
-            </span>
+            <span className="text-sm text-gray-500">({changeDescription})</span>
           </Space>
 
           <Space size="small">
@@ -87,36 +88,36 @@ export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
             <Button.Group size="small">
               <Tooltip title={t('page.mdr.pipelineManagement.pendingChanges.undo', 'Undo (Ctrl+Z)')}>
                 <Button
-                  icon={<UndoOutlined />}
                   disabled={!canUndo}
+                  icon={<UndoOutlined />}
                   onClick={onUndo}
                 />
               </Tooltip>
               <Tooltip title={t('page.mdr.pipelineManagement.pendingChanges.redo', 'Redo (Ctrl+Y)')}>
                 <Button
-                  icon={<RedoOutlined />}
                   disabled={!canRedo}
+                  icon={<RedoOutlined />}
                   onClick={onRedo}
                 />
               </Tooltip>
             </Button.Group>
 
             {/* Divider */}
-            <div className="h-4 w-px bg-gray-300 mx-1" />
+            <div className="mx-1 h-4 w-px bg-gray-300" />
 
             {/* Save and Discard buttons */}
             <Button
-              size="small"
               icon={<CloseOutlined />}
+              size="small"
               onClick={onDiscard}
             >
               {t('page.mdr.pipelineManagement.pendingChanges.discard', 'Discard')}
             </Button>
             <Button
-              type="primary"
-              size="small"
               icon={<SaveOutlined />}
               loading={isSaving}
+              size="small"
+              type="primary"
               onClick={onSave}
             >
               {t('page.mdr.pipelineManagement.pendingChanges.save', 'Save')}
@@ -124,7 +125,6 @@ export const PendingChangesBanner: React.FC<PendingChangesBannerProps> = ({
           </Space>
         </div>
       }
-      className="mb-12px"
     />
   );
 };

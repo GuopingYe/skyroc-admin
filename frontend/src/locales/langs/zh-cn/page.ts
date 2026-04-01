@@ -679,10 +679,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         title: '编辑任务'
       },
       form: {
-        customizedDataset: '自定义数据集',
-        customizedDomain: '自定义域',
         customDatasetName: '自定义数据集名称',
         customDomainName: '自定义域名称',
+        customizedDataset: '自定义数据集',
+        customizedDomain: '自定义域',
         datasetLabelPlaceholder: '请输入数据集标签',
         datasetPlaceholder: '请选择数据集',
         descriptionPlaceholder: '请输入任务描述',
@@ -857,6 +857,13 @@ const page: App.I18n.Schema['translation']['page'] = {
         selectAnalysisForTfl: '选择分析批次后开始设计',
         selectAnalysisHint: '请在上方选择 Analysis 以开始设计 TFL Shell'
       },
+      figureHints: {
+        addSeries: '请在"系列"标签页中添加至少一个数据系列',
+        configureXAxis: '请在"坐标轴"标签页中配置 X 轴标签和类型',
+        configureYAxis: '请在"坐标轴"标签页中配置 Y 轴标签和范围',
+        selectChartType: '请在"元数据"标签页中选择图表类型以预览',
+        unsupportedType: '该图表类型尚未支持。已支持: 折线图、柱状图、散点图、箱线图、KM 曲线、森林图'
+      },
       figureMeta: {
         basicInfo: '基本信息',
         chartType: '图表类型'
@@ -944,21 +951,14 @@ const page: App.I18n.Schema['translation']['page'] = {
         filter: '筛选',
         footer: '页脚',
         metadata: '元数据',
+        population: '人群设置',
         preview: '预览',
+        programmingNotes: '编程备注',
         rowStructure: '行结构',
         series: '系列',
         sortOrder: '排序',
-        population: '人群设置',
-        programmingNotes: '编程备注',
-        treatmentArms: '列头样式',
-        statistics: '统计设置'
-      },
-      figureHints: {
-        addSeries: '请在"系列"标签页中添加至少一个数据系列',
-        configureXAxis: '请在"坐标轴"标签页中配置 X 轴标签和类型',
-        configureYAxis: '请在"坐标轴"标签页中配置 Y 轴标签和范围',
-        selectChartType: '请在"元数据"标签页中选择图表类型以预览',
-        unsupportedType: '该图表类型尚未支持。已支持: 折线图、柱状图、散点图、箱线图、KM 曲线、森林图'
+        statistics: '统计设置',
+        treatmentArms: '列头样式'
       },
       toolbar: {
         editMode: '编辑模式',

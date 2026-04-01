@@ -1,73 +1,73 @@
 /**
  * TFL Builder - Export Modal
  *
- * Export dialog with format selection and page settings.
- * Supports Word (.docx), RTF, and PDF formats.
+ * Export dialog with format selection and page settings. Supports Word (.docx), RTF, and PDF formats.
  */
-import { useState } from 'react';
 import {
-  Modal,
-  Form,
-  Select,
-  InputNumber,
-  Switch,
-  Space,
-  Button,
-  Typography,
-  Divider,
-  Radio,
-  message,
-  Empty
-} from 'antd';
-import {
+  CheckCircleOutlined,
   DownloadOutlined,
-  FileWordOutlined,
   FilePdfOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
+  FileWordOutlined,
   FolderOpenOutlined
 } from '@ant-design/icons';
-import { downloadAsWord, downloadAsRTF, generatePDFDocument } from '../../utils/exportUtils';
+import {
+  Button,
+  Divider,
+  Empty,
+  Form,
+  InputNumber,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Switch,
+  Typography,
+  message
+} from 'antd';
+import { useState } from 'react';
+
 import type { IARSDocument } from '../../types';
+import { downloadAsRTF, downloadAsWord, generatePDFDocument } from '../../utils/exportUtils';
 
 const { Text, Title } = Typography;
 
 // ==================== Types ====================
 
 interface ExportPageOptions {
-  format: 'word' | 'rtf' | 'pdf' | 'json';
-  pageSize: 'A4' | 'Letter';
-  orientation: 'portrait' | 'landscape';
+  fontSize: number;
+  format: 'json' | 'pdf' | 'rtf' | 'word';
+  includePageNumbers: boolean;
   margins: {
-    top: number;
     bottom: number;
     left: number;
     right: number;
+    top: number;
   };
-  includePageNumbers: boolean;
-  fontSize: number;
+  orientation: 'landscape' | 'portrait';
+  pageSize: 'A4' | 'Letter';
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
   document: IARSDocument | null;
+  onClose: () => void;
+  open: boolean;
 }
 
 // ==================== Constants ====================
 
 const defaultPageOptions: ExportPageOptions = {
+  fontSize: 10,
   format: 'word',
-  pageSize: 'A4',
-  orientation: 'portrait',
-  margins: { top: 25, bottom: 25, left: 20, right: 20 },
   includePageNumbers: true,
-  fontSize: 10
+  margins: { bottom: 25, left: 20, right: 20, top: 25 },
+  orientation: 'portrait',
+  pageSize: 'A4'
 };
 
 // ==================== Component ====================
 
-export default function ExportModal({ open, onClose, document }: Props) {
+export default function ExportModal({ document, onClose, open }: Props) {
   const [form] = Form.useForm();
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState(false);
@@ -83,10 +83,10 @@ export default function ExportModal({ open, onClose, document }: Props) {
       ...defaultPageOptions,
       ...values,
       margins: {
-        top: values.marginTop ?? 25,
         bottom: values.marginBottom ?? 25,
         left: values.marginLeft ?? 20,
-        right: values.marginRight ?? 20
+        right: values.marginRight ?? 20,
+        top: values.marginTop ?? 25
       }
     };
 
@@ -111,13 +111,13 @@ export default function ExportModal({ open, onClose, document }: Props) {
         }
         case 'json': {
           const filename = `TFL_${document.studyId || 'export'}_${Date.now()}.json`;
-          const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(document, null, 2));
-           const downloadAnchorNode = window.document.createElement('a');
-           downloadAnchorNode.setAttribute('href', dataStr);
-           downloadAnchorNode.setAttribute('download', filename);
-           window.document.body.appendChild(downloadAnchorNode);
-           downloadAnchorNode.click();
-           downloadAnchorNode.remove();
+          const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(document, null, 2))}`;
+          const downloadAnchorNode = window.document.createElement('a');
+          downloadAnchorNode.setAttribute('href', dataStr);
+          downloadAnchorNode.setAttribute('download', filename);
+          window.document.body.appendChild(downloadAnchorNode);
+          downloadAnchorNode.click();
+          downloadAnchorNode.remove();
           break;
         }
         default:
@@ -127,7 +127,7 @@ export default function ExportModal({ open, onClose, document }: Props) {
       setExported(true);
       message.success('Export successful');
     } catch (error) {
-      message.error('Export failed: ' + (error as Error).message);
+      message.error(`Export failed: ${(error as Error).message}`);
     } finally {
       setExporting(false);
     }
@@ -160,27 +160,30 @@ export default function ExportModal({ open, onClose, document }: Props) {
 
   return (
     <Modal
-      title="Export TFL"
       open={open}
-      onCancel={handleClose}
+      title="Export TFL"
       width={640}
       footer={[
-        <Button key="cancel" onClick={handleClose}>
+        <Button
+          key="cancel"
+          onClick={handleClose}
+        >
           Cancel
         </Button>,
         <Button
-          key="export"
-          type="primary"
           icon={<DownloadOutlined />}
+          key="export"
           loading={exporting}
+          type="primary"
           onClick={handleExport}
         >
           Export
         </Button>
       ]}
+      onCancel={handleClose}
     >
       {exported && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
+        <div className="mb-4 border border-green-200 rounded bg-green-50 p-3">
           <Space>
             <CheckCircleOutlined className="text-green-500" />
             <Text className="text-green-700">Document exported successfully</Text>
@@ -189,27 +192,37 @@ export default function ExportModal({ open, onClose, document }: Props) {
       )}
 
       {!document ? (
-        <Empty description="No document loaded" className="py-10" />
+        <Empty
+          className="py-10"
+          description="No document loaded"
+        />
       ) : (
-        <div className="mb-4 p-3 bg-gray-50 rounded">
+        <div className="mb-4 rounded bg-gray-50 p-3">
           <Text strong>Document Summary:</Text>
           <div className="mt-1">
             <Text type="secondary">{displayName}</Text>
           </div>
           <div className="mt-1 flex gap-4">
-            <Text type="secondary">{displayCount} display{displayCount !== 1 ? 's' : ''}</Text>
-            <Text type="secondary">{outputCount} output{outputCount !== 1 ? 's' : ''}</Text>
+            <Text type="secondary">
+              {displayCount} display{displayCount !== 1 ? 's' : ''}
+            </Text>
+            <Text type="secondary">
+              {outputCount} output{outputCount !== 1 ? 's' : ''}
+            </Text>
           </div>
         </div>
       )}
 
       <Form
         form={form}
-        layout="vertical"
         initialValues={defaultPageOptions}
+        layout="vertical"
       >
         {/* Format Selection */}
-        <Form.Item name="format" label="Export Format">
+        <Form.Item
+          label="Export Format"
+          name="format"
+        >
           <Radio.Group>
             <Radio.Button value="word">
               <Space>
@@ -243,22 +256,34 @@ export default function ExportModal({ open, onClose, document }: Props) {
         {/* Page Settings */}
         <Title level={5}>Page Settings</Title>
 
-        <Space direction="vertical" size="small" className="w-full">
+        <Space
+          className="w-full"
+          direction="vertical"
+          size="small"
+        >
           <div className="flex gap-4">
-            <Form.Item name="pageSize" label="Paper Size" className="flex-1">
+            <Form.Item
+              className="flex-1"
+              label="Paper Size"
+              name="pageSize"
+            >
               <Select
                 options={[
-                  { value: 'A4', label: 'A4 (210 x 297 mm)' },
-                  { value: 'Letter', label: 'Letter (8.5 x 11 in)' }
+                  { label: 'A4 (210 x 297 mm)', value: 'A4' },
+                  { label: 'Letter (8.5 x 11 in)', value: 'Letter' }
                 ]}
               />
             </Form.Item>
 
-            <Form.Item name="orientation" label="Orientation" className="flex-1">
+            <Form.Item
+              className="flex-1"
+              label="Orientation"
+              name="orientation"
+            >
               <Select
                 options={[
-                  { value: 'portrait', label: 'Portrait' },
-                  { value: 'landscape', label: 'Landscape' }
+                  { label: 'Portrait', value: 'portrait' },
+                  { label: 'Landscape', value: 'landscape' }
                 ]}
               />
             </Form.Item>
@@ -266,36 +291,84 @@ export default function ExportModal({ open, onClose, document }: Props) {
 
           <Form.Item label="Margins (mm)">
             <Space>
-              <Form.Item name="marginTop" noStyle>
-                <InputNumber min={0} max={50} placeholder="Top" addonAfter="mm" className="w-24" />
+              <Form.Item
+                noStyle
+                name="marginTop"
+              >
+                <InputNumber
+                  addonAfter="mm"
+                  className="w-24"
+                  max={50}
+                  min={0}
+                  placeholder="Top"
+                />
               </Form.Item>
-              <Form.Item name="marginBottom" noStyle>
-                <InputNumber min={0} max={50} placeholder="Bottom" addonAfter="mm" className="w-24" />
+              <Form.Item
+                noStyle
+                name="marginBottom"
+              >
+                <InputNumber
+                  addonAfter="mm"
+                  className="w-24"
+                  max={50}
+                  min={0}
+                  placeholder="Bottom"
+                />
               </Form.Item>
-              <Form.Item name="marginLeft" noStyle>
-                <InputNumber min={0} max={50} placeholder="Left" addonAfter="mm" className="w-24" />
+              <Form.Item
+                noStyle
+                name="marginLeft"
+              >
+                <InputNumber
+                  addonAfter="mm"
+                  className="w-24"
+                  max={50}
+                  min={0}
+                  placeholder="Left"
+                />
               </Form.Item>
-              <Form.Item name="marginRight" noStyle>
-                <InputNumber min={0} max={50} placeholder="Right" addonAfter="mm" className="w-24" />
+              <Form.Item
+                noStyle
+                name="marginRight"
+              >
+                <InputNumber
+                  addonAfter="mm"
+                  className="w-24"
+                  max={50}
+                  min={0}
+                  placeholder="Right"
+                />
               </Form.Item>
             </Space>
           </Form.Item>
 
           <div className="flex gap-4">
-            <Form.Item name="fontSize" label="Font Size" className="flex-1">
+            <Form.Item
+              className="flex-1"
+              label="Font Size"
+              name="fontSize"
+            >
               <Select
                 options={[
-                  { value: 8, label: '8pt' },
-                  { value: 9, label: '9pt' },
-                  { value: 10, label: '10pt' },
-                  { value: 11, label: '11pt' },
-                  { value: 12, label: '12pt' }
+                  { label: '8pt', value: 8 },
+                  { label: '9pt', value: 9 },
+                  { label: '10pt', value: 10 },
+                  { label: '11pt', value: 11 },
+                  { label: '12pt', value: 12 }
                 ]}
               />
             </Form.Item>
 
-            <Form.Item name="includePageNumbers" label="Page Numbers" valuePropName="checked" className="flex-1">
-              <Switch checkedChildren="Yes" unCheckedChildren="No" />
+            <Form.Item
+              className="flex-1"
+              label="Page Numbers"
+              name="includePageNumbers"
+              valuePropName="checked"
+            >
+              <Switch
+                checkedChildren="Yes"
+                unCheckedChildren="No"
+              />
             </Form.Item>
           </div>
         </Space>
@@ -304,7 +377,7 @@ export default function ExportModal({ open, onClose, document }: Props) {
 
         {/* Export Options */}
         <Title level={5}>Export Options</Title>
-        <div className="p-3 bg-gray-50 rounded text-xs text-gray-500">
+        <div className="rounded bg-gray-50 p-3 text-xs text-gray-500">
           <ul className="list-disc pl-4 space-y-1">
             <li>Word and RTF exports generate formatted documents ready for submission.</li>
             <li>PDF export opens a browser window where you can print to PDF.</li>

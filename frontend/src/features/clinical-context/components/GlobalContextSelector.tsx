@@ -1,8 +1,7 @@
 /**
  * GlobalContextSelector - 全局上下文选择器
  *
- * 三级联动选择器：Product -> Study -> Analysis
- * 数据来源于后端 API（pipeline endpoints），与 pipeline management 保持同步
+ * 三级联动选择器：Product -> Study -> Analysis 数据来源于后端 API（pipeline endpoints），与 pipeline management 保持同步
  */
 import { AuditOutlined, ExperimentOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import { Select, Space, Spin, Tag, Typography } from 'antd';
@@ -99,7 +98,7 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
 
   // 下拉展开时刷新对应列表（捕获新增后未切换上下文的情况）
   const handleDropdownVisibleChange = useCallback(
-    (visible: boolean, type: 'product' | 'study' | 'analysis') => {
+    (visible: boolean, type: 'analysis' | 'product' | 'study') => {
       if (visible) {
         if (type === 'product') fetchProducts();
         else if (type === 'study') fetchStudies();
@@ -133,14 +132,15 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
         const node = studies.find(s => String(s.id) === studyId);
         // Debug: log the selected study node
         // eslint-disable-next-line no-console
-        console.log('[Context] Selected study:', { studyId, node, dbId: node?.dbId });
+        console.log('[Context] Selected study:', { dbId: node?.dbId, node, studyId });
         selectStudy(studyId, {
+          // 使用数据库主键
+          config: node?.config,
           id: studyId,
           name: node?.name || node?.study_code || node?.code || studyId,
           phase: node?.phase || '',
-          status: node?.status || 'Active',
-          scopeNodeId: node?.dbId, // 使用数据库主键
-          config: node?.config
+          scopeNodeId: node?.dbId,
+          status: node?.status || 'Active'
         } as IClinicalStudy);
       } else {
         selectStudy(null);
@@ -157,8 +157,8 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
         selectAnalysis(analysisId, {
           id: analysisId,
           name: node?.name || node?.code || analysisId,
-          status: (node?.lifecycleStatus || 'Active') as IClinicalAnalysis['status'],
-          scopeNodeId: node?.dbId // 使用数据库主键
+          scopeNodeId: node?.dbId,
+          status: (node?.lifecycleStatus || 'Active') as IClinicalAnalysis['status'] // 使用数据库主键
         } as IClinicalAnalysis);
       } else {
         selectAnalysis(null);
@@ -184,7 +184,7 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
     () =>
       studies.map(s => {
         const name = s.name || s.study_code || s.code || s.id || '';
-        const meta = [s.phase, s.lifecycleStatus || s.status].filter(Boolean).join(' \u00b7 ');
+        const meta = [s.phase, s.lifecycleStatus || s.status].filter(Boolean).join(' \u00B7 ');
         return {
           label: meta ? `${name} \u2014 ${meta}` : name,
           value: String(s.id)
@@ -255,15 +255,15 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
               <div className="flex items-center gap-4px">
                 <MedicineBoxOutlined className="text-blue-500" />
                 <Select
+                  showSearch
                   labelRender={productLabelRender}
-                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'product')}
                   options={productOptions}
                   placeholder={t('page.mdr.contextSelector.selectProduct')}
                   popupMatchSelectWidth={false}
-                  showSearch
                   size="small"
                   value={context.productId}
                   onChange={handleProductChange}
+                  onDropdownVisibleChange={v => handleDropdownVisibleChange(v, 'product')}
                 />
               </div>
 
@@ -273,16 +273,16 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
               <div className="flex items-center gap-4px">
                 <ExperimentOutlined className="text-orange-500" />
                 <Select
+                  showSearch
                   disabled={!context.productId}
                   labelRender={studyLabelRender}
-                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'study')}
                   options={studyOptions}
                   placeholder={t('page.mdr.contextSelector.selectStudy')}
                   popupMatchSelectWidth={false}
-                  showSearch
                   size="small"
                   value={context.productId ? context.studyId : undefined}
                   onChange={handleStudyChange}
+                  onDropdownVisibleChange={v => handleDropdownVisibleChange(v, 'study')}
                 />
               </div>
 
@@ -293,16 +293,16 @@ const GlobalContextSelector: React.FC<GlobalContextSelectorProps> = ({ className
                 <AuditOutlined className="text-purple-500" />
                 <Select
                   allowClear
+                  showSearch
                   disabled={!context.studyId}
                   labelRender={analysisLabelRender}
-                  onDropdownVisibleChange={(v) => handleDropdownVisibleChange(v, 'analysis')}
                   options={analysisOptions}
                   placeholder={t('page.mdr.contextSelector.selectAnalysis')}
                   popupMatchSelectWidth={false}
-                  showSearch
                   size="small"
                   value={context.studyId ? context.analysisId : undefined}
                   onChange={handleAnalysisChange}
+                  onDropdownVisibleChange={v => handleDropdownVisibleChange(v, 'analysis')}
                 />
               </div>
             </Space>
