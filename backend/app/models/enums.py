@@ -66,3 +66,20 @@ class WorkspaceType(str, enum.Enum):
 
     BLINDED = "Blinded"  # 盲态工作区
     UNBLINDED = "Unblinded"  # 非盲态工作区
+
+
+class ReferenceDataCategory(str, enum.Enum):
+    """Reference data categories for configurable dropdowns and metadata."""
+
+    POPULATION = "POPULATION"
+    SDTM_DOMAIN = "SDTM_DOMAIN"
+    ADAM_DATASET = "ADAM_DATASET"
+    STUDY_PHASE = "STUDY_PHASE"
+    STAT_TYPE = "STAT_TYPE"
+    DISPLAY_TYPE = "DISPLAY_TYPE"
+    ANALYSIS_CATEGORY = "ANALYSIS_CATEGORY"
+    THERAPEUTIC_AREA = "THERAPEUTIC_AREA"
+    REGULATORY_AGENCY = "REGULATORY_AGENCY"
+    CONTROL_TYPE = "CONTROL_TYPE"
+    BLINDING_STATUS = "BLINDING_STATUS"
+    STUDY_DESIGN = "STUDY_DESIGN"

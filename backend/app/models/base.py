@@ -11,6 +11,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
 
+# Monkey-patch SQLite type compiler to handle JSONB -> JSON fallback
+# This is needed because TypeDecorator exposes its external type class
+# to the compiler before load_dialect_impl resolves the inner type.
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
+
+if not hasattr(SQLiteTypeCompiler, "visit_JSONB"):
+    SQLiteTypeCompiler.visit_JSONB = SQLiteTypeCompiler.visit_JSON
+
+
 class JSONB(TypeDecorator):
     """
     跨数据库兼容的 JSONB 类型

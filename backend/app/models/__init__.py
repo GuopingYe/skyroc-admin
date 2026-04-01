@@ -49,7 +49,7 @@ from app.models.audit_listener import (
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 from app.models.biomedical_concept import BiomedicalConcept
 from app.models.codelist import Codelist, CodelistTerm
-from app.models.enums import AuditAction, LifecycleStatus, NodeType, VisibilityContext, WorkspaceType
+from app.models.enums import AuditAction, LifecycleStatus, NodeType, ReferenceDataCategory, VisibilityContext, WorkspaceType
 from app.models.mapping_enums import (
     DataType,
     DatasetClass,
@@ -73,6 +73,7 @@ from app.models.mapping_enums import (
 from app.models.mapping_rule import MappingRule
 from app.models.pull_request import MetadataPullRequest
 from app.models.rbac import Permission, Role, RolePermission, User, UserScopeRole
+from app.models.reference_data import ReferenceData
 from app.models.scope_node import ScopeNode
 from app.models.source_collection import SourceCollection
 from app.models.source_item import SourceItem
@@ -94,6 +95,7 @@ __all__ = [
     "VisibilityContext",
     "WorkspaceType",
     "AuditAction",
+    "ReferenceDataCategory",
     # Mapping Enums
     "DatasetClass",
     "VariableCore",
@@ -148,6 +150,8 @@ __all__ = [
     "TrackerIssue",
     # Pull Request Models
     "MetadataPullRequest",
+    # Reference Data Models
+    "ReferenceData",
     # CDISC Standard Models
     "BiomedicalConcept",
     "Codelist",
