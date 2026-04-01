@@ -18,7 +18,7 @@ import {
   Tag
 } from 'antd';
 
-import { useMyPermissions } from '@/service/hooks/useRBAC';
+import { usePermissionCheck } from '@/service/hooks/useRBAC';
 import {
   useCreateReferenceItem,
   useDeactivateReferenceItem,
@@ -57,8 +57,7 @@ const ReferenceDataPage: React.FC = () => {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const { data: myPermissions } = useMyPermissions();
-  const is_superuser = myPermissions?.is_superuser ?? false;
+  const { isSuperuser } = usePermissionCheck();
 
   const { data: items = [], isLoading } = useReferenceItems(
     activeCategory,
@@ -107,7 +106,7 @@ const ReferenceDataPage: React.FC = () => {
             <Tag color="orange">Inactive</Tag>
           )
       },
-      ...(is_superuser
+      ...(isSuperuser
         ? [
             {
               title: 'Actions',
@@ -162,7 +161,8 @@ const ReferenceDataPage: React.FC = () => {
           ]
         : [])
     ],
-    [is_superuser, form, deactivateMutation, restoreMutation, messageApi]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isSuperuser]
   );
 
   const handleSave = useCallback(async () => {
@@ -192,7 +192,7 @@ const ReferenceDataPage: React.FC = () => {
         });
       }
     } catch {
-      // validation error
+      // form validation failed
     }
   }, [editingItem, form, createMutation, updateMutation, messageApi]);
 
@@ -213,7 +213,7 @@ const ReferenceDataPage: React.FC = () => {
 
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
-          {is_superuser && (
+          {isSuperuser && (
             <Button
               type="primary"
               icon={<PlusOutlined />}

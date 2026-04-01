@@ -19,21 +19,7 @@ from app.schemas.reference_data import (
 
 router = APIRouter(prefix="/reference-data", tags=["Reference Data"])
 
-CATEGORY_LABELS: dict[str, str] = {
-    "POPULATION": "Population",
-    "SDTM_DOMAIN": "SDTM Domain",
-    "ADAM_DATASET": "ADaM Dataset",
-    "STUDY_PHASE": "Study Phase",
-    "STAT_TYPE": "Statistic Type",
-    "DISPLAY_TYPE": "Display Type",
-    "ANALYSIS_CATEGORY": "Analysis Category",
-    "THERAPEUTIC_AREA": "Therapeutic Area",
-    "REGULATORY_AGENCY": "Regulatory Agency",
-    "CONTROL_TYPE": "Control Type",
-    "BLINDING_STATUS": "Blinding Status",
-    "STUDY_DESIGN": "Study Design",
-}
-
+CATEGORY_LABELS = {c.value: c.name.replace("_", " ").title() for c in ReferenceDataCategory}
 VALID_CATEGORIES = {c.value for c in ReferenceDataCategory}
 
 
@@ -45,22 +31,39 @@ def _validate_category(category: str) -> None:
         )
 
 
+async def _get_item_or_404(
+    db: AsyncSession, category: str, code: str, *, include_deleted: bool = False
+) -> ReferenceData:
+    query = select(ReferenceData).where(
+        ReferenceData.category == category,
+        ReferenceData.code == code,
+        ReferenceData.is_deleted == include_deleted,
+    )
+    result = await db.execute(query)
+    item = result.scalar_one_or_none()
+    if not item:
+        state = "deleted " if include_deleted else ""
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{state}Item '{code}' not found in '{category}'",
+        )
+    return item
+
+
 @router.get("/", response_model=list[CategorySummary])
 async def list_categories(
     user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
-    """List all reference data categories with item counts."""
     results = await db.execute(
         select(
             ReferenceData.category,
             func.count().label("count"),
             func.count().filter(ReferenceData.is_active == True, ReferenceData.is_deleted == False).label("active_count"),  # noqa: E712
         )
-        .where(ReferenceData.is_deleted == False)  # noqa: E712
+        .where(ReferenceData.is_deleted == False)
         .group_by(ReferenceData.category)
     )
-    rows = results.all()
     return [
         CategorySummary(
             category=row.category,
@@ -68,7 +71,7 @@ async def list_categories(
             count=row.count,
             active_count=row.active_count,
         )
-        for row in rows
+        for row in results.all()
     ]
 
 
@@ -80,7 +83,6 @@ async def list_items(
     is_active: bool | None = None,
     is_deleted: bool | None = None,
 ):
-    """List items in a category."""
     _validate_category(category)
     query = select(ReferenceData).where(ReferenceData.category == category)
 
@@ -94,8 +96,7 @@ async def list_items(
 
     query = query.order_by(ReferenceData.sort_order, ReferenceData.code)
     result = await db.execute(query)
-    items = result.scalars().all()
-    return [ReferenceDataResponse.model_validate(item) for item in items]
+    return [ReferenceDataResponse.model_validate(i) for i in result.scalars().all()]
 
 
 @router.get("/{category}/{code}", response_model=ReferenceDataResponse)
@@ -105,18 +106,8 @@ async def get_item(
     user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
-    """Get a single reference data item by category and code."""
     _validate_category(category)
-    result = await db.execute(
-        select(ReferenceData).where(
-            ReferenceData.category == category,
-            ReferenceData.code == code,
-            ReferenceData.is_deleted == False,  # noqa: E712
-        )
-    )
-    item = result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Item '{code}' not found in '{category}'")
+    item = await _get_item_or_404(db, category, code)
     return ReferenceDataResponse.model_validate(item)
 
 
@@ -128,7 +119,6 @@ async def create_item(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     _: None = Depends(require_superuser),
 ):
-    """Create a new reference data item (superuser only)."""
     _validate_category(category)
     set_audit_context(str(admin.id), admin.username, context={"operation": "create_reference_data"})
 
@@ -161,23 +151,11 @@ async def update_item(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     _: None = Depends(require_superuser),
 ):
-    """Update a reference data item (superuser only)."""
     _validate_category(category)
     set_audit_context(str(admin.id), admin.username, context={"operation": "update_reference_data"})
 
-    result = await db.execute(
-        select(ReferenceData).where(
-            ReferenceData.category == category,
-            ReferenceData.code == code,
-            ReferenceData.is_deleted == False,  # noqa: E712
-        )
-    )
-    item = result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Item '{code}' not found in '{category}'")
-
-    update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+    item = await _get_item_or_404(db, category, code)
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
 
     await db.flush()
@@ -193,21 +171,10 @@ async def deactivate_item(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     _: None = Depends(require_superuser),
 ):
-    """Soft delete a reference data item (superuser only)."""
     _validate_category(category)
     set_audit_context(str(admin.id), admin.username, context={"operation": "deactivate_reference_data"})
 
-    result = await db.execute(
-        select(ReferenceData).where(
-            ReferenceData.category == category,
-            ReferenceData.code == code,
-            ReferenceData.is_deleted == False,  # noqa: E712
-        )
-    )
-    item = result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Item '{code}' not found in '{category}'")
-
+    item = await _get_item_or_404(db, category, code)
     item.soft_delete(deleted_by=admin.username)
     await db.flush()
     await db.refresh(item)
@@ -222,24 +189,10 @@ async def restore_item(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     _: None = Depends(require_superuser),
 ):
-    """Restore a soft-deleted reference data item (superuser only)."""
     _validate_category(category)
     set_audit_context(str(admin.id), admin.username, context={"operation": "restore_reference_data"})
 
-    result = await db.execute(
-        select(ReferenceData).where(
-            ReferenceData.category == category,
-            ReferenceData.code == code,
-            ReferenceData.is_deleted == True,  # noqa: E712
-        )
-    )
-    item = result.scalar_one_or_none()
-    if not item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deleted item '{code}' not found in '{category}'",
-        )
-
+    item = await _get_item_or_404(db, category, code, include_deleted=True)
     item.is_deleted = False
     item.deleted_at = None
     item.deleted_by = None

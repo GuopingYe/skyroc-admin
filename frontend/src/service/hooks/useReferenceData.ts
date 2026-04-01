@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -35,10 +36,10 @@ export function useReferenceItems(
 
 export function useReferenceOptions(category: string, enabled = true) {
   const { data, isLoading } = useReferenceItems(category, { is_active: true }, enabled);
-  const options: Api.ReferenceData.DropdownOption[] = (data || []).map(item => ({
-    label: item.label,
-    value: item.code
-  }));
+  const options = useMemo<Api.ReferenceData.DropdownOption[]>(
+    () => (data || []).map(item => ({ label: item.label, value: item.code })),
+    [data]
+  );
   return { options, isLoading };
 }
 
@@ -55,7 +56,8 @@ export function useCreateReferenceItem(category: string) {
   return useMutation({
     mutationFn: (data: Api.ReferenceData.CreateRequest) => fetchCreateReferenceItem(category, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['referenceData'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.CATEGORIES });
     }
   });
 }
@@ -66,7 +68,7 @@ export function useUpdateReferenceItem(category: string) {
     mutationFn: ({ code, data }: { code: string; data: Api.ReferenceData.UpdateRequest }) =>
       fetchUpdateReferenceItem(category, code, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['referenceData'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category) });
     }
   });
 }
@@ -76,7 +78,8 @@ export function useDeactivateReferenceItem(category: string) {
   return useMutation({
     mutationFn: (code: string) => fetchDeactivateReferenceItem(category, code),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['referenceData'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.CATEGORIES });
     }
   });
 }
@@ -86,7 +89,8 @@ export function useRestoreReferenceItem(category: string) {
   return useMutation({
     mutationFn: (code: string) => fetchRestoreReferenceItem(category, code),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['referenceData'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.CATEGORIES });
     }
   });
 }
