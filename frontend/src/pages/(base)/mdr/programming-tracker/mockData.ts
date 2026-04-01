@@ -188,7 +188,7 @@ export const tflTypeConfig: Record<TFLOutputType, { color: string; label: string
   Table: { color: 'blue', label: 'Table' }
 };
 
-/** SDTM Domain 列表 */
+/** @deprecated Use useReferenceOptions('SDTM_DOMAIN') */
 export const sdtmDomains = [
   { domain: 'DM', label: 'Demographics' },
   { domain: 'AE', label: 'Adverse Events' },
@@ -202,7 +202,7 @@ export const sdtmDomains = [
   { domain: 'MH', label: 'Medical History' }
 ];
 
-/** ADaM Dataset 列表 */
+/** @deprecated Use useReferenceOptions('ADAM_DATASET') */
 export const adamDatasets = [
   { dataset: 'ADSL', label: 'Subject-Level Analysis Dataset' },
   { dataset: 'ADAE', label: 'Adverse Events Analysis Dataset' },
@@ -214,11 +214,14 @@ export const adamDatasets = [
   { dataset: 'ADCM', label: 'Concomitant Medications Analysis Dataset' }
 ];
 
-/** 人口类型 */
+/**
+ * @deprecated Use useReferenceOptions('POPULATION') from @/service/hooks/useReferenceData
+ */
 export const populations = [
   { label: 'ITT (Intent-to-Treat)', value: 'ITT' },
   { label: 'Safety', value: 'Safety' },
-  { label: 'PP (Per-Protocol)', value: 'PP' },
+  { label: 'PPS (Per-Protocol Set)', value: 'PPS' },
+  { label: 'FAS (Full Analysis Set)', value: 'FAS' },
   { label: 'Efficacy', value: 'Efficacy' }
 ];
 

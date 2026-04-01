@@ -23,6 +23,8 @@ import {
 } from 'antd';
 import React, { useCallback } from 'react';
 
+import { useReferenceOptions } from '@/service/hooks/useReferenceData';
+
 import AxesConfig from '../figure/AxesConfig';
 import ChartTypeSelector from '../figure/ChartTypeSelector';
 import SeriesConfig from '../figure/SeriesConfig';
@@ -48,13 +50,20 @@ import type {
 
 const { Text } = Typography;
 
-const POPULATION_OPTIONS = [
+const POPULATION_DEFAULTS = [
   { label: 'Safety', value: 'Safety' },
   { label: 'ITT', value: 'ITT' },
   { label: 'FAS', value: 'FAS' },
   { label: 'PPS', value: 'PPS' },
+  { label: 'Efficacy', value: 'Efficacy' },
   { label: 'All Enrolled', value: 'All Enrolled' }
 ];
+
+/** Hook that returns population options from the API, falling back to defaults when unavailable */
+function usePopulationOptions() {
+  const { options: populationApiOptions } = useReferenceOptions('POPULATION');
+  return populationApiOptions.length > 0 ? populationApiOptions : POPULATION_DEFAULTS;
+}
 
 // ==================== Props ====================
 
@@ -114,6 +123,7 @@ const TableMetadataTab: React.FC<{
   template: Template;
 }> = ({ editable, onChange, template }) => {
   const shell = template.shell as TableShell;
+  const POPULATION_OPTIONS = usePopulationOptions();
   const handleShellUpdate = useCallback(
     (updates: Partial<TableShell>) => {
       onChange({ shell: { ...shell, ...updates } });
@@ -292,6 +302,7 @@ const FigureMetadataTab: React.FC<{
   template: Template;
 }> = ({ editable, onChange, template }) => {
   const shell = template.shell as FigureShell;
+  const POPULATION_OPTIONS = usePopulationOptions();
   const handleShellUpdate = useCallback(
     (updates: Partial<FigureShell>) => {
       onChange({ shell: { ...shell, ...updates } });
@@ -439,6 +450,7 @@ const ListingMetadataTab: React.FC<{
   template: Template;
 }> = ({ editable, onChange, template }) => {
   const shell = template.shell as ListingShell;
+  const POPULATION_OPTIONS = usePopulationOptions();
   const handleShellUpdate = useCallback(
     (updates: Partial<ListingShell>) => {
       onChange({ shell: { ...shell, ...updates } });
