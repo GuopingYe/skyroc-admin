@@ -39,6 +39,7 @@ const route: App.I18n.Schema['translation']['route'] = {
   '(base)_projects_[pid]_edit': 'Multi-level Dynamic Route Edit',
   '(base)_projects_[pid]_edit_[id]': 'Multi-level Dynamic Route Edit Details',
   '(base)_system': 'System Governance',
+  '(base)_system_reference-data': 'Reference Data',
   '(base)_system_role-permission': 'Role Permission',
   '(base)_system_user-management': 'User Management',
   '(base)_user-center': 'User Center',

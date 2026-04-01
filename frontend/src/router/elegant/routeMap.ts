@@ -68,6 +68,7 @@ export const routeMap: RouteMap = {
  "(base)_projects_[pid]_edit": "/projects/:pid/edit",
  "(base)_projects_[pid]_edit_[id]": "/projects/:pid/edit/:id",
  "(base)_system": "/system",
+ "(base)_system_reference-data": "/system/reference-data",
  "(base)_system_role-permission": "/system/role-permission",
  "(base)_system_user-management": "/system/user-management",
  "(base)_user-center": "/user-center",

@@ -10,6 +10,7 @@ const PAGE_PERMISSION_MAP: Record<string, string> = {
   '/mdr/tfl-designer': 'page:tfl-designer:view',
   '/mdr/tfl-template-library': 'page:tfl-template-library:view',
   '/mdr/tracker': 'page:tracker:view',
+  '/system/reference-data': 'page:reference-data:view',
   '/system/role-permission': 'page:role-permission:view',
   '/system/user-management': 'page:user-management:view'
 };

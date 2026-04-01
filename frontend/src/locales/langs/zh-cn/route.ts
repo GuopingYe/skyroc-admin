@@ -39,6 +39,7 @@ const route: App.I18n.Schema['translation']['route'] = {
   '(base)_projects_[pid]_edit': '多级动态路由编辑',
   '(base)_projects_[pid]_edit_[id]': '多级动态路由编辑详情',
   '(base)_system': '系统治理',
+  '(base)_system_reference-data': '参考数据',
   '(base)_system_role-permission': '权限矩阵',
   '(base)_system_user-management': '用户管理',
   '(base)_user-center': '个人中心',

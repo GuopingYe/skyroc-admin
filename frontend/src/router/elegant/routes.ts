@@ -429,6 +429,17 @@ export const generatedRoutes: ElegantConstRoute[] = [
             },
             children: [
               {
+                matchedFiles: [null, '/src/pages/(base)/system/reference-data/index.tsx', null, null],
+                name: '(base)_system_reference-data',
+                path: '/system/reference-data',
+                handle: {
+                  i18nKey: 'route.(base)_system_reference-data',
+                  icon: 'mdi:database-cog',
+                  order: 3,
+                  title: 'Reference Data'
+                }
+              },
+              {
                 matchedFiles: [null, '/src/pages/(base)/system/role-permission/index.tsx', null, null],
                 name: '(base)_system_role-permission',
                 path: '/system/role-permission',
