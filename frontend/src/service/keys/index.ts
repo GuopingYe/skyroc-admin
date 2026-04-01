@@ -62,6 +62,13 @@ export const QUERY_KEYS = {
     MENU_TREE: ['systemManage', 'menuTree'] as const,
     ROLE_LIST: (params?: Api.SystemManage.RoleSearchParams) => ['systemManage', 'roleList', params] as const,
     USER_LIST: (params?: Api.SystemManage.UserSearchParams) => ['systemManage', 'userList', params] as const
+  },
+  // Reference Data
+  REFERENCE_DATA: {
+    CATEGORIES: ['referenceData', 'categories'] as const,
+    ITEMS: (category: string, params?: { is_active?: boolean; is_deleted?: boolean }) =>
+      ['referenceData', 'items', category, params] as const,
+    ITEM: (category: string, code: string) => ['referenceData', 'item', category, code] as const
   }
 } as const;
 
