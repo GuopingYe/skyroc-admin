@@ -27,8 +27,8 @@ These are used across TFL Designer, Programming Tracker, Pipeline Management, Ma
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| `id` | UUID | PK, default uuid4 | Primary key |
-| `category` | VARCHAR(32) | NOT NULL, indexed | ReferenceDataCategory enum value |
+| `id` | INTEGER | PK, autoincrement | Primary key (Integer to match AuditLog.record_id) |
+| `category` | ENUM (ReferenceDataCategory) | NOT NULL, indexed | PostgreSQL native enum |
 | `code` | VARCHAR(64) | NOT NULL | Short code (e.g., "ITT", "DM", "ADSL") |
 | `label` | VARCHAR(256) | NOT NULL | Display name (e.g., "Intent-to-Treat") |
 | `description` | TEXT | nullable | Optional description |
@@ -66,10 +66,12 @@ class ReferenceDataCategory(str, enum.Enum):
 ### Model Definition
 
 ```python
+from sqlalchemy import Index, column as sa_column
+
 class ReferenceData(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "reference_data"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     category: Mapped[str] = mapped_column(
         SQLAlchemyEnum(ReferenceDataCategory), nullable=False, index=True
     )
@@ -77,13 +79,22 @@ class ReferenceData(Base, TimestampMixin, SoftDeleteMixin):
     label: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(default=0)
-    metadata_: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata_", JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, index=True)
 
     __table_args__ = (
-        UniqueConstraint("category", "code", name="uq_reference_data_category_code"),
+        # Partial unique index: only enforce uniqueness for non-deleted rows
+        # Allows re-creating items with same code after soft delete
+        Index(
+            "uq_reference_data_category_code",
+            "category", "code",
+            unique=True,
+            postgresql_where=sa_column("is_deleted") == False,
+        ),
     )
 ```
+
+> **Audit Trail**: `ReferenceData` inherits from `Base`, so the existing audit event listener (`models/audit_listener.py`) automatically captures all CREATE/UPDATE/DELETE operations. No additional registration needed — 21 CFR Part 11 audit trail is provided out of the box.
 
 ### Metadata Examples
 
@@ -117,10 +128,11 @@ Mounted at `/api/v1/reference-data`
 |----------|--------|-------------|------------|
 | `/` | GET | List all categories with item counts | Any authenticated user |
 | `/{category}` | GET | List items in category (paginated, filterable by `is_active`, `is_deleted`) | Any authenticated user |
-| `/{category}` | POST | Create item in category | `reference_data:manage` |
+| `/{category}` | POST | Create item in category | `require_superuser` |
 | `/{category}/{code}` | GET | Get single item by code | Any authenticated user |
-| `/{category}/{code}` | PUT | Update item | `reference_data:manage` |
-| `/{category}/{code}` | PATCH | Soft delete or restore | `reference_data:manage` |
+| `/{category}/{code}` | PUT | Update item | `require_superuser` |
+| `/{category}/{code}/deactivate` | POST | Soft delete item | `require_superuser` |
+| `/{category}/{code}/restore` | POST | Restore soft-deleted item | `require_superuser` |
 
 ### Request/Response Schemas
 
@@ -142,7 +154,7 @@ class ReferenceDataUpdate(BaseModel):
 
 # Response
 class ReferenceDataResponse(BaseModel):
-    id: str
+    id: int
     category: str
     code: str
     label: str
@@ -150,6 +162,9 @@ class ReferenceDataResponse(BaseModel):
     sort_order: int
     metadata_: dict[str, Any] | None
     is_active: bool
+    is_deleted: bool
+    deleted_at: datetime | None
+    deleted_by: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -162,10 +177,9 @@ class CategorySummary(BaseModel):
 
 ### Permission Integration
 
-The `reference_data:manage` permission will be added to the RBAC system:
-- Seed as a new permission under "System Administration" category
-- Assign to Super Admin and Admin roles by default
-- Enforced via `require_permission("reference_data:manage")` dependency on write endpoints
+Write endpoints use `require_superuser` dependency (matching the existing pattern in `rbac.py` for system-scoped operations). The existing `require_permission` function requires a `scope_node_id` and cannot be used for global/system-scoped resources like reference data.
+
+Future enhancement: A `require_system_permission("reference_data:manage")` dependency could be introduced for finer-grained control (e.g., allowing non-superuser admins to manage reference data). This is deferred to a later phase.
 
 ## Frontend Design
 
