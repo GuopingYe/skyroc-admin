@@ -3,26 +3,18 @@
  * TFL Builder - Export Utilities
  *
  * Functions for exporting TFL documents to various formats:
+ *
  * - Word (.docx) - HTML-based Word-compatible format
  * - RTF - Rich Text Format
  * - PDF - HTML with PDF conversion
  * - Excel (.xlsx) - Native Excel format
  */
 
-import type {
-  IARSDocument,
-  IDisplay,
-  IBodyRow,
-  IListingColumn,
-  IAxisConfig,
-  IChartSeries
-} from '../types';
+import type { IARSDocument, IAxisConfig, IBodyRow, IChartSeries, IDisplay, IListingColumn } from '../types';
 
 // ==================== Word/HTML Export ====================
 
-/**
- * Generate HTML document from ARS document
- */
+/** Generate HTML document from ARS document */
 export function generateHTMLDocument(document: IARSDocument): string {
   const displays = document.displays || [];
   const headerStyle = document.headerStyle;
@@ -181,15 +173,8 @@ export function generateHTMLDocument(document: IARSDocument): string {
   return html;
 }
 
-/**
- * Render a single display to HTML
- */
-function renderDisplayToHTML(
-  display: IDisplay,
-  index: number,
-  groupings: any[],
-  methods: any[]
-): string {
+/** Render a single display to HTML */
+function renderDisplayToHTML(display: IDisplay, index: number, groupings: any[], methods: any[]): string {
   let html = '';
 
   const titleSection = display.displaySections.find(s => s.type === 'Title');
@@ -201,7 +186,7 @@ function renderDisplayToHTML(
 
   // Extract title
   let titleText = display.name || '';
-  let subtitleText = '';
+  const subtitleText = '';
 
   if (titleSection && 'text' in titleSection.content) {
     titleText = titleSection.content.text || titleText;
@@ -257,9 +242,7 @@ function renderDisplayToHTML(
   return html;
 }
 
-/**
- * Render table rows to HTML
- */
+/** Render table rows to HTML */
 function renderTableToHTML(rows: IBodyRow[], display: IDisplay): string {
   const maxIndent = Math.max(...rows.map(r => r.indentLevel));
 
@@ -288,9 +271,7 @@ function renderTableToHTML(rows: IBodyRow[], display: IDisplay): string {
   return `<table class="tfl-table"><thead>${columnsHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
 }
 
-/**
- * Render listing to HTML
- */
+/** Render listing to HTML */
 function renderListingToHTML(listingContent: any): string {
   const columns = listingContent.columns || [];
   const sortRules = listingContent.sortRules || [];
@@ -316,20 +297,16 @@ function renderListingToHTML(listingContent: any): string {
   return `<table class="listing-table"><thead>${headerHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
 }
 
-/**
- * Render abbreviations to HTML
- */
+/** Render abbreviations to HTML */
 function renderAbbreviationsToHTML(text: string): string {
   return `<dl class="abbreviations">${text}</dl>`;
 }
 
-/**
- * Render chart info to HTML
- */
+/** Render chart info to HTML */
 function renderChartInfoToHTML(chartContent: any): string {
   const xAxis = chartContent.xAxis as IAxisConfig;
   const yAxis = chartContent.yAxis as IAxisConfig;
-  const series = chartContent.series as IChartSeries[] || [];
+  const series = (chartContent.series as IChartSeries[]) || [];
 
   return `
     <div style="font-size: 9pt; margin-top: 10px; color: #666;">
@@ -340,9 +317,7 @@ function renderChartInfoToHTML(chartContent: any): string {
   `;
 }
 
-/**
- * Get cell display value
- */
+/** Get cell display value */
 function getCellDisplayValue(row: IBodyRow, columnIndex: number): string {
   // Mock implementation - in real system, this would look up actual data
   const methodType = row.boundMethod?.methodType;
@@ -357,18 +332,14 @@ function getCellDisplayValue(row: IBodyRow, columnIndex: number): string {
   return '-';
 }
 
-/**
- * Generate Word document from ARS document
- */
+/** Generate Word document from ARS document */
 export function generateWordDocument(document: IARSDocument): Blob {
   const html = generateHTMLDocument(document);
   const blob = new Blob([html], { type: 'application/msword' });
   return blob;
 }
 
-/**
- * Download HTML as Word document
- */
+/** Download HTML as Word document */
 export function downloadAsWord(document: IARSDocument, filename?: string): void {
   const blob = generateWordDocument(document);
   const url = URL.createObjectURL(blob);
@@ -381,9 +352,7 @@ export function downloadAsWord(document: IARSDocument, filename?: string): void 
 
 // ==================== RTF Export ====================
 
-/**
- * Generate RTF document from ARS document
- */
+/** Generate RTF document from ARS document */
 export function generateRTFDocument(document: IARSDocument): string {
   const studyInfo = document.studyInfo;
   const displays = document.displays || [];
@@ -391,8 +360,8 @@ export function generateRTFDocument(document: IARSDocument): string {
   let rtf = '{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033';
   rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Arial;}}';
   rtf += '{\\colortbl;\\red0\\green0\\blue0;}\\pard\\qc';
-  rtf += '{\\f0\\fs32\\b ' + (studyInfo?.studyTitle || 'Clinical Study Report') + '}\\par\\par';
-  rtf += '\\fs20\\b0 ' + (studyInfo?.studyId || 'N/A') + '\\par';
+  rtf += `{\\f0\\fs32\\b ${studyInfo?.studyTitle || 'Clinical Study Report'}}\\par\\par`;
+  rtf += `\\fs20\\b0 ${studyInfo?.studyId || 'N/A'}\\par`;
   rtf += '\\par\\pard\\ql';
 
   // Render each display
@@ -405,9 +374,7 @@ export function generateRTFDocument(document: IARSDocument): string {
   return rtf;
 }
 
-/**
- * Render a single display to RTF
- */
+/** Render a single display to RTF */
 function renderDisplayToRTF(display: IDisplay, index: number): string {
   let rtf = '';
 
@@ -416,7 +383,7 @@ function renderDisplayToRTF(display: IDisplay, index: number): string {
   const bodySection = display.displaySections.find(s => s.type === 'Body');
 
   if (display.displayType === 'table') {
-    rtf += '\\par\\pard\\qc\\b\\fs24 ' + index + '. ' + titleText + '\\par\\pard\\ql\\b0';
+    rtf += `\\par\\pard\\qc\\b\\fs24 ${index}. ${titleText}\\par\\pard\\ql\\b0`;
     rtf += '\\par';
 
     // Simple table structure
@@ -429,30 +396,28 @@ function renderDisplayToRTF(display: IDisplay, index: number): string {
 
     if (bodySection && 'rows' in bodySection.content) {
       bodySection.content.rows.forEach(row => {
-        const indent = '\\tab ' + Math.min(row.indentLevel, 4);
+        const indent = `\\tab ${Math.min(row.indentLevel, 4)}`;
         rtf += '{\\trowd\\trgaph50\\trleft-50\\trrh150';
         rtf += '\\cellx1000\\cellx4000\\cellx7000\\cellx10000';
-        rtf += '\\intbl' + indent + row.label + '\\cell';
+        rtf += `\\intbl${indent}${row.label}\\cell`;
         for (let i = 0; i < 3; i++) {
-          rtf += '\\intbl ' + getCellDisplayValue(row, i) + '\\cell';
+          rtf += `\\intbl ${getCellDisplayValue(row, i)}\\cell`;
         }
         rtf += '\\row';
       });
     }
   } else if (display.displayType === 'figure') {
-    rtf += '\\par\\pard\\qc\\b\\fs24 Figure ' + index + '. ' + titleText + '\\par\\pard\\ql\\b0';
+    rtf += `\\par\\pard\\qc\\b\\fs24 Figure ${index}. ${titleText}\\par\\pard\\ql\\b0`;
     rtf += '\\par\\pard\\qc [Figure content]\\par\\pard\\ql';
   } else if (display.displayType === 'listing') {
-    rtf += '\\par\\pard\\qc\\b\\fs24 Listing ' + index + '. ' + titleText + '\\par\\pard\\ql\\b0';
+    rtf += `\\par\\pard\\qc\\b\\fs24 Listing ${index}. ${titleText}\\par\\pard\\ql\\b0`;
     rtf += '\\par [Listing content]';
   }
 
   return rtf;
 }
 
-/**
- * Download RTF document
- */
+/** Download RTF document */
 export function downloadAsRTF(document: IARSDocument, filename?: string): void {
   const rtf = generateRTFDocument(document);
   const blob = new Blob([rtf], { type: 'application/rtf' });
@@ -466,9 +431,7 @@ export function downloadAsRTF(document: IARSDocument, filename?: string): void {
 
 // ==================== PDF Export ====================
 
-/**
- * Generate PDF from HTML (requires print)
- */
+/** Generate PDF from HTML (requires print) */
 export function generatePDFDocument(document: IARSDocument): void {
   const html = generateHTMLDocument(document);
   const printWindow = window.open('', '_blank');
@@ -484,18 +447,14 @@ export function generatePDFDocument(document: IARSDocument): void {
   }
 }
 
-/**
- * Download as PDF (uses browser print)
- */
+/** Download as PDF (uses browser print) */
 export function downloadAsPDF(document: IARSDocument, filename?: string): void {
   generatePDFDocument(document);
 }
 
 // ==================== Excel Export ====================
 
-/**
- * Generate Excel-compatible HTML document
- */
+/** Generate Excel-compatible HTML document */
 export function generateExcelDocument(document: IARSDocument): string {
   const studyInfo = document.studyInfo;
   const displays = document.displays || [];
@@ -543,9 +502,7 @@ export function generateExcelDocument(document: IARSDocument): string {
   return excel;
 }
 
-/**
- * Render table to Excel format
- */
+/** Render table to Excel format */
 function renderTableToExcel(rows: IBodyRow[]): string {
   let excel = '<table>';
 
@@ -566,9 +523,7 @@ function renderTableToExcel(rows: IBodyRow[]): string {
   return excel;
 }
 
-/**
- * Download Excel document
- */
+/** Download Excel document */
 export function downloadAsExcel(document: IARSDocument, filename?: string): void {
   const html = generateExcelDocument(document);
   const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
@@ -582,24 +537,18 @@ export function downloadAsExcel(document: IARSDocument, filename?: string): void
 
 // ==================== Export All Displays ====================
 
-/**
- * Export single display
- */
-export function exportDisplay(
-  display: IDisplay,
-  format: 'word' | 'rtf' | 'pdf' | 'excel',
-  filename?: string
-): void {
+/** Export single display */
+export function exportDisplay(display: IDisplay, format: 'excel' | 'pdf' | 'rtf' | 'word', filename?: string): void {
   const document: IARSDocument = {
-    id: 'temp',
-    studyInfo: {},
     analysis: {},
-    outputs: [],
     displays: [display],
-    groupings: [],
-    methods: [],
     globalParameters: [],
+    groupings: [],
     headerStyle: {},
+    id: 'temp',
+    methods: [],
+    outputs: [],
+    studyInfo: {}
   };
 
   switch (format) {
@@ -618,13 +567,8 @@ export function exportDisplay(
   }
 }
 
-/**
- * Export specific table data to CSV
- */
-export function exportTableToCSV(
-  rows: IBodyRow[],
-  filename?: string
-): void {
+/** Export specific table data to CSV */
+export function exportTableToCSV(rows: IBodyRow[], filename?: string): void {
   const headers = ['Parameter', 'Treatment 1', 'Treatment 2', 'Treatment 3'];
   const csvRows = [headers.join(',')];
 
@@ -647,21 +591,13 @@ export function exportTableToCSV(
   URL.revokeObjectURL(url);
 }
 
-/**
- * Export specific listing to CSV
- */
-export function exportListingToCSV(
-  columns: IListingColumn[],
-  data: any[],
-  filename?: string
-): void {
-  const headers = columns.filter(c => c.visible).map(c => c.label || c.variable);
+/** Export specific listing to CSV */
+export function exportListingToCSV(columns: IListingColumn[], data: any[], filename?: string): void {
+  const headers = columns.filter(c => !c.hidden).map(c => c.label || c.variable);
   const csvRows = [headers.join(',')];
 
   data.forEach(row => {
-    const rowData = columns.filter(c => c.visible).map(c =>
-      `"${row[c.variable] || ''}"`
-    );
+    const rowData = columns.filter(c => !c.hidden).map(c => `"${row[c.variable] || ''}"`);
     csvRows.push(rowData.join(','));
   });
 
@@ -675,25 +611,15 @@ export function exportListingToCSV(
   URL.revokeObjectURL(url);
 }
 
-/**
- * Export figure as image
- */
-export function exportFigureAsPNG(
-  chartElement: HTMLElement,
-  filename?: string
-): void {
+/** Export figure as image */
+export function exportFigureAsPNG(chartElement: HTMLElement, filename?: string): void {
   // In a real implementation, this would use html2canvas or similar
   // For now, just a placeholder
   console.log('Exporting figure as PNG:', filename);
 }
 
-/**
- * Export figure as SVG
- */
-export function exportFigureAsSVG(
-  chartElement: HTMLElement,
-  filename?: string
-): void {
+/** Export figure as SVG */
+export function exportFigureAsSVG(chartElement: HTMLElement, filename?: string): void {
   // In a real implementation with Plotly.js, use Plotly.downloadImage
   console.log('Exporting figure as SVG:', filename);
 }

@@ -36,11 +36,11 @@ export function useVersionDatasets(versionId: number | null, params?: Api.Global
 export function useDatasetVariables(datasetId: number | null, params?: Api.GlobalLibrary.VariableListParams) {
   return useQuery({
     enabled: datasetId !== null,
+    // 禁用缓存，每次都获取最新数据
+    gcTime: 0,
     queryFn: () => fetchDatasetVariables(datasetId!, params),
     queryKey: QUERY_KEYS.GLOBAL_LIBRARY.VARIABLES(datasetId!, params),
     retry: 1,
-    // 禁用缓存，每次都获取最新数据
-    gcTime: 0,
     staleTime: 0
   });
 }

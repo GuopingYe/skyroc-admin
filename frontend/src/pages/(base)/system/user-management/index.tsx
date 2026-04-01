@@ -109,13 +109,13 @@ const UserManagement: React.FC = () => {
   const { data: scopeTreeData, isLoading: scopeTreeLoading } = useScopeTree();
 
   // Mutations
-  const { mutate: createUser, isPending: isCreating } = useCreateUser();
+  const { isPending: isCreating, mutate: createUser } = useCreateUser();
   const grantMutation = useGrantPermission();
   const revokeMutation = useRevokePermission();
-  const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
+  const { isPending: isUpdating, mutate: updateUser } = useUpdateUser();
   const { mutate: updateUserStatus } = useUpdateUserStatus();
   const [updatingStatusUserId, setUpdatingStatusUserId] = useState<number | null>(null);
-  const { mutate: syncLdap, isPending: isSyncing } = useSyncLdap();
+  const { isPending: isSyncing, mutate: syncLdap } = useSyncLdap();
 
   // 搜索和筛选状态
   const [searchText, setSearchText] = useState('');
@@ -198,7 +198,7 @@ const UserManagement: React.FC = () => {
       editForm.setFieldsValue({
         department: user.department,
         display_name: user.display_name,
-        email: user.email,
+        email: user.email
       });
       setEditModalOpen(true);
     },
@@ -209,11 +209,11 @@ const UserManagement: React.FC = () => {
     (values: Record<string, string>) => {
       createUser(
         {
-          username: values.username,
-          email: values.email,
-          display_name: values.display_name || null,
           department: values.department || null,
-          password: values.password
+          display_name: values.display_name || null,
+          email: values.email,
+          password: values.password,
+          username: values.username
         },
         {
           onError: (error: any) => {
@@ -246,9 +246,9 @@ const UserManagement: React.FC = () => {
       updateUser(
         {
           data: {
+            department: values.department || null,
             display_name: values.display_name || null,
-            email: values.email || null,
-            department: values.department || null
+            email: values.email || null
           },
           userId: editingUser.id
         },
@@ -503,7 +503,15 @@ const UserManagement: React.FC = () => {
         width: 180
       }
     ],
-    [t, openPermissionModal, openEditModal, rolesData, handleRevokePermission, handleToggleUserStatus, updatingStatusUserId]
+    [
+      t,
+      openPermissionModal,
+      openEditModal,
+      rolesData,
+      handleRevokePermission,
+      handleToggleUserStatus,
+      updatingStatusUserId
+    ]
   );
 
   return (
@@ -623,15 +631,15 @@ const UserManagement: React.FC = () => {
       </Card>
 
       <Modal
-        data-testid="create-user-modal"
         confirmLoading={isCreating}
+        data-testid="create-user-modal"
         open={createModalOpen}
         title="Create User"
+        onOk={() => createForm.submit()}
         onCancel={() => {
           setCreateModalOpen(false);
           createForm.resetFields();
         }}
-        onOk={() => createForm.submit()}
       >
         <Form
           form={createForm}
@@ -781,9 +789,9 @@ const UserManagement: React.FC = () => {
 
       {/* 编辑用户 Modal */}
       <Modal
-        data-testid="edit-user-modal"
         cancelText={t('system.userManagement.editModal.cancel')}
         confirmLoading={isUpdating}
+        data-testid="edit-user-modal"
         okText={t('system.userManagement.editModal.save')}
         open={editModalOpen}
         width={500}

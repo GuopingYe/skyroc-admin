@@ -2,8 +2,8 @@ import type { RoutePath } from '@soybean-react/vite-plugin-react-router';
 import { Outlet, matchRoutes } from 'react-router-dom';
 
 import type { IClinicalContextState } from '@/features/clinical-context';
-import { canAccessRoute, getEffectiveMenuPermissions } from '@/features/router/routeGuard';
 import { usePrevious, useRoute } from '@/features/router';
+import { canAccessRoute, getEffectiveMenuPermissions } from '@/features/router/routeGuard';
 import { allRoutes } from '@/router';
 import { fetchGetUserInfo } from '@/service/api/auth.ts';
 import { useMyPermissions, useUserInfo } from '@/service/hooks';
@@ -92,16 +92,20 @@ const RootLayout = () => {
   const { data: userInfo } = useUserInfo();
   const hasToken = Boolean(localStg.get('token'));
   const { data: myPermissions } = useMyPermissions(true, hasToken);
-  const clinicalContext = useAppSelector((state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context);
+  const clinicalContext = useAppSelector(
+    (state: { clinicalContext: IClinicalContextState }) => state.clinicalContext.context
+  );
 
   const roles = userInfo?.roles || [];
 
   const isSuper = userInfo?.roles.includes(import.meta.env.VITE_STATIC_SUPER_ROLE);
   const currentScopeNodeId =
-    clinicalContext.analysis?.scopeNodeId ?? clinicalContext.study?.scopeNodeId ?? clinicalContext.product?.scopeNodeId ?? null;
+    clinicalContext.analysis?.scopeNodeId ??
+    clinicalContext.study?.scopeNodeId ??
+    clinicalContext.product?.scopeNodeId ??
+    null;
   const pagePermissionAllowed =
-    !myPermissions ||
-    canAccessRoute(pathname, getEffectiveMenuPermissions(myPermissions, currentScopeNodeId));
+    !myPermissions || canAccessRoute(pathname, getEffectiveMenuPermissions(myPermissions, currentScopeNodeId));
   const guardedLocation = useMemo(() => {
     const nextLocation = createRouteGuard(route, roles, isSuper || false, previousRoute);
     if (nextLocation) {

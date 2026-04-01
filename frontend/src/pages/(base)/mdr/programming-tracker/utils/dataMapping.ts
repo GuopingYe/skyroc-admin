@@ -3,8 +3,7 @@
  *
  * 负责将后端 ProgrammingTracker 模型转换为前端 TrackerTask 类型
  *
- * 后端使用双轨状态机 (prod_status + qc_status)
- * 前端使用单一 status 字段
+ * 后端使用双轨状态机 (prod_status + qc_status) 前端使用单一 status 字段
  */
 
 // Api.MDR 类型通过全局声明文件 (service/types/mdr.d.ts) 提供
@@ -16,43 +15,45 @@ type BackendDeliverableType = 'ADaM' | 'OTHER_LOOKUP' | 'SDTM' | 'TFL';
 
 // 后端响应类型
 interface BackendTracker {
-  id: number;
   analysis_id: number;
-  deliverable_type: BackendDeliverableType;
-  deliverable_name: string;
-  task_name: string;
-  description: string | null;
-  prod_programmer_id: string | null;
-  qc_programmer_id: string | null;
-  prod_status: BackendProdStatus;
-  qc_status: BackendQCStatus;
-  status: string; // 旧版状态
-  priority: 'High' | 'Low' | 'Medium';
-  execution_order: number;
-  qc_method: string;
-  started_at: string | null;
   completed_at: string | null;
-  qc_started_at: string | null;
-  qc_completed_at: string | null;
-  due_date: string | null;
-  prod_file_path: string | null;
-  qc_file_path: string | null;
-  prod_program_name: string | null;
-  qc_program_name: string | null;
-  output_file_name: string | null;
-  delivery_batch: string | null;
-  tfl_metadata: Record<string, unknown> | null;
-  created_by: string;
-  updated_by: string | null;
   created_at: string;
-  updated_at: string;
+  created_by: string;
+  deliverable_name: string;
+  deliverable_type: BackendDeliverableType;
+  delivery_batch: string | null;
+  description: string | null;
+  due_date: string | null;
+  execution_order: number;
+  id: number;
   is_deleted: boolean;
+  output_file_name: string | null;
+  // 旧版状态
+  priority: 'High' | 'Low' | 'Medium';
+  prod_file_path: string | null;
+  prod_program_name: string | null;
+  prod_programmer_id: string | null;
+  prod_status: BackendProdStatus;
+  qc_completed_at: string | null;
+  qc_file_path: string | null;
+  qc_method: string;
+  qc_program_name: string | null;
+  qc_programmer_id: string | null;
+  qc_started_at: string | null;
+  qc_status: BackendQCStatus;
+  started_at: string | null;
+  status: string;
+  task_name: string;
+  tfl_metadata: Record<string, unknown> | null;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 /**
  * 将后端双轨状态映射为前端单一状态
  *
  * 映射规则：
+ *
  * - prod_status=Completed + qc_status=Passed -> Signed Off
  * - qc_status=Passed -> QC Pass
  * - prod_status=Ready_for_QC -> Ready for QC
@@ -60,7 +61,10 @@ interface BackendTracker {
  * - prod_status=Programming -> In Progress
  * - prod_status=Not_Started -> Not Started
  */
-function mapStatus(prodStatus: BackendProdStatus, qcStatus: BackendQCStatus): 'In Progress' | 'Not Started' | 'QC Pass' | 'Ready for QC' | 'Signed Off' {
+function mapStatus(
+  prodStatus: BackendProdStatus,
+  qcStatus: BackendQCStatus
+): 'In Progress' | 'Not Started' | 'QC Pass' | 'Ready for QC' | 'Signed Off' {
   // QC 通过
   if (qcStatus === 'Passed') {
     if (prodStatus === 'Completed') {
@@ -91,52 +95,46 @@ function mapStatus(prodStatus: BackendProdStatus, qcStatus: BackendQCStatus): 'I
   return 'Not Started';
 }
 
-/**
- * 将后端 deliverable_type 转换为前端 category
- */
+/** 将后端 deliverable_type 转换为前端 category */
 function mapCategory(deliverableType: BackendDeliverableType): 'ADaM' | 'Other' | 'SDTM' | 'TFL' {
   const mapping: Record<BackendDeliverableType, Api.MDR.TaskCategory> = {
-    SDTM: 'SDTM',
     ADaM: 'ADaM',
-    TFL: 'TFL',
-    OTHER_LOOKUP: 'Other'
+    OTHER_LOOKUP: 'Other',
+    SDTM: 'SDTM',
+    TFL: 'TFL'
   };
   return mapping[deliverableType] || 'Other';
 }
 
-/**
- * 创建简化的人员对象
- */
+/** 创建简化的人员对象 */
 function createPerson(id: string | null, name?: string): Api.MDR.Person | null {
   if (!id) return null;
   return {
+    email: `${id}@pharma.com`,
     id,
-    name: name || id,
-    email: `${id}@pharma.com` // 默认邮箱格式
+    name: name || id // 默认邮箱格式
   };
 }
 
-/**
- * 将后端 ProgrammingTracker 转换为前端 TrackerTask
- */
+/** 将后端 ProgrammingTracker 转换为前端 TrackerTask */
 export function mapBackendToTrackerTask(backend: BackendTracker): Api.MDR.TrackerTask {
   const category = mapCategory(backend.deliverable_type);
   const baseTask = {
-    id: String(backend.id),
     createdAt: backend.created_at,
-    updatedAt: backend.updated_at,
-    status: mapStatus(backend.prod_status, backend.qc_status),
+    id: String(backend.id),
     primaryProgrammer: createPerson(backend.prod_programmer_id) || {
+      email: '',
       id: 'unknown',
-      name: 'Unassigned',
-      email: ''
+      name: 'Unassigned'
     },
     qcProgrammer: createPerson(backend.qc_programmer_id) || {
+      email: '',
       id: 'unknown',
-      name: 'Unassigned',
-      email: ''
+      name: 'Unassigned'
     },
-    qcRounds: [] // QC rounds 需要单独查询
+    qcRounds: [],
+    status: mapStatus(backend.prod_status, backend.qc_status),
+    updatedAt: backend.updated_at // QC rounds 需要单独查询
   };
 
   // 根据 category 构建不同类型的任务
@@ -145,18 +143,18 @@ export function mapBackendToTrackerTask(backend: BackendTracker): Api.MDR.Tracke
       return {
         ...baseTask,
         category: 'SDTM',
-        domain: backend.deliverable_name,
         datasetLabel: backend.task_name,
+        domain: backend.deliverable_name,
         sdrSource: backend.prod_file_path || ''
       } as Api.MDR.SDTMTask;
 
     case 'ADaM':
       return {
         ...baseTask,
+        analysisPopulation: (backend.tfl_metadata?.population as string) || '',
         category: 'ADaM',
         dataset: backend.deliverable_name,
-        label: backend.task_name,
-        analysisPopulation: (backend.tfl_metadata?.population as string) || ''
+        label: backend.task_name
       } as Api.MDR.ADaMTask;
 
     case 'TFL': {
@@ -165,10 +163,10 @@ export function mapBackendToTrackerTask(backend: BackendTracker): Api.MDR.Tracke
         ...baseTask,
         category: 'TFL',
         outputId: (tflMeta.outputId as string) || backend.deliverable_name,
-        title: backend.task_name,
-        type: (tflMeta.type as Api.MDR.TFLOutputType) || 'Table',
         population: (tflMeta.population as string) || '',
-        sourceDatasets: tflMeta.sourceDatasets as string[] | undefined
+        sourceDatasets: tflMeta.sourceDatasets as string[] | undefined,
+        title: backend.task_name,
+        type: (tflMeta.type as Api.MDR.TFLOutputType) || 'Table'
       } as Api.MDR.TFLTask;
     }
 
@@ -177,25 +175,23 @@ export function mapBackendToTrackerTask(backend: BackendTracker): Api.MDR.Tracke
       return {
         ...baseTask,
         category: 'Other',
-        taskName: backend.task_name,
+        description: backend.description || '',
         taskCategory: backend.delivery_batch || 'General',
-        description: backend.description || ''
+        taskName: backend.task_name
       } as Api.MDR.OtherTask;
   }
 }
 
-/**
- * 将前端 TrackerTask 转换为后端创建参数
- */
+/** 将前端 TrackerTask 转换为后端创建参数 */
 export function mapTrackerTaskToCreateParams(
   task: Partial<Api.MDR.TrackerTask>,
   analysisId: string
 ): Record<string, unknown> {
   const baseParams = {
-    analysis_id: parseInt(analysisId, 10),
+    analysis_id: Number.parseInt(analysisId, 10),
+    created_by: task.primaryProgrammer?.id || 'system',
     deliverable_name: '',
-    task_name: '',
-    created_by: task.primaryProgrammer?.id || 'system'
+    task_name: ''
   };
 
   switch (task.category) {
@@ -203,11 +199,11 @@ export function mapTrackerTaskToCreateParams(
       const sdtmTask = task as Partial<Api.MDR.SDTMTask>;
       return {
         ...baseParams,
-        deliverable_type: 'SDTM',
         deliverable_name: sdtmTask.domain || '',
-        task_name: sdtmTask.datasetLabel || '',
+        deliverable_type: 'SDTM',
         prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id
+        qc_programmer_id: task.qcProgrammer?.id,
+        task_name: sdtmTask.datasetLabel || ''
       };
     }
 
@@ -215,11 +211,11 @@ export function mapTrackerTaskToCreateParams(
       const adamTask = task as Partial<Api.MDR.ADaMTask>;
       return {
         ...baseParams,
-        deliverable_type: 'ADaM',
         deliverable_name: adamTask.dataset || '',
-        task_name: adamTask.label || '',
+        deliverable_type: 'ADaM',
         prod_programmer_id: task.primaryProgrammer?.id,
         qc_programmer_id: task.qcProgrammer?.id,
+        task_name: adamTask.label || '',
         tfl_metadata: {
           population: adamTask.analysisPopulation
         }
@@ -230,16 +226,16 @@ export function mapTrackerTaskToCreateParams(
       const tflTask = task as Partial<Api.MDR.TFLTask>;
       return {
         ...baseParams,
-        deliverable_type: 'TFL',
         deliverable_name: tflTask.outputId || '',
-        task_name: tflTask.title || '',
+        deliverable_type: 'TFL',
         prod_programmer_id: task.primaryProgrammer?.id,
         qc_programmer_id: task.qcProgrammer?.id,
+        task_name: tflTask.title || '',
         tfl_metadata: {
           outputId: tflTask.outputId,
-          type: tflTask.type,
           population: tflTask.population,
-          sourceDatasets: tflTask.sourceDatasets
+          sourceDatasets: tflTask.sourceDatasets,
+          type: tflTask.type
         }
       };
     }
@@ -249,32 +245,30 @@ export function mapTrackerTaskToCreateParams(
       const otherTask = task as Partial<Api.MDR.OtherTask>;
       return {
         ...baseParams,
-        deliverable_type: 'OTHER_LOOKUP',
         deliverable_name: otherTask.taskName || '',
-        task_name: otherTask.taskName || '',
+        deliverable_type: 'OTHER_LOOKUP',
         description: otherTask.description,
         prod_programmer_id: task.primaryProgrammer?.id,
-        qc_programmer_id: task.qcProgrammer?.id
+        qc_programmer_id: task.qcProgrammer?.id,
+        task_name: otherTask.taskName || ''
       };
     }
   }
 }
 
-/**
- * 将前端状态映射为后端状态参数
- */
+/** 将前端状态映射为后端状态参数 */
 export function mapStatusToBackend(status: Api.MDR.TaskStatus): {
   prod_status: BackendProdStatus;
   qc_status: BackendQCStatus;
 } {
   const mapping: Record<Api.MDR.TaskStatus, { prod_status: BackendProdStatus; qc_status: BackendQCStatus }> = {
-    'Not Started': { prod_status: 'Not_Started', qc_status: 'Not_Started' },
     'In Progress': { prod_status: 'Programming', qc_status: 'Not_Started' },
-    'Ready for QC': { prod_status: 'Ready_for_QC', qc_status: 'Not_Started' },
+    'Not Started': { prod_status: 'Not_Started', qc_status: 'Not_Started' },
     'QC Pass': { prod_status: 'Completed', qc_status: 'Passed' },
+    'Ready for QC': { prod_status: 'Ready_for_QC', qc_status: 'Not_Started' },
     'Signed Off': { prod_status: 'Completed', qc_status: 'Passed' }
   };
   return mapping[status];
 }
 
-export type { BackendTracker, BackendDeliverableType, BackendProdStatus, BackendQCStatus };
+export type { BackendDeliverableType, BackendProdStatus, BackendQCStatus, BackendTracker };

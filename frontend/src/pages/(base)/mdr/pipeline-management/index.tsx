@@ -129,8 +129,13 @@ const PipelineManagement: React.FC = () => {
   // RBAC permission checks
   const { hasPermission, isSuperuser } = usePermissionCheck();
   const activePipelineScopeNodeId =
-    selectedNode?.dbId ?? context.analysis?.scopeNodeId ?? context.study?.scopeNodeId ?? context.product?.scopeNodeId ?? null;
-  const canManage = isSuperuser || (activePipelineScopeNodeId != null && hasPermission('pipeline:edit', activePipelineScopeNodeId));
+    selectedNode?.dbId ??
+    context.analysis?.scopeNodeId ??
+    context.study?.scopeNodeId ??
+    context.product?.scopeNodeId ??
+    null;
+  const canManage =
+    isSuperuser || (activePipelineScopeNodeId != null && hasPermission('pipeline:edit', activePipelineScopeNodeId));
   const canArchiveNode = canManage;
   const canManageStudy = canManage;
   const canManageTA = isSuperuser;
@@ -320,9 +325,7 @@ const PipelineManagement: React.FC = () => {
       const newTitle = values.title?.trim();
 
       // 检查同级节点是否有重名
-      const siblingNodes = selectedNodeId
-        ? getChildNodes(treeData, selectedNodeId)
-        : treeData; // 如果没有选中节点，检查根级别
+      const siblingNodes = selectedNodeId ? getChildNodes(treeData, selectedNodeId) : treeData; // 如果没有选中节点，检查根级别
 
       const duplicateNode = siblingNodes.find(
         node => node.title.toLowerCase() === newTitle.toLowerCase() && node.status !== 'Archived'
@@ -331,20 +334,20 @@ const PipelineManagement: React.FC = () => {
       if (duplicateNode) {
         messageApi.error(
           t('page.mdr.pipelineManagement.createModal.duplicateNameError', {
-            name: newTitle,
-            defaultValue: `A node with name "${newTitle}" already exists at this level. Please use a different name.`
+            defaultValue: `A node with name "${newTitle}" already exists at this level. Please use a different name.`,
+            name: newTitle
           })
         );
         return;
       }
 
       await createPipelineNode({
-        title: newTitle,
+        description: values.description,
         node_type: createNodeType!,
         parent_id: selectedNodeId || undefined,
         phase: values.phase,
         protocol_title: values.protocolTitle,
-        description: values.description
+        title: newTitle
       });
       // Refresh tree from API
       await fetchTree();
@@ -698,17 +701,17 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   navigate,
   onArchive,
   onOpenCreate,
+  onRetryLoadTree,
   onSelect,
+  onTreeSearchChange,
   selectedNode,
   selectedNodeId,
   setIsEditing,
   treeData,
   treeDataNodes,
-  treeLoading,
   treeError,
-  treeSearchQuery,
-  onTreeSearchChange,
-  onRetryLoadTree
+  treeLoading,
+  treeSearchQuery
 }) => {
   const { t } = useTranslation();
   // 收集所有可展开节点的 key（仅包含有子节点的节点）
@@ -729,7 +732,10 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
 
   // 树节点展开状态
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
-  const expandableNodeKeys = useMemo(() => getExpandableNodeKeys(treeDataNodes), [treeDataNodes, getExpandableNodeKeys]);
+  const expandableNodeKeys = useMemo(
+    () => getExpandableNodeKeys(treeDataNodes),
+    [treeDataNodes, getExpandableNodeKeys]
+  );
 
   // 动态计算 allExpanded 状态（基于可展开节点）
   const allExpanded = useMemo(() => {
@@ -802,7 +808,11 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             searchableFields.push(analysisNode.description ?? '');
           }
 
-          const nodeMatches = searchableFields.some(value => String(value ?? '').toLowerCase().includes(query));
+          const nodeMatches = searchableFields.some(value =>
+            String(value ?? '')
+              .toLowerCase()
+              .includes(query)
+          );
 
           if (nodeMatches || childMatches.length > 0) {
             return {
@@ -823,9 +833,17 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
       <div className="h-full flex-center">
         <Result
           status="error"
-          title="Failed to Load Pipeline"
           subTitle={treeError}
-          extra={<Button type="primary" icon={<ReloadOutlined />} onClick={onRetryLoadTree}>Retry</Button>}
+          title="Failed to Load Pipeline"
+          extra={
+            <Button
+              icon={<ReloadOutlined />}
+              type="primary"
+              onClick={onRetryLoadTree}
+            >
+              Retry
+            </Button>
+          }
         />
       </div>
     );
@@ -857,7 +875,13 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           />
           {/* 展开/收缩 + 创建按钮 */}
           <div className="mb-12px flex gap-8px">
-            <Tooltip title={allExpanded ? t('page.mdr.pipelineManagement.tree.collapseAll') : t('page.mdr.pipelineManagement.tree.expandAll')}>
+            <Tooltip
+              title={
+                allExpanded
+                  ? t('page.mdr.pipelineManagement.tree.collapseAll')
+                  : t('page.mdr.pipelineManagement.tree.expandAll')
+              }
+            >
               <Button
                 icon={allExpanded ? <MinusSquareOutlined /> : <PlusSquareOutlined />}
                 size="small"
@@ -879,17 +903,17 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             <div className="flex-1 overflow-y-auto">
               <Tree
                 showIcon
-                expandedKeys={expandedKeys}
-                onExpand={setExpandedKeys}
                 className="bg-transparent"
+                expandedKeys={expandedKeys}
                 selectedKeys={selectedNodeId ? [selectedNodeId] : []}
                 treeData={filteredTreeNodes}
+                onExpand={setExpandedKeys}
                 onSelect={onSelect}
               />
             </div>
           </Spin>
         </Card>
-        <div className="flex-1 flex-center">
+        <div className="flex-center flex-1">
           <Empty description={t('page.mdr.pipelineManagement.selectNodeHint')} />
         </div>
       </div>
@@ -925,7 +949,13 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
         />
         {/* 展开/收缩 + 创建按钮 */}
         <div className="mb-12px flex gap-8px">
-          <Tooltip title={allExpanded ? t('page.mdr.pipelineManagement.tree.collapseAll') : t('page.mdr.pipelineManagement.tree.expandAll')}>
+          <Tooltip
+            title={
+              allExpanded
+                ? t('page.mdr.pipelineManagement.tree.collapseAll')
+                : t('page.mdr.pipelineManagement.tree.expandAll')
+            }
+          >
             <Button
               icon={allExpanded ? <MinusSquareOutlined /> : <PlusSquareOutlined />}
               size="small"
@@ -947,11 +977,11 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           <div className="flex-1 overflow-y-auto">
             <Tree
               showIcon
-              expandedKeys={expandedKeys}
-              onExpand={setExpandedKeys}
               className="bg-transparent"
+              expandedKeys={expandedKeys}
               selectedKeys={selectedNodeId ? [selectedNodeId] : []}
               treeData={filteredTreeNodes}
+              onExpand={setExpandedKeys}
               onSelect={onSelect}
             />
           </div>
@@ -1172,10 +1202,10 @@ interface StudyConfigTabProps {
   isEditing: boolean;
   isStudyReady: boolean;
   messageApi: ReturnType<typeof message.useMessage>[0];
+  onConfigSaved?: () => void;
   selectedNode: StudyNode | null;
   setIsEditing: (v: boolean) => void;
-  studyId: string | null;
-  onConfigSaved?: () => void;  // Callback to refresh tree after save
+  studyId: string | null; // Callback to refresh tree after save
 }
 
 const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
@@ -1183,10 +1213,10 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
   isEditing,
   isStudyReady,
   messageApi,
+  onConfigSaved,
   selectedNode,
   setIsEditing,
-  studyId,
-  onConfigSaved
+  studyId
 }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
@@ -1207,15 +1237,18 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
 
   // Fetch available versions from API
   useEffect(() => {
-    getAvailableVersions().then((res: any) => {
-      if (res) {
-        setVersionOptions(res);
-      }
-    }).catch(() => {
-      messageApi.error(t('page.mdr.pipelineManagement.studyConfig.loadVersionsFailed'));
-    }).finally(() => {
-      setVersionsLoading(false);
-    });
+    getAvailableVersions()
+      .then((res: any) => {
+        if (res) {
+          setVersionOptions(res);
+        }
+      })
+      .catch(() => {
+        messageApi.error(t('page.mdr.pipelineManagement.studyConfig.loadVersionsFailed'));
+      })
+      .finally(() => {
+        setVersionsLoading(false);
+      });
   }, [messageApi, t]);
 
   // Populate form from selectedNode (runs when node changes or tree refreshes)
@@ -1229,16 +1262,16 @@ const StudyConfigTab: React.FC<StudyConfigTabProps> = ({
 
     const config = selectedNode.config || {};
     form.setFieldsValue({
-      protocolTitle: selectedNode.protocolTitle || '',
-      phase: selectedNode.phase || '',
       config: {
-        sdtmModelVersion: config.sdtmModelVersion || null,
-        sdtmIgVersion: config.sdtmIgVersion || null,
-        adamModelVersion: config.adamModelVersion || null,
         adamIgVersion: config.adamIgVersion || null,
+        adamModelVersion: config.adamModelVersion || null,
         meddraVersion: config.meddraVersion || null,
-        whodrugVersion: config.whodrugVersion || null,
+        sdtmIgVersion: config.sdtmIgVersion || null,
+        sdtmModelVersion: config.sdtmModelVersion || null,
+        whodrugVersion: config.whodrugVersion || null
       },
+      phase: selectedNode.phase || '',
+      protocolTitle: selectedNode.protocolTitle || ''
     });
     loadedStudyIdRef.current = selectedNode.id;
   }, [selectedNode, form]);
@@ -1594,7 +1627,12 @@ interface ExecutionJobsTabProps {
   isAnalysisReady: boolean;
 }
 
-const ExecutionJobsTab: React.FC<ExecutionJobsTabProps> = ({ analysisId, executionJobs, executionJobsLoading, isAnalysisReady }) => {
+const ExecutionJobsTab: React.FC<ExecutionJobsTabProps> = ({
+  analysisId,
+  executionJobs,
+  executionJobsLoading,
+  isAnalysisReady
+}) => {
   const { t } = useTranslation();
 
   // 强依赖 Analysis 级别

@@ -1,19 +1,18 @@
 /**
  * TFL Builder - Table Preview
  *
- * WYSIWYG table preview with dynamic column generation from treatment arms
- * Real-time updates from table configuration
+ * WYSIWYG table preview with dynamic column generation from treatment arms Real-time updates from table configuration
  *
- * Migrated from Redux `useTflBuilderStore` to Zustand `useTableStore`.
- * Uses TableShell model instead of ARS document display model.
+ * Migrated from Redux `useTflBuilderStore` to Zustand `useTableStore`. Uses TableShell model instead of ARS document
+ * display model.
  */
-import { useMemo, useState } from 'react';
-import { Card, Table, Tag, Typography, Empty, Input, Space } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined } from '@ant-design/icons';
-import type { TableRow, ColumnHeaderGroup } from '../../types';
-import { useTableStore } from '../../stores';
-import { useStudyStore } from '../../stores';
+import { Card, Empty, Input, Space, Table, Tag, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { useMemo, useState } from 'react';
+
+import { useStudyStore, useTableStore } from '../../stores';
+import type { ColumnHeaderGroup, TableRow } from '../../types';
 
 const { Text } = Typography;
 
@@ -53,21 +52,21 @@ export default function TablePreview({ displayId: _displayId }: Props) {
     }
     // 2. Treatment arm set's embedded headers
     if (treatmentArmSet?.headers?.length) {
-      return { id: treatmentArmSet.id, name: treatmentArmSet.name, headers: treatmentArmSet.headers } as any;
+      return { headers: treatmentArmSet.headers, id: treatmentArmSet.id, name: treatmentArmSet.name } as any;
     }
     return null;
   }, [currentTable, currentTable?.columnHeaderSetId, columnHeaderSets, treatmentArmSet]);
 
   // Collect leaf column IDs for data cell generation
-  const leafColumns = useMemo((): Array<{ id: string; groupingId: string }> => {
+  const leafColumns = useMemo((): Array<{ groupingId: string; id: string }> => {
     if (!currentTable) return [];
-    const collectLeaves = (groups: ColumnHeaderGroup[]): Array<{ id: string; groupingId: string }> => {
-      const result: Array<{ id: string; groupingId: string }> = [];
+    const collectLeaves = (groups: ColumnHeaderGroup[]): Array<{ groupingId: string; id: string }> => {
+      const result: Array<{ groupingId: string; id: string }> = [];
       groups.forEach(g => {
         if (g.children?.length) {
           result.push(...collectLeaves(g.children));
         } else if (g.variable) {
-          result.push({ id: g.id, groupingId: g.variable });
+          result.push({ groupingId: g.variable, id: g.id });
         }
       });
       return result;
@@ -78,40 +77,29 @@ export default function TablePreview({ displayId: _displayId }: Props) {
     }
     if (currentTable?.headerLayers && currentTable.headerLayers.length > 0) {
       const lastLayer = currentTable.headerLayers[currentTable.headerLayers.length - 1];
-      return lastLayer.cells.map(cell => ({ id: cell.id, groupingId: cell.id }));
+      return lastLayer.cells.map(cell => ({ groupingId: cell.id, id: cell.id }));
     }
-    return treatmentArms.map(arm => ({ id: `cell-${arm.id}`, groupingId: arm.id }));
+    return treatmentArms.map(arm => ({ groupingId: arm.id, id: `cell-${arm.id}` }));
   }, [currentTable, selectedHeaderSet, treatmentArms]);
 
-  const dataColumns = leafColumns;
-
-  // Get title from current table metadata
-  const titleText = useMemo(() => {
-    if (!currentTable) return null;
-    return currentTable.title || null;
-  }, [currentTable]);
-
-  // Get footnotes from current table footer
-  const footnoteSection = useMemo(() => {
-    if (!currentTable?.footer) return null;
-    return currentTable.footer;
-  }, [currentTable]);
+  const titleText = currentTable?.title || null;
+  const footnoteSection = currentTable?.footer || null;
 
   // Flatten body rows for table display (handle children)
   const flattenedRows = useMemo(() => {
     const rows: Array<{
-      key: string;
-      row: TableRow;
-      level: number;
       indent: number;
+      key: string;
+      level: number;
+      row: TableRow;
     }> = [];
 
     const flattenRow = (row: TableRow, level: number = 0, indent: number = 0): void => {
       rows.push({
+        indent,
         key: row.id,
-        row,
         level,
-        indent
+        row
       });
 
       // Process children if expanded
@@ -142,7 +130,7 @@ export default function TablePreview({ displayId: _displayId }: Props) {
       // Try to find if this column maps directly to an order
       const match = text.match(/\$(\d+)/);
       if (match) {
-        const armIdx = parseInt(match[1]) - 1;
+        const armIdx = Number.parseInt(match[1]) - 1;
         const arm = treatmentArms[armIdx];
         if (arm && arm.N) {
           processed = processed.replace(/\^/g, `(N=${arm.N})`);
@@ -160,19 +148,19 @@ export default function TablePreview({ displayId: _displayId }: Props) {
   const nestedColumns = useMemo(() => {
     const columns: any[] = [
       {
-        title: '',
         dataIndex: 'drag',
-        key: 'drag',
-        width: 40,
         fixed: 'left' as const,
+        key: 'drag',
+        title: '',
+        width: 40
       },
       {
-        title: 'Parameter',
         dataIndex: 'label',
-        key: 'label',
-        width: 250,
         fixed: 'left' as const,
-      },
+        key: 'label',
+        title: 'Parameter',
+        width: 250
+      }
     ];
 
     if (selectedHeaderSet) {
@@ -180,18 +168,18 @@ export default function TablePreview({ displayId: _displayId }: Props) {
       const buildFromGroup = (g: ColumnHeaderGroup): any => {
         if (g.children?.length) {
           return {
-            title: g.label,
             align: 'center',
-            key: g.id,
             children: g.children.map(buildFromGroup),
+            key: g.id,
+            title: g.label
           };
         }
         return {
-          title: g.label,
+          align: g.align || 'center',
           dataIndex: g.variable || g.id,
           key: g.id,
-          width: g.width || 150,
-          align: g.align || 'center',
+          title: g.label,
+          width: g.width || 150
         };
       };
       columns.push(...selectedHeaderSet.headers.map(buildFromGroup));
@@ -204,25 +192,25 @@ export default function TablePreview({ displayId: _displayId }: Props) {
         let currentCellIndex = startIndex;
 
         for (const cell of layer.cells) {
-           const colSpan = cell.colspan || 1;
-           const isLastLayer = layerIndex === currentTable.headerLayers!.length - 1;
+          const colSpan = cell.colspan || 1;
+          const isLastLayer = layerIndex === currentTable.headerLayers!.length - 1;
 
-           const colDef: any = {
-             title: processHeaderText(cell.text),
-             align: 'center',
-           };
+          const colDef: any = {
+            align: 'center',
+            title: processHeaderText(cell.text)
+          };
 
-           if (isLastLayer) {
-             colDef.dataIndex = cell.id;
-             colDef.key = cell.id;
-             colDef.width = 150;
-           } else {
-             colDef.children = buildAntdColumns(layerIndex + 1, currentCellIndex, currentCellIndex + colSpan);
-           }
-           result.push(colDef);
-           currentCellIndex += colSpan;
+          if (isLastLayer) {
+            colDef.dataIndex = cell.id;
+            colDef.key = cell.id;
+            colDef.width = 150;
+          } else {
+            colDef.children = buildAntdColumns(layerIndex + 1, currentCellIndex, currentCellIndex + colSpan);
+          }
+          result.push(colDef);
+          currentCellIndex += colSpan;
 
-           if (currentCellIndex >= endIndex && endIndex !== -1) break;
+          if (currentCellIndex >= endIndex && endIndex !== -1) break;
         }
         return result;
       };
@@ -233,11 +221,11 @@ export default function TablePreview({ displayId: _displayId }: Props) {
       // Default: columns for each treatment arm
       treatmentArms.forEach(arm => {
         columns.push({
-          title: arm.N ? `${arm.name} (N=${arm.N})` : arm.name,
+          align: 'center',
           dataIndex: arm.id,
           key: arm.id,
-          align: 'center',
-          width: 150,
+          title: arm.N ? `${arm.name} (N=${arm.N})` : arm.name,
+          width: 150
         });
       });
     }
@@ -261,18 +249,18 @@ export default function TablePreview({ displayId: _displayId }: Props) {
   // Generate table data
   const tableData = useMemo(() => {
     let socCounter = 0;
-    
-    return flattenedRows.map(({ row, level }) => {
+
+    return flattenedRows.map(({ level, row }) => {
       let displayLabel = row.label;
-      
+
       // Smart placeholder replacement for context-awareness if label is empty/generic
       if (!displayLabel || displayLabel.trim() === 'New Row' || displayLabel.trim() === 'New Row (copy)') {
-         if (row.analysisOfInterest === 'SOC' || row.isSOC) {
-           socCounter++;
-           displayLabel = `System Organ Class ${socCounter}`;
-         } else if (level > 0) {
-           displayLabel = '  '.repeat(level) + `Parameter ${level}`;
-         }
+        if (row.analysisOfInterest === 'SOC' || row.isSOC) {
+          socCounter++;
+          displayLabel = `System Organ Class ${socCounter}`;
+        } else if (level > 0) {
+          displayLabel = `${'  '.repeat(level)}Parameter ${level}`;
+        }
       }
 
       const data: Record<string, unknown> = {
@@ -283,7 +271,7 @@ export default function TablePreview({ displayId: _displayId }: Props) {
       };
 
       // Add placeholder cells for each treatment arm / data column
-      dataColumns.forEach(cell => {
+      leafColumns.forEach(cell => {
         // Use stats type to generate display text
         const statTypes = row.stats?.map(s => s.type) || [];
         const isHeader = statTypes.includes('header');
@@ -292,15 +280,15 @@ export default function TablePreview({ displayId: _displayId }: Props) {
         if (isHeader) {
           data[cell.groupingId] = '';
         } else if (statTypes.length > 0) {
-           data[cell.groupingId] = statTypes.map(t => renderMockValue(t, isTotal)).join(' ');
+          data[cell.groupingId] = statTypes.map(t => renderMockValue(t, isTotal)).join(' ');
         } else {
-           data[cell.groupingId] = isTotal ? 'XX' : 'XX (XX.X%)'; // default clinical stat
+          data[cell.groupingId] = isTotal ? 'XX' : 'XX (XX.X%)'; // default clinical stat
         }
       });
 
       return data;
     });
-  }, [flattenedRows, dataColumns]);
+  }, [flattenedRows, leafColumns]);
 
   // Render cell content with proper formatting and bidirectional inline editing
   const renderCell = (text: string, record: any, dataIndex?: string) => {
@@ -311,7 +299,7 @@ export default function TablePreview({ displayId: _displayId }: Props) {
     const row = bodyRows.find(r => r.id === record.key) || { stats: [] };
     const statTypes = row.stats?.map((s: any) => s.type) || [];
     const isHeader = statTypes.includes('header');
-    
+
     // Total row usually level 0 with n_percent
     const isTotal = statTypes.includes('n_percent') && level === 0;
 
@@ -320,19 +308,19 @@ export default function TablePreview({ displayId: _displayId }: Props) {
         <Input
           autoFocus
           defaultValue={record.originalLabel.trimStart()}
-          onBlur={(e) => {
+          size="small"
+          onBlur={e => {
             const val = e.target.value;
             const prefix = level > 0 ? '  '.repeat(level) : '';
             updateRow(record.key, { label: prefix + val });
             setEditingRowId(null);
           }}
-          onPressEnter={(e) => {
+          onPressEnter={e => {
             const val = e.currentTarget.value;
             const prefix = level > 0 ? '  '.repeat(level) : '';
             updateRow(record.key, { label: prefix + val });
             setEditingRowId(null);
           }}
-          size="small"
         />
       );
     }
@@ -341,32 +329,35 @@ export default function TablePreview({ displayId: _displayId }: Props) {
       <div
         className={isLabelCol ? 'preview-label-cell' : ''}
         style={{
-          fontWeight: isHeader || isTotal ? 'bold' : 'normal',
-          paddingLeft: isLabelCol ? level * 20 : 0,
-          display: 'flex',
           alignItems: 'center',
-          justifyContent: isLabelCol ? 'space-between' : 'center',
           cursor: isLabelCol ? 'text' : 'default',
+          display: 'flex',
+          fontWeight: isHeader || isTotal ? 'bold' : 'normal',
+          justifyContent: isLabelCol ? 'space-between' : 'center',
+          paddingLeft: isLabelCol ? level * 20 : 0
         }}
         onClick={() => {
           if (isLabelCol) setEditingRowId(record.key);
         }}
-        onMouseEnter={(e) => {
-           if(isLabelCol) {
-             const icon = e.currentTarget.querySelector('.edit-icon');
-             if(icon) (icon as HTMLElement).style.opacity = '1';
-           }
+        onMouseEnter={e => {
+          if (isLabelCol) {
+            const icon = e.currentTarget.querySelector('.edit-icon');
+            if (icon) (icon as HTMLElement).style.opacity = '1';
+          }
         }}
-        onMouseLeave={(e) => {
-           if(isLabelCol) {
-             const icon = e.currentTarget.querySelector('.edit-icon');
-             if(icon) (icon as HTMLElement).style.opacity = '0';
-           }
+        onMouseLeave={e => {
+          if (isLabelCol) {
+            const icon = e.currentTarget.querySelector('.edit-icon');
+            if (icon) (icon as HTMLElement).style.opacity = '0';
+          }
         }}
       >
         <span>{text}</span>
         {isLabelCol && (
-          <EditOutlined className="edit-icon" style={{ opacity: 0, color: '#1890ff', marginLeft: 8, transition: 'opacity 0.2s' }} />
+          <EditOutlined
+            className="edit-icon"
+            style={{ color: '#1890ff', marginLeft: 8, opacity: 0, transition: 'opacity 0.2s' }}
+          />
         )}
       </div>
     );
@@ -383,21 +374,21 @@ export default function TablePreview({ displayId: _displayId }: Props) {
   return (
     <div>
       <Table
+        bordered
         columns={nestedColumns}
         dataSource={tableData}
-        rowKey="key"
-        size="small"
-        bordered
-        scroll={{ x: 'max-content' }}
         pagination={false}
+        rowKey="key"
+        scroll={{ x: 'max-content' }}
+        size="small"
         components={{
           body: {
             cell: ({ children, dataIndex, record, ...props }: any) => {
-               // antd may pass record as undefined for header/summary rows
-               if (!record) return <td {...props}>{children}</td>;
-               return <td {...props}>{renderCell(children as string, record, dataIndex)}</td>;
-            },
-          },
+              // antd may pass record as undefined for header/summary rows
+              if (!record) return <td {...props}>{children}</td>;
+              return <td {...props}>{renderCell(children as string, record, dataIndex)}</td>;
+            }
+          }
         }}
       />
     </div>

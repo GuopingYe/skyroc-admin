@@ -1,34 +1,34 @@
 /**
  * Undo/Redo Toolbar
  *
- * A compact toolbar with undo/redo buttons for the pipeline management page.
- * Can be placed in the page header or inline.
+ * A compact toolbar with undo/redo buttons for the pipeline management page. Can be placed in the page header or
+ * inline.
  */
-import React from 'react';
-import { Button, Space, Tooltip } from 'antd';
 import { RedoOutlined, UndoOutlined } from '@ant-design/icons';
+import { Button, Space, Tooltip } from 'antd';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface UndoRedoToolbarProps {
-  canUndo: boolean;
   canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
+  canUndo: boolean;
   disabled?: boolean;
-  size?: 'small' | 'middle' | 'large';
+  onRedo: () => void;
+  onUndo: () => void;
   showLabels?: boolean;
   showShortcuts?: boolean;
+  size?: 'large' | 'middle' | 'small';
 }
 
 export const UndoRedoToolbar: React.FC<UndoRedoToolbarProps> = ({
-  canUndo,
   canRedo,
-  onUndo,
-  onRedo,
+  canUndo,
   disabled = false,
-  size = 'small',
+  onRedo,
+  onUndo,
   showLabels = false,
-  showShortcuts = true
+  showShortcuts = true,
+  size = 'small'
 }) => {
   const { t } = useTranslation();
 
@@ -44,8 +44,8 @@ export const UndoRedoToolbar: React.FC<UndoRedoToolbarProps> = ({
     <Button.Group size={size}>
       <Tooltip title={undoTitle}>
         <Button
-          icon={<UndoOutlined />}
           disabled={disabled || !canUndo}
+          icon={<UndoOutlined />}
           onClick={onUndo}
         >
           {showLabels && t('page.mdr.pipelineManagement.toolbar.undo', 'Undo')}
@@ -53,8 +53,8 @@ export const UndoRedoToolbar: React.FC<UndoRedoToolbarProps> = ({
       </Tooltip>
       <Tooltip title={redoTitle}>
         <Button
-          icon={<RedoOutlined />}
           disabled={disabled || !canRedo}
+          icon={<RedoOutlined />}
           onClick={onRedo}
         >
           {showLabels && t('page.mdr.pipelineManagement.toolbar.redo', 'Redo')}

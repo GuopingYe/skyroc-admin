@@ -677,10 +677,10 @@ const page: App.I18n.Schema['translation']['page'] = {
         title: 'Edit Task'
       },
       form: {
-        customizedDataset: 'Customized Dataset',
-        customizedDomain: 'Customized Domain',
         customDatasetName: 'Custom Dataset Name',
         customDomainName: 'Custom Domain Name',
+        customizedDataset: 'Customized Dataset',
+        customizedDomain: 'Customized Domain',
         datasetLabelPlaceholder: 'Enter dataset label',
         datasetPlaceholder: 'Select dataset',
         descriptionPlaceholder: 'Enter task description',
@@ -855,6 +855,14 @@ const page: App.I18n.Schema['translation']['page'] = {
         selectAnalysisForTfl: 'Select an Analysis to start designing',
         selectAnalysisHint: 'Please select an Analysis above to start designing TFL Shell'
       },
+      figureHints: {
+        addSeries: 'Add at least one data series in the Series tab',
+        configureXAxis: 'Configure X-Axis label and type in the Axes tab',
+        configureYAxis: 'Configure Y-Axis label and range in the Axes tab',
+        selectChartType: 'Select a chart type in the Metadata tab to preview',
+        unsupportedType:
+          'This chart type is not yet supported. Supported: Line, Bar, Scatter, Box Plot, KM Curve, Forest Plot'
+      },
       figureMeta: {
         basicInfo: 'Basic Information',
         chartType: 'Chart Type'
@@ -942,21 +950,14 @@ const page: App.I18n.Schema['translation']['page'] = {
         filter: 'Filter',
         footer: 'Footer',
         metadata: 'Metadata',
+        population: 'Population',
         preview: 'Preview',
+        programmingNotes: 'Programming Notes',
         rowStructure: 'Row Structure',
         series: 'Series',
         sortOrder: 'Sort Order',
-        population: 'Population',
-        programmingNotes: 'Programming Notes',
-        treatmentArms: 'Header Styles',
-        statistics: 'Statistics'
-      },
-      figureHints: {
-        addSeries: 'Add at least one data series in the Series tab',
-        configureXAxis: 'Configure X-Axis label and type in the Axes tab',
-        configureYAxis: 'Configure Y-Axis label and range in the Axes tab',
-        selectChartType: 'Select a chart type in the Metadata tab to preview',
-        unsupportedType: 'This chart type is not yet supported. Supported: Line, Bar, Scatter, Box Plot, KM Curve, Forest Plot'
+        statistics: 'Statistics',
+        treatmentArms: 'Header Styles'
       },
       toolbar: {
         editMode: 'Edit Mode',

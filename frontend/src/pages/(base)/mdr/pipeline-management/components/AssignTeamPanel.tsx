@@ -1,5 +1,19 @@
 import { DeleteOutlined, TeamOutlined } from '@ant-design/icons';
-import { Avatar, Button, Divider, Drawer, Form, List, Popconfirm, Select, Space, Spin, Tag, Typography, message } from 'antd';
+import {
+  Avatar,
+  Button,
+  Divider,
+  Drawer,
+  Form,
+  List,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  message
+} from 'antd';
 import React, { useMemo } from 'react';
 
 import { useAssignTeam, usePermissionCheck, useRevokePermission, useRoles, useUsers } from '@/service/hooks';
@@ -19,8 +33,8 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
 
   const { data: allUsers, isLoading: usersLoading, refetch: refetchUsers } = useUsers({ is_active: true });
   const { data: allRoles, isLoading: rolesLoading } = useRoles();
-  const { mutate: assignTeam, isPending: isAssigning } = useAssignTeam();
-  const { mutate: revokePermission, isPending: isRevoking } = useRevokePermission();
+  const { isPending: isAssigning, mutate: assignTeam } = useAssignTeam();
+  const { isPending: isRevoking, mutate: revokePermission } = useRevokePermission();
   const { isSuperuser } = usePermissionCheck();
 
   const currentTeam = useMemo(() => {
@@ -65,13 +79,13 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
   return (
     <Drawer
       open={open}
+      width={480}
       title={
         <Space>
           <TeamOutlined />
           <span>Assign Team</span>
         </Space>
       }
-      width={480}
       onClose={onClose}
     >
       {contextHolder}
@@ -131,15 +145,19 @@ const AssignTeamPanel: React.FC<AssignTeamPanelProps> = ({ onClose, open, scopeL
           rules={[{ required: true }]}
         >
           <Select
+            showSearch
             data-testid="assign-team-user-select"
-            filterOption={(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())}
             loading={usersLoading}
+            placeholder="Select user"
+            filterOption={(input, option) =>
+              String(option?.label || '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
             options={(allUsers || []).map(user => ({
               label: `${user.display_name || user.username} (${user.username})`,
               value: user.id
             }))}
-            placeholder="Select user"
-            showSearch
           />
         </Form.Item>
 

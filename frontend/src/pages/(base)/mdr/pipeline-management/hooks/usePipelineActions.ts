@@ -1,67 +1,69 @@
 /**
  * Pipeline Actions Hook
  *
- * Provides high-level action handlers that integrate with the pipeline store.
- * These handlers wrap store actions with additional logic like message notifications.
+ * Provides high-level action handlers that integrate with the pipeline store. These handlers wrap store actions with
+ * additional logic like message notifications.
  */
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { usePipelineStore } from '../stores';
-import type { NodeType, PipelineNode, StudyNode } from '../mockData';
-import type { IProjectMilestone } from '../types';
 import { getPipelineMilestones, getPipelineStudyConfig, getPipelineTree } from '@/service/api/mdr';
 
-export interface UsePipelineActionsReturn {
-  // Data loading actions
-  loadTree: () => Promise<void>;
-  loadMilestones: (studyId: string, analysisId?: string) => Promise<void>;
-  loadStudyConfig: (studyId: string) => Promise<void>;
+import type { NodeType, PipelineNode, StudyNode } from '../mockData';
+import { usePipelineStore } from '../stores';
+import type { IProjectMilestone } from '../types';
 
+export interface UsePipelineActionsReturn {
+  archiveNode: (nodeId: string) => void;
+  canRedo: () => boolean;
+  canUndo: () => boolean;
+
+  // Milestone actions
+  createMilestone: (data: Omit<IProjectMilestone, 'createdAt' | 'id' | 'updatedAt'>) => string;
   // Node actions
   createNode: (
     nodeType: NodeType,
     parentId: string | null,
-    data: { title: string; phase?: string; protocolTitle?: string; description?: string }
+    data: { description?: string; phase?: string; protocolTitle?: string; title: string }
   ) => string;
-  updateNode: (nodeId: string, updates: Partial<PipelineNode>) => void;
-  deleteNode: (nodeId: string) => void;
-  archiveNode: (nodeId: string) => void;
-  restoreNode: (nodeId: string) => void;
-
-  // Milestone actions
-  createMilestone: (
-    data: Omit<IProjectMilestone, 'id' | 'createdAt' | 'updatedAt'>
-  ) => string;
-  updateMilestone: (milestoneId: string, updates: Partial<IProjectMilestone>) => void;
   deleteMilestone: (milestoneId: string) => void;
+  deleteNode: (nodeId: string) => void;
+  // Change management
+  discardChanges: () => void;
 
-  // Study config actions
-  updateStudyConfig: (studyId: string, config: Partial<{
-    adamIgVersion: string;
-    adamModelVersion: string;
-    meddraVersion: string;
-    phase: string;
-    protocolTitle: string;
-    sdtmIgVersion: string;
-    sdtmModelVersion: string;
-    whodrugVersion: string;
-  }>) => void;
+  isDirty: boolean;
+  loadMilestones: (studyId: string, analysisId?: string) => Promise<void>;
+  loadStudyConfig: (studyId: string) => Promise<void>;
 
+  // Data loading actions
+  loadTree: () => Promise<void>;
+
+  pendingChangesCount: number;
+  redo: () => void;
+
+  restoreNode: (nodeId: string) => void;
   // UI actions
   selectNode: (nodeId: string | null) => void;
   setActiveTab: (tab: string) => void;
-
   // History actions
   undo: () => void;
-  redo: () => void;
-  canUndo: () => boolean;
-  canRedo: () => boolean;
 
-  // Change management
-  discardChanges: () => void;
-  isDirty: boolean;
-  pendingChangesCount: number;
+  updateMilestone: (milestoneId: string, updates: Partial<IProjectMilestone>) => void;
+  updateNode: (nodeId: string, updates: Partial<PipelineNode>) => void;
+  // Study config actions
+  updateStudyConfig: (
+    studyId: string,
+    config: Partial<{
+      adamIgVersion: string;
+      adamModelVersion: string;
+      meddraVersion: string;
+      phase: string;
+      protocolTitle: string;
+      sdtmIgVersion: string;
+      sdtmModelVersion: string;
+      whodrugVersion: string;
+    }>
+  ) => void;
 }
 
 export function usePipelineActions(): UsePipelineActionsReturn {
@@ -86,135 +88,175 @@ export function usePipelineActions(): UsePipelineActionsReturn {
     }
   }, [store]);
 
-  const loadMilestones = useCallback(async (studyId: string, analysisId?: string) => {
-    store.setMilestonesLoading(true);
+  const loadMilestones = useCallback(
+    async (studyId: string, analysisId?: string) => {
+      store.setMilestonesLoading(true);
 
-    try {
-      const data = await getPipelineMilestones(studyId, analysisId);
-      if (data) {
-        // Map snake_case from API to camelCase for frontend types
-        const mapped: IProjectMilestone[] = (data as any[]).map((m: any) => ({
-          actualDate: m.actual_date,
-          analysisId: m.analysis_id,
-          assignee: m.assignee,
-          comment: m.comment,
-          createdAt: m.created_at,
-          id: m.id,
-          level: m.level,
-          name: m.name,
-          plannedDate: m.planned_date,
-          presetType: m.preset_type,
-          status: m.status,
-          studyId: m.study_id,
-          updatedAt: m.updated_at
-        }));
-        store.setMilestones(mapped);
+      try {
+        const data = await getPipelineMilestones(studyId, analysisId);
+        if (data) {
+          // Map snake_case from API to camelCase for frontend types
+          const mapped: IProjectMilestone[] = (data as any[]).map((m: any) => ({
+            actualDate: m.actual_date,
+            analysisId: m.analysis_id,
+            assignee: m.assignee,
+            comment: m.comment,
+            createdAt: m.created_at,
+            id: m.id,
+            level: m.level,
+            name: m.name,
+            plannedDate: m.planned_date,
+            presetType: m.preset_type,
+            status: m.status,
+            studyId: m.study_id,
+            updatedAt: m.updated_at
+          }));
+          store.setMilestones(mapped);
+        }
+      } catch (error) {
+        console.error('Failed to load milestones:', error);
       }
-    } catch (error) {
-      console.error('Failed to load milestones:', error);
-    }
-  }, [store]);
+    },
+    [store]
+  );
 
-  const loadStudyConfig = useCallback(async (studyId: string) => {
-    try {
-      const data = await getPipelineStudyConfig(studyId);
-      if (data) {
-        store.setStudyConfig({
-          studyId,
-          phase: (data as any).phase,
-          protocolTitle: (data as any).protocol_title,
-          sdtmModelVersion: (data as any).sdtm_model_version,
-          sdtmIgVersion: (data as any).sdtm_ig_version,
-          adamModelVersion: (data as any).adam_model_version,
-          adamIgVersion: (data as any).adam_ig_version,
-          meddraVersion: (data as any).meddra_version,
-          whodrugVersion: (data as any).whodrug_version
-        });
+  const loadStudyConfig = useCallback(
+    async (studyId: string) => {
+      try {
+        const data = await getPipelineStudyConfig(studyId);
+        if (data) {
+          store.setStudyConfig({
+            adamIgVersion: (data as any).adam_ig_version,
+            adamModelVersion: (data as any).adam_model_version,
+            meddraVersion: (data as any).meddra_version,
+            phase: (data as any).phase,
+            protocolTitle: (data as any).protocol_title,
+            sdtmIgVersion: (data as any).sdtm_ig_version,
+            sdtmModelVersion: (data as any).sdtm_model_version,
+            studyId,
+            whodrugVersion: (data as any).whodrug_version
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load study config:', error);
       }
-    } catch (error) {
-      console.error('Failed to load study config:', error);
-    }
-  }, [store]);
+    },
+    [store]
+  );
 
   // ==================== Node Actions ====================
 
-  const createNode = useCallback((
-    nodeType: NodeType,
-    parentId: string | null,
-    data: { title: string; phase?: string; protocolTitle?: string; description?: string }
-  ) => {
-    const now = new Date().toISOString();
-    const id = store.createNode({
-      nodeType,
-      lifecycleStatus: 'Draft' as const,
-      status: 'Active' as const,
-      createdAt: now,
-      updatedAt: now,
-      ...data
-    } as Omit<PipelineNode, 'id'>);
+  const createNode = useCallback(
+    (
+      nodeType: NodeType,
+      parentId: string | null,
+      data: { description?: string; phase?: string; protocolTitle?: string; title: string }
+    ) => {
+      const now = new Date().toISOString();
+      const id = store.createNode({
+        createdAt: now,
+        lifecycleStatus: 'Draft' as const,
+        nodeType,
+        status: 'Active' as const,
+        updatedAt: now,
+        ...data
+      } as Omit<PipelineNode, 'id'>);
 
-    return id;
-  }, [store]);
+      return id;
+    },
+    [store]
+  );
 
-  const updateNode = useCallback((nodeId: string, updates: Partial<PipelineNode>) => {
-    store.updateNode(nodeId, updates);
-  }, [store]);
+  const updateNode = useCallback(
+    (nodeId: string, updates: Partial<PipelineNode>) => {
+      store.updateNode(nodeId, updates);
+    },
+    [store]
+  );
 
-  const deleteNode = useCallback((nodeId: string) => {
-    store.deleteNode(nodeId);
-  }, [store]);
+  const deleteNode = useCallback(
+    (nodeId: string) => {
+      store.deleteNode(nodeId);
+    },
+    [store]
+  );
 
-  const archiveNode = useCallback((nodeId: string) => {
-    store.updateNode(nodeId, { status: 'Archived' });
-  }, [store]);
+  const archiveNode = useCallback(
+    (nodeId: string) => {
+      store.updateNode(nodeId, { status: 'Archived' });
+    },
+    [store]
+  );
 
-  const restoreNode = useCallback((nodeId: string) => {
-    store.updateNode(nodeId, { status: 'Active' });
-  }, [store]);
+  const restoreNode = useCallback(
+    (nodeId: string) => {
+      store.updateNode(nodeId, { status: 'Active' });
+    },
+    [store]
+  );
 
   // ==================== Milestone Actions ====================
 
-  const createMilestone = useCallback((
-    data: Omit<IProjectMilestone, 'id' | 'createdAt' | 'updatedAt'>
-  ) => {
-    return store.createMilestone(data);
-  }, [store]);
+  const createMilestone = useCallback(
+    (data: Omit<IProjectMilestone, 'createdAt' | 'id' | 'updatedAt'>) => {
+      return store.createMilestone(data);
+    },
+    [store]
+  );
 
-  const updateMilestone = useCallback((milestoneId: string, updates: Partial<IProjectMilestone>) => {
-    store.updateMilestone(milestoneId, updates);
-  }, [store]);
+  const updateMilestone = useCallback(
+    (milestoneId: string, updates: Partial<IProjectMilestone>) => {
+      store.updateMilestone(milestoneId, updates);
+    },
+    [store]
+  );
 
-  const deleteMilestone = useCallback((milestoneId: string) => {
-    store.deleteMilestone(milestoneId);
-  }, [store]);
+  const deleteMilestone = useCallback(
+    (milestoneId: string) => {
+      store.deleteMilestone(milestoneId);
+    },
+    [store]
+  );
 
   // ==================== Study Config Actions ====================
 
-  const updateStudyConfig = useCallback((studyId: string, config: Partial<{
-    adamIgVersion: string;
-    adamModelVersion: string;
-    meddraVersion: string;
-    phase: string;
-    protocolTitle: string;
-    sdtmIgVersion: string;
-    sdtmModelVersion: string;
-    whodrugVersion: string;
-  }>) => {
-    store.updateStudyConfig({
-      studyId,
-      ...config
-    });
-  }, [store]);
+  const updateStudyConfig = useCallback(
+    (
+      studyId: string,
+      config: Partial<{
+        adamIgVersion: string;
+        adamModelVersion: string;
+        meddraVersion: string;
+        phase: string;
+        protocolTitle: string;
+        sdtmIgVersion: string;
+        sdtmModelVersion: string;
+        whodrugVersion: string;
+      }>
+    ) => {
+      store.updateStudyConfig({
+        studyId,
+        ...config
+      });
+    },
+    [store]
+  );
 
   // ==================== UI Actions ====================
 
-  const selectNode = useCallback((nodeId: string | null) => {
-    store.setSelectedNodeId(nodeId);
-  }, [store]);
+  const selectNode = useCallback(
+    (nodeId: string | null) => {
+      store.setSelectedNodeId(nodeId);
+    },
+    [store]
+  );
 
-  const setActiveTab = useCallback((tab: string) => {
-    store.setActiveTab(tab);
-  }, [store]);
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      store.setActiveTab(tab);
+    },
+    [store]
+  );
 
   // ==================== History Actions ====================
 
@@ -241,26 +283,26 @@ export function usePipelineActions(): UsePipelineActionsReturn {
   }, [store]);
 
   return {
-    loadTree,
+    archiveNode,
+    canRedo,
+    canUndo,
+    createMilestone,
+    createNode,
+    deleteMilestone,
+    deleteNode,
+    discardChanges,
+    isDirty: store.ui.isDirty,
     loadMilestones,
     loadStudyConfig,
-    createNode,
-    updateNode,
-    deleteNode,
-    archiveNode,
+    loadTree,
+    pendingChangesCount: store.getPendingChangesCount(),
+    redo,
     restoreNode,
-    createMilestone,
-    updateMilestone,
-    deleteMilestone,
-    updateStudyConfig,
     selectNode,
     setActiveTab,
     undo,
-    redo,
-    canUndo,
-    canRedo,
-    discardChanges,
-    isDirty: store.ui.isDirty,
-    pendingChangesCount: store.getPendingChangesCount()
+    updateMilestone,
+    updateNode,
+    updateStudyConfig
   };
 }

@@ -12,9 +12,7 @@ export function useUserPermissions() {
   const roleIdentifiers = useMemo(() => {
     if (myPermissions?.assigned_roles?.length) {
       return [
-        ...new Set(
-          myPermissions.assigned_roles.flatMap(assignment => [assignment.role.code, assignment.role.name])
-        )
+        ...new Set(myPermissions.assigned_roles.flatMap(assignment => [assignment.role.code, assignment.role.name]))
       ];
     }
     return userInfo?.roles || [];

@@ -82,6 +82,33 @@ class ARSDisplay(Base, TimestampMixin, SoftDeleteMixin):
         comment="扩展属性",
     )
 
+    # Study Template / Statistics Set 关联
+    source_template_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("ars_study_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="来源 Shell 模板 ID",
+    )
+    source_template_version: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="来源模板版本快照",
+    )
+    decimal_override: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Shell 级小数位覆盖",
+    )
+    statistics_set_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("statistics_sets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联的统计量集合 ID",
+    )
+
     # 审计字段
     created_by: Mapped[str] = mapped_column(
         String(100),

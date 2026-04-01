@@ -1,4 +1,4 @@
-import { expect, request, test, type APIRequestContext, type Page } from '@playwright/test';
+import { type APIRequestContext, type Page, expect, request, test } from '@playwright/test';
 
 const backendBaseUrl = 'http://127.0.0.1:8080';
 const adminCredentials = { password: 'admin123', userName: 'admin' };
@@ -22,7 +22,13 @@ async function createAdminApiContext(): Promise<APIRequestContext> {
   });
 }
 
-async function expectJson(response: Awaited<ReturnType<APIRequestContext['get']>> | Awaited<ReturnType<APIRequestContext['post']>> | Awaited<ReturnType<APIRequestContext['put']>> | Awaited<ReturnType<APIRequestContext['patch']>>) {
+async function expectJson(
+  response:
+    | Awaited<ReturnType<APIRequestContext['get']>>
+    | Awaited<ReturnType<APIRequestContext['post']>>
+    | Awaited<ReturnType<APIRequestContext['put']>>
+    | Awaited<ReturnType<APIRequestContext['patch']>>
+) {
   expect(response.ok()).toBeTruthy();
   const payload = await response.json();
   if (payload && typeof payload === 'object' && 'code' in payload && 'data' in payload && 'msg' in payload) {
@@ -69,8 +75,10 @@ test.describe('RBAC smoke', () => {
       const initiallyChecked = await trackerCheckbox.isChecked();
       await trackerCheckbox.click();
 
-      const saveResponsePromise = page.waitForResponse(response =>
-        response.url().includes(`/api/v1/rbac/roles/${viewerRole!.id}/permissions`) && response.request().method() === 'PUT'
+      const saveResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(`/api/v1/rbac/roles/${viewerRole!.id}/permissions`) &&
+          response.request().method() === 'PUT'
       );
       await page.getByTestId('role-permission-save').click();
       await saveResponsePromise;
@@ -78,7 +86,9 @@ test.describe('RBAC smoke', () => {
       const updatedRolesResponse = await api.get('/api/v1/rbac/roles');
       const updatedRoles = (await expectJson(updatedRolesResponse)) as Api.RBAC.Role[];
       const updatedViewerRole = updatedRoles.find(role => role.code === 'VIEWER');
-      expect(updatedViewerRole?.permissions.some(permission => permission.id === trackerPermission!.id)).toBe(!initiallyChecked);
+      expect(updatedViewerRole?.permissions.some(permission => permission.id === trackerPermission!.id)).toBe(
+        !initiallyChecked
+      );
     } finally {
       if (viewerRoleId != null && originalPermissionIds.length > 0) {
         await expectJson(
@@ -111,8 +121,8 @@ test.describe('RBAC smoke', () => {
     await createDialog.getByLabel('Department').fill(`DEV-${timestamp}`);
     await createDialog.getByLabel('Password').fill('password123');
 
-    const createResponsePromise = page.waitForResponse(response =>
-      response.url().includes('/api/v1/rbac/users') && response.request().method() === 'POST'
+    const createResponsePromise = page.waitForResponse(
+      response => response.url().includes('/api/v1/rbac/users') && response.request().method() === 'POST'
     );
     await createDialog.getByRole('button', { name: /确\s*定|OK/ }).click();
     await createResponsePromise;
@@ -131,8 +141,8 @@ test.describe('RBAC smoke', () => {
     await editInputs.nth(1).fill(updatedEmail);
     await editInputs.nth(2).fill(updatedDepartment);
 
-    const editResponsePromise = page.waitForResponse(response =>
-      response.url().includes('/api/v1/rbac/users/') && response.request().method() === 'PUT'
+    const editResponsePromise = page.waitForResponse(
+      response => response.url().includes('/api/v1/rbac/users/') && response.request().method() === 'PUT'
     );
     await editDialog.getByRole('button', { name: /保\s*存|Save/ }).click();
     await editResponsePromise;
@@ -140,8 +150,8 @@ test.describe('RBAC smoke', () => {
     await expect(userRow).toContainText(updatedDisplayName, { timeout: 15_000 });
     await expect(userRow).toContainText(updatedDepartment);
 
-    const statusResponsePromise = page.waitForResponse(response =>
-      response.url().includes('/status') && response.request().method() === 'PATCH'
+    const statusResponsePromise = page.waitForResponse(
+      response => response.url().includes('/status') && response.request().method() === 'PATCH'
     );
     await userRow.getByRole('button', { name: /删除|Delete/ }).click();
     await page.getByRole('button', { name: /确\s*定|OK/ }).click();
@@ -162,11 +172,11 @@ test.describe('RBAC smoke', () => {
 
       const createUserResponse = await api.post('/api/v1/rbac/users', {
         data: {
-          username: targetUsername,
-          email: `${targetUsername}@example.com`,
-          display_name: targetDisplayName,
           department: 'Automation',
-          password: 'password123'
+          display_name: targetDisplayName,
+          email: `${targetUsername}@example.com`,
+          password: 'password123',
+          username: targetUsername
         }
       });
       const createdUser = (await expectJson(createUserResponse)) as Api.RBAC.UserDetail;
@@ -218,8 +228,8 @@ test.describe('RBAC smoke', () => {
       await page.getByTestId('assign-team-role-select').click();
       await page.getByText(viewerRole!.name, { exact: true }).last().click();
 
-      const assignResponsePromise = page.waitForResponse(response =>
-        response.url().includes('/api/v1/rbac/assign-team') && response.request().method() === 'POST'
+      const assignResponsePromise = page.waitForResponse(
+        response => response.url().includes('/api/v1/rbac/assign-team') && response.request().method() === 'POST'
       );
       await page.getByTestId('assign-team-submit').click();
       await assignResponsePromise;

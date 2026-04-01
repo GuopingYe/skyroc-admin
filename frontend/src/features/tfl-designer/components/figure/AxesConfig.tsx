@@ -3,70 +3,74 @@
  *
  * Configure X/Y axis properties for figures
  */
-import { Card, Form, Input, InputNumber, Select, Space, Typography, Divider } from 'antd';
-import type { IAxisConfig, AxisType } from '../../types';
+import { Card, Divider, Form, Input, InputNumber, Select, Space, Typography } from 'antd';
 
-const { Title, Text } = Typography;
+import type { AxisType, IAxisConfig } from '../../types';
+
+const { Text, Title } = Typography;
 
 interface Props {
-  xAxis: IAxisConfig;
-  yAxis: IAxisConfig;
+  disabled?: boolean;
   onXAxisChange: (config: Partial<IAxisConfig>) => void;
   onYAxisChange: (config: Partial<IAxisConfig>) => void;
-  disabled?: boolean;
+  xAxis: IAxisConfig;
+  yAxis: IAxisConfig;
 }
 
-export default function AxesConfig({
-  xAxis,
-  yAxis,
-  onXAxisChange,
-  onYAxisChange,
-  disabled = false
-}: Props) {
+export default function AxesConfig({ disabled = false, onXAxisChange, onYAxisChange, xAxis, yAxis }: Props) {
   const [form] = Form.useForm();
 
   return (
-    <Card title="Axes Configuration" size="small">
+    <Card
+      size="small"
+      title="Axes Configuration"
+    >
       <Form
         form={form}
         layout="vertical"
         initialValues={{
           xLabel: xAxis.label,
-          xType: xAxis.type,
-          xRangeMin: xAxis.range?.[0],
-          xRangeMax: xAxis.range?.[1],
           xLogScale: xAxis.logScale,
+          xRangeMax: xAxis.range?.[1],
+          xRangeMin: xAxis.range?.[0],
           xTickFormat: xAxis.tickFormat,
+          xType: xAxis.type,
           yLabel: yAxis.label,
-          yType: yAxis.type,
-          yRangeMin: yAxis.range?.[0],
-          yRangeMax: yAxis.range?.[1],
           yLogScale: yAxis.logScale,
+          yRangeMax: yAxis.range?.[1],
+          yRangeMin: yAxis.range?.[0],
           yTickFormat: yAxis.tickFormat,
+          yType: yAxis.type
         }}
       >
         <Title level={5}>X Axis</Title>
-        <Space direction="vertical" size="small">
+        <Space
+          direction="vertical"
+          size="small"
+        >
           <Form.Item
-            name="xLabel"
             label="Label"
-            rules={[{ required: true, message: 'Required' }]}
+            name="xLabel"
+            rules={[{ message: 'Required', required: true }]}
           >
             <Input
-              placeholder="e.g., Time (days)"
               disabled={disabled}
+              placeholder="e.g., Time (days)"
               onChange={e => onXAxisChange({ label: e.target.value })}
             />
           </Form.Item>
 
-          <Form.Item name="xType" label="Type">
+          <Form.Item
+            label="Type"
+            name="xType"
+          >
             <Select
-              options={[
-                { value: 'continuous', label: 'Continuous' },
-                { value: 'categorical', label: 'Categorical' },
-                { value: 'date', label: 'Date' },
-              ]}
               disabled={disabled}
+              options={[
+                { label: 'Continuous', value: 'continuous' },
+                { label: 'Categorical', value: 'categorical' },
+                { label: 'Date', value: 'date' }
+              ]}
               onChange={e => onXAxisChange({ type: e as AxisType })}
             />
           </Form.Item>
@@ -74,44 +78,50 @@ export default function AxesConfig({
           <Form.Item label="Range">
             <Space size="small">
               <InputNumber
-                placeholder="Min"
-                value={xAxis.range?.[0]}
                 disabled={disabled}
-                onChange={value => value !== null && onXAxisChange({ range: [value, xAxis.range?.[1] ?? 0] })}
+                placeholder="Min"
                 style={{ width: 100 }}
+                value={xAxis.range?.[0]}
+                onChange={value => value !== null && onXAxisChange({ range: [value, xAxis.range?.[1] ?? 0] })}
               />
               <InputNumber
-                placeholder="Max"
-                value={xAxis.range?.[1]}
                 disabled={disabled}
-                onChange={value => value !== null && onXAxisChange({ range: [xAxis.range?.[0] ?? 0, value] })}
+                placeholder="Max"
                 style={{ width: 100 }}
+                value={xAxis.range?.[1]}
+                onChange={value => value !== null && onXAxisChange({ range: [xAxis.range?.[0] ?? 0, value] })}
               />
             </Space>
           </Form.Item>
 
-          <Form.Item name="xLogScale" valuePropName="checked">
+          <Form.Item
+            name="xLogScale"
+            valuePropName="checked"
+          >
             <Space>
               <Text>Log Scale</Text>
               <Input
-                type="checkbox"
                 disabled={disabled}
+                type="checkbox"
                 onChange={e => onXAxisChange({ logScale: e.target.checked })}
               />
             </Space>
           </Form.Item>
 
-          <Form.Item name="xTickFormat" label="Tick Format">
+          <Form.Item
+            label="Tick Format"
+            name="xTickFormat"
+          >
             <Select
-              options={[
-                { value: '', label: 'Default' },
-                { value: '.1f', label: '0.1' },
-                { value: '.2f', label: '0.12' },
-                { value: '.1%', label: '0.1%' },
-                { value: '.2%', label: '0.2%' },
-                { value: '.0f', label: 'Integer' },
-              ]}
               disabled={disabled}
+              options={[
+                { label: 'Default', value: '' },
+                { label: '0.1', value: '.1f' },
+                { label: '0.12', value: '.2f' },
+                { label: '0.1%', value: '.1%' },
+                { label: '0.2%', value: '.2%' },
+                { label: 'Integer', value: '.0f' }
+              ]}
               onChange={value => onXAxisChange({ tickFormat: value })}
             />
           </Form.Item>
@@ -120,27 +130,33 @@ export default function AxesConfig({
         <Divider />
 
         <Title level={5}>Y Axis</Title>
-        <Space direction="vertical" size="small">
+        <Space
+          direction="vertical"
+          size="small"
+        >
           <Form.Item
-            name="yLabel"
             label="Label"
-            rules={[{ required: true, message: 'Required' }]}
+            name="yLabel"
+            rules={[{ message: 'Required', required: true }]}
           >
             <Input
-              placeholder="e.g., Survival Probability"
               disabled={disabled}
+              placeholder="e.g., Survival Probability"
               onChange={e => onYAxisChange({ label: e.target.value })}
             />
           </Form.Item>
 
-          <Form.Item name="yType" label="Type">
+          <Form.Item
+            label="Type"
+            name="yType"
+          >
             <Select
-              options={[
-                { value: 'continuous', label: 'Continuous' },
-                { value: 'categorical', label: 'Categorical' },
-                { value: 'date', label: 'Date' },
-              ]}
               disabled={disabled}
+              options={[
+                { label: 'Continuous', value: 'continuous' },
+                { label: 'Categorical', value: 'categorical' },
+                { label: 'Date', value: 'date' }
+              ]}
               onChange={e => onYAxisChange({ type: e as AxisType })}
             />
           </Form.Item>
@@ -148,44 +164,50 @@ export default function AxesConfig({
           <Form.Item label="Range">
             <Space size="small">
               <InputNumber
-                placeholder="Min"
-                value={yAxis.range?.[0]}
                 disabled={disabled}
-                onChange={value => value !== null && onYAxisChange({ range: [value, yAxis.range?.[1] ?? 0] })}
+                placeholder="Min"
                 style={{ width: 100 }}
+                value={yAxis.range?.[0]}
+                onChange={value => value !== null && onYAxisChange({ range: [value, yAxis.range?.[1] ?? 0] })}
               />
               <InputNumber
-                placeholder="Max"
-                value={yAxis.range?.[1]}
                 disabled={disabled}
-                onChange={value => value !== null && onYAxisChange({ range: [yAxis.range?.[0] ?? 0, value] })}
+                placeholder="Max"
                 style={{ width: 100 }}
+                value={yAxis.range?.[1]}
+                onChange={value => value !== null && onYAxisChange({ range: [yAxis.range?.[0] ?? 0, value] })}
               />
             </Space>
           </Form.Item>
 
-          <Form.Item name="yLogScale" valuePropName="checked">
+          <Form.Item
+            name="yLogScale"
+            valuePropName="checked"
+          >
             <Space>
               <Text>Log Scale</Text>
               <Input
-                type="checkbox"
                 disabled={disabled}
+                type="checkbox"
                 onChange={e => onYAxisChange({ logScale: e.target.checked })}
               />
             </Space>
           </Form.Item>
 
-          <Form.Item name="yTickFormat" label="Tick Format">
+          <Form.Item
+            label="Tick Format"
+            name="yTickFormat"
+          >
             <Select
-              options={[
-                { value: '', label: 'Default' },
-                { value: '.1f', label: '0.1' },
-                { value: '.2f', label: '0.12' },
-                { value: '.1%', label: '0.1%' },
-                { value: '.2%', label: '0.2%' },
-                { value: '.0f', label: 'Integer' },
-              ]}
               disabled={disabled}
+              options={[
+                { label: 'Default', value: '' },
+                { label: '0.1', value: '.1f' },
+                { label: '0.12', value: '.2f' },
+                { label: '0.1%', value: '.1%' },
+                { label: '0.2%', value: '.2%' },
+                { label: 'Integer', value: '.0f' }
+              ]}
               onChange={value => onYAxisChange({ tickFormat: value })}
             />
           </Form.Item>

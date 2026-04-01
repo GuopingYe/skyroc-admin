@@ -1,45 +1,54 @@
 /**
  * TFL Builder - Figure Preview
  *
- * Interactive chart preview using ECharts (direct init for full control).
- * Supports: line, bar, scatter, box, km_curve, forest, waterfall
+ * Interactive chart preview using ECharts (direct init for full control). Supports: line, bar, scatter, box, km_curve,
+ * forest, waterfall
  *
- * Chart type switches are handled by destroying and re-initialising the
- * ECharts instance (via React key) so no stale series / axes remain.
+ * Chart type switches are handled by destroying and re-initialising the ECharts instance (via React key) so no stale
+ * series / axes remain.
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { Space, Button, Tag, Tooltip, Empty, Alert, Typography } from 'antd';
 import { DownloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import * as echarts from 'echarts/core';
+import { Alert, Button, Empty, Space, Tag, Tooltip, Typography } from 'antd';
 import { BarChart, BoxplotChart, LineChart, ScatterChart } from 'echarts/charts';
-import {
-  GridComponent, LegendComponent, TitleComponent, TooltipComponent, DatasetComponent,
-} from 'echarts/components';
+import { DatasetComponent, GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components';
+import * as echarts from 'echarts/core';
 import { LabelLayout, UniversalTransition } from 'echarts/features';
 import { CanvasRenderer } from 'echarts/renderers';
-import type { ECOption } from '@/hooks/common/echarts';
-import type { IAxisConfig, IChartSeries, ChartType, IFigureStyle, ILegendConfig } from '../../types';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import type { ECOption } from '@/hooks/common/echarts';
+
+import type { ChartType, IAxisConfig, IChartSeries, IFigureStyle, ILegendConfig } from '../../types';
 
 const { Text } = Typography;
 
 // Register ECharts modules for figure preview
 echarts.use([
-  TitleComponent, LegendComponent, TooltipComponent, GridComponent,
-  DatasetComponent, BarChart, BoxplotChart, LineChart, ScatterChart,
-  LabelLayout, UniversalTransition, CanvasRenderer,
+  TitleComponent,
+  LegendComponent,
+  TooltipComponent,
+  GridComponent,
+  DatasetComponent,
+  BarChart,
+  BoxplotChart,
+  LineChart,
+  ScatterChart,
+  LabelLayout,
+  UniversalTransition,
+  CanvasRenderer
 ]);
 
 // ==================== Types ====================
 
 interface FigureConfig {
   chartType: ChartType;
+  legend?: Partial<ILegendConfig>;
+  series: IChartSeries[];
+  style?: IFigureStyle;
+  title?: string;
   xAxis: Partial<IAxisConfig>;
   yAxis: Partial<IAxisConfig>;
-  series: IChartSeries[];
-  title?: string;
-  legend?: Partial<ILegendConfig>;
-  style?: IFigureStyle;
 }
 
 interface Props {
@@ -93,7 +102,7 @@ function generateBoxPlotData(count: number, groupIndex: number): number[] {
 }
 
 function generateKMCurve(
-  _series: { name?: string; color?: string },
+  _series: { color?: string; name?: string },
   index: number
 ): { xData: number[]; yData: number[] } {
   const rng = seededRandom(index * 3000 + 7);
@@ -116,128 +125,139 @@ function buildLegendData(series: IChartSeries[]): string[] {
 function buildBoxPlotSummary(data: number[]): [number, number, number, number, number] {
   const sorted = [...data].sort((a, b) => a - b);
   const n = sorted.length;
-  return [sorted[0], sorted[Math.floor(n * 0.25)], sorted[Math.floor(n * 0.5)], sorted[Math.floor(n * 0.75)], sorted[n - 1]];
+  return [
+    sorted[0],
+    sorted[Math.floor(n * 0.25)],
+    sorted[Math.floor(n * 0.5)],
+    sorted[Math.floor(n * 0.75)],
+    sorted[n - 1]
+  ];
 }
 
 // ==================== ECharts Option Builders ====================
 
 function buildLineOptions(config: FigureConfig): ECOption {
-  const { series = [], xAxis = {}, yAxis = {}, title = '', legend } = config;
+  const { legend, series = [], title = '', xAxis = {}, yAxis = {} } = config;
   const xValues = generateSampleX(xAxis.type, 20);
 
   return {
-    title: { text: title || 'Line Chart', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: buildLegendData(series), bottom: 0, type: legend?.orientation === 'horizontal' ? 'scroll' : 'plain' },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: {
-      type: xAxis.type === 'categorical' ? 'category' : 'value',
-      name: xAxis.label || 'X-Axis',
-      data: xAxis.type === 'categorical' ? (xValues as string[]) : undefined,
-      axisLine: { lineStyle: { color: '#999' } },
-      splitLine: { lineStyle: { color: '#eee' } },
-    },
-    yAxis: {
-      type: yAxis.type === 'categorical' ? 'category' : 'value',
-      name: yAxis.label || 'Y-Axis',
-      min: yAxis.range?.[0],
-      max: yAxis.range?.[1],
-      axisLine: { lineStyle: { color: '#999' } },
-      splitLine: { lineStyle: { color: '#eee' } },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
+    legend: {
+      bottom: 0,
+      data: buildLegendData(series),
+      type: legend?.orientation === 'horizontal' ? 'scroll' : 'plain'
     },
     series: series.map((s, index) => ({
-      name: s.name || `Series ${index + 1}`,
-      type: 'line' as const,
       data: generateSampleY(20, index),
+      itemStyle: { color: s.color },
+      lineStyle: {
+        color: s.color,
+        type:
+          s.line?.dash === 'dash'
+            ? ('dashed' as const)
+            : s.line?.dash === 'dot'
+              ? ('dotted' as const)
+              : ('solid' as const),
+        width: s.line?.width || 2
+      },
+      name: s.name || `Series ${index + 1}`,
       smooth: false,
       symbol: s.marker?.symbol || 'circle',
       symbolSize: s.marker?.size || 8,
-      lineStyle: {
-        width: s.line?.width || 2,
-        type: s.line?.dash === 'dash' ? 'dashed' as const : s.line?.dash === 'dot' ? 'dotted' as const : 'solid' as const,
-        color: s.color,
-      },
-      itemStyle: { color: s.color },
+      type: 'line' as const
     })),
+    title: { left: 'center', text: title || 'Line Chart', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    xAxis: {
+      axisLine: { lineStyle: { color: '#999' } },
+      data: xAxis.type === 'categorical' ? (xValues as string[]) : undefined,
+      name: xAxis.label || 'X-Axis',
+      splitLine: { lineStyle: { color: '#eee' } },
+      type: xAxis.type === 'categorical' ? 'category' : 'value'
+    },
+    yAxis: {
+      axisLine: { lineStyle: { color: '#999' } },
+      max: yAxis.range?.[1],
+      min: yAxis.range?.[0],
+      name: yAxis.label || 'Y-Axis',
+      splitLine: { lineStyle: { color: '#eee' } },
+      type: yAxis.type === 'categorical' ? 'category' : 'value'
+    }
   };
 }
 
 function buildBarOptions(config: FigureConfig): ECOption {
-  const { series = [], xAxis = {}, yAxis = {}, title = '' } = config;
+  const { series = [], title = '', xAxis = {}, yAxis = {} } = config;
   const categories = generateCategories(5);
 
   return {
-    title: { text: title || 'Bar Chart', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: buildLegendData(series), bottom: 0, type: 'scroll' },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: { type: 'category', name: xAxis.label || 'X-Axis', data: categories },
-    yAxis: { type: 'value', name: yAxis.label || 'Y-Axis', min: yAxis.range?.[0], max: yAxis.range?.[1] },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
+    legend: { bottom: 0, data: buildLegendData(series), type: 'scroll' },
     series: series.map((s, index) => ({
-      name: s.name || `Series ${index + 1}`,
-      type: 'bar' as const,
-      data: generateSampleY(5, index, true),
-      itemStyle: { color: s.color, borderRadius: [4, 4, 0, 0] },
-      barGap: '20%',
       barCategoryGap: '30%',
+      barGap: '20%',
+      data: generateSampleY(5, index, true),
+      itemStyle: { borderRadius: [4, 4, 0, 0], color: s.color },
+      name: s.name || `Series ${index + 1}`,
+      type: 'bar' as const
     })),
+    title: { left: 'center', text: title || 'Bar Chart', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
+    tooltip: { trigger: 'axis' },
+    xAxis: { data: categories, name: xAxis.label || 'X-Axis', type: 'category' },
+    yAxis: { max: yAxis.range?.[1], min: yAxis.range?.[0], name: yAxis.label || 'Y-Axis', type: 'value' }
   };
 }
 
 function buildScatterOptions(config: FigureConfig): ECOption {
-  const { series = [], xAxis = {}, yAxis = {}, title = '' } = config;
+  const { series = [], title = '', xAxis = {}, yAxis = {} } = config;
 
   return {
-    title: { text: title || 'Scatter Plot', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'item' },
-    legend: { data: buildLegendData(series), bottom: 0, type: 'scroll' },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: { type: 'value', name: xAxis.label || 'X-Axis' },
-    yAxis: { type: 'value', name: yAxis.label || 'Y-Axis', min: yAxis.range?.[0], max: yAxis.range?.[1] },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
+    legend: { bottom: 0, data: buildLegendData(series), type: 'scroll' },
     series: series.map((s, index) => ({
-      name: s.name || `Series ${index + 1}`,
-      type: 'scatter' as const,
       data: generateSampleX('continuous', 30).map((x, i) => [x, generateSampleY(30, index)[i]]),
-      symbolSize: s.marker?.size || 10,
       itemStyle: { color: s.color },
+      name: s.name || `Series ${index + 1}`,
+      symbolSize: s.marker?.size || 10,
+      type: 'scatter' as const
     })),
+    title: { left: 'center', text: title || 'Scatter Plot', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
+    tooltip: { trigger: 'item' },
+    xAxis: { name: xAxis.label || 'X-Axis', type: 'value' },
+    yAxis: { max: yAxis.range?.[1], min: yAxis.range?.[0], name: yAxis.label || 'Y-Axis', type: 'value' }
   };
 }
 
 function buildBoxPlotOptions(config: FigureConfig): ECOption {
-  const { series = [], yAxis = {}, title = '' } = config;
+  const { series = [], title = '', yAxis = {} } = config;
   const categories = generateCategories(series.length || 3);
 
   return {
-    title: { text: title || 'Box Plot', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'item' },
-    legend: { data: buildLegendData(series), bottom: 0, type: 'scroll' },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: { type: 'category', data: categories },
-    yAxis: { type: 'value', name: yAxis.label || 'Value', min: yAxis.range?.[0], max: yAxis.range?.[1] },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
+    legend: { bottom: 0, data: buildLegendData(series), type: 'scroll' },
     series: series.map((s, index) => {
       const rawData = generateBoxPlotData(50, index);
       const summary = buildBoxPlotSummary(rawData);
       return {
-        name: s.name || `Group ${index + 1}`,
-        type: 'boxplot' as const,
         data: [summary],
-        itemStyle: { color: s.color || undefined, borderColor: s.color || '#1890ff' },
+        itemStyle: { borderColor: s.color || '#1890ff', color: s.color || undefined },
+        name: s.name || `Group ${index + 1}`,
+        type: 'boxplot' as const
       };
     }),
+    title: { left: 'center', text: title || 'Box Plot', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
+    tooltip: { trigger: 'item' },
+    xAxis: { data: categories, type: 'category' },
+    yAxis: { max: yAxis.range?.[1], min: yAxis.range?.[0], name: yAxis.label || 'Value', type: 'value' }
   };
 }
 
 function buildKMCurveOptions(config: FigureConfig): ECOption {
-  const { series = [], xAxis = {}, yAxis = {}, title = '' } = config;
+  const { series = [], title = '', xAxis = {}, yAxis = {} } = config;
 
   return {
-    title: { text: title || 'Kaplan-Meier Survival Curve', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: buildLegendData(series), bottom: 0, type: 'scroll' },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: { type: 'value', name: xAxis.label || 'Time (days)' },
-    yAxis: { type: 'value', name: yAxis.label || 'Survival Probability', min: 0, max: 1 },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
+    legend: { bottom: 0, data: buildLegendData(series), type: 'scroll' },
     series: series.map((s, index) => {
       const { xData, yData } = generateKMCurve(s, index);
       const stepData: [number, number, number, number][] = [];
@@ -249,15 +269,23 @@ function buildKMCurveOptions(config: FigureConfig): ECOption {
         }
       }
       return {
-        name: s.name || `Treatment ${index + 1}`,
-        type: 'line' as const,
+        areaStyle: { color: s.color, opacity: 0.05 },
         data: stepData,
-        step: 'end' as const,
+        lineStyle: { color: s.color, width: 2 },
+        name: s.name || `Treatment ${index + 1}`,
         showSymbol: false,
-        lineStyle: { width: 2, color: s.color },
-        areaStyle: { opacity: 0.05, color: s.color },
+        step: 'end' as const,
+        type: 'line' as const
       };
     }),
+    title: {
+      left: 'center',
+      text: title || 'Kaplan-Meier Survival Curve',
+      textStyle: { fontFamily: 'Arial', fontSize: 14 }
+    },
+    tooltip: { trigger: 'axis' },
+    xAxis: { name: xAxis.label || 'Time (days)', type: 'value' },
+    yAxis: { max: 1, min: 0, name: yAxis.label || 'Survival Probability', type: 'value' }
   };
 }
 
@@ -265,7 +293,7 @@ function buildKMCurveOptions(config: FigureConfig): ECOption {
 // Scatter for point estimates + line series with null-separated segments for CI whiskers.
 
 function buildForestPlotOptions(config: FigureConfig): ECOption {
-  const { series = [], xAxis = {}, yAxis = {}, title = '' } = config;
+  const { series = [], title = '', xAxis = {}, yAxis = {} } = config;
   const subgroups = ['Age < 65', 'Age >= 65', 'Male', 'Female', 'Overall'];
   const rng = seededRandom(9999);
 
@@ -274,7 +302,7 @@ function buildForestPlotOptions(config: FigureConfig): ECOption {
     const hr = 0.7 + rng() * 0.6;
     const lo = Math.max(0.1, hr - 0.12 - rng() * 0.2);
     const hi = hr + 0.12 + rng() * 0.2;
-    return { hr, lo, hi };
+    return { hi, hr, lo };
   });
 
   const refLine = 1; // null-effect line at HR = 1
@@ -289,71 +317,78 @@ function buildForestPlotOptions(config: FigureConfig): ECOption {
   });
 
   return {
-    title: { text: title || 'Forest Plot', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
+    grid: { bottom: 60, left: 120, right: 40, top: 50 },
+    legend: { bottom: 0, data: [...buildLegendData(series), '95% CI'] },
+    series: [
+      // Null-effect reference line at HR = 1
+      {
+        data: [
+          [refLine, 0],
+          [refLine, subgroups.length - 1]
+        ],
+        lineStyle: { color: '#ccc', type: 'dashed', width: 1 },
+        name: 'Null effect',
+        silent: true,
+        symbol: 'none' as const,
+        tooltip: { show: false },
+        type: 'line' as const
+      },
+      // Point estimates (scatter)
+      ...(series.length > 0
+        ? series.map((s, _sIdx) => ({
+            data: plotData.map((d, i) => [d.hr, i]),
+            itemStyle: { color: s.color || '#1890ff' },
+            name: s.name || 'HR',
+            symbolSize: 10,
+            type: 'scatter' as const,
+            z: 10
+          }))
+        : [
+            {
+              data: plotData.map((d, i) => [d.hr, i]),
+              itemStyle: { color: '#1890ff' },
+              name: 'HR',
+              symbolSize: 10,
+              type: 'scatter' as const,
+              z: 10
+            }
+          ]),
+      // CI whisker lines
+      {
+        data: ciLineData,
+        lineStyle: { color: '#666', width: 2 },
+        name: '95% CI',
+        showSymbol: false,
+        silent: true,
+        symbol: 'none' as const,
+        tooltip: { show: false },
+        type: 'line' as const,
+        z: 5
+      }
+    ],
+    title: { left: 'center', text: title || 'Forest Plot', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
     tooltip: {
-      trigger: 'item',
       formatter: (params: any) => {
         if (params.seriesName === '95% CI' || params.componentType !== 'series') return '';
         const d = plotData[params.dataIndex as number];
         if (!d) return params.name;
         return `${subgroups[params.dataIndex]}<br/>HR = ${d.hr.toFixed(2)} [${d.lo.toFixed(2)}, ${d.hi.toFixed(2)}]`;
       },
+      trigger: 'item'
     },
-    legend: { data: [...buildLegendData(series), '95% CI'], bottom: 0 },
-    grid: { left: 120, right: 40, top: 50, bottom: 60 },
     xAxis: {
-      type: 'value',
-      name: xAxis.label || 'Hazard Ratio (95% CI)',
-      min: xAxis.range?.[0] ?? 0.3,
-      max: xAxis.range?.[1] ?? 2.5,
       axisLine: { lineStyle: { color: '#999' } },
+      max: xAxis.range?.[1] ?? 2.5,
+      min: xAxis.range?.[0] ?? 0.3,
+      name: xAxis.label || 'Hazard Ratio (95% CI)',
+      type: 'value'
     },
     yAxis: {
-      type: 'category',
-      data: subgroups,
       axisLine: { lineStyle: { color: '#999' } },
+      data: subgroups,
       splitLine: { show: false },
-    },
-    series: [
-      // Null-effect reference line at HR = 1
-      {
-        name: 'Null effect',
-        type: 'line' as const,
-        data: [[refLine, 0], [refLine, subgroups.length - 1]],
-        lineStyle: { type: 'dashed', color: '#ccc', width: 1 },
-        symbol: 'none' as const,
-        silent: true,
-        tooltip: { show: false },
-      },
-      // Point estimates (scatter)
-      ...(series.length > 0 ? series.map((s, _sIdx) => ({
-        name: s.name || 'HR',
-        type: 'scatter' as const,
-        data: plotData.map((d, i) => [d.hr, i]),
-        symbolSize: 10,
-        itemStyle: { color: s.color || '#1890ff' },
-        z: 10,
-      })) : [{
-        name: 'HR',
-        type: 'scatter' as const,
-        data: plotData.map((d, i) => [d.hr, i]),
-        symbolSize: 10,
-        itemStyle: { color: '#1890ff' },
-        z: 10,
-      }]),
-      // CI whisker lines
-      {
-        name: '95% CI',
-        type: 'line' as const,
-        data: ciLineData,
-        lineStyle: { width: 2, color: '#666' },
-        symbol: 'none' as const,
-        showSymbol: false,
-        silent: true,
-        tooltip: { show: false },
-        z: 5,
-      },
-    ],
+      type: 'category'
+    }
   };
 }
 
@@ -362,13 +397,11 @@ function buildForestPlotOptions(config: FigureConfig): ECOption {
 // Per official ECharts cookbook: https://echarts.apache.org/handbook/en/how-to/chart-types/bar/waterfall/
 
 function buildWaterfallOptions(config: FigureConfig): ECOption {
-  const { xAxis = {}, yAxis = {}, title = '', series = [] } = config;
+  const { series = [], title = '', xAxis = {}, yAxis = {} } = config;
   const rng = seededRandom(5555);
 
   // Clinical waterfall categories (tumor response)
-  const categories = [
-    'Screening', 'Cycle 1', 'Cycle 2', 'Cycle 3', 'Cycle 4', 'Cycle 5', 'Cycle 6', 'End of Tx',
-  ];
+  const categories = ['Screening', 'Cycle 1', 'Cycle 2', 'Cycle 3', 'Cycle 4', 'Cycle 5', 'Cycle 6', 'End of Tx'];
 
   // Generate change values (positive = increase, negative = decrease)
   const data = categories.map((_, i) => {
@@ -393,12 +426,10 @@ function buildWaterfallOptions(config: FigureConfig): ECOption {
     }
     if (i === 0) {
       help.push(0);
+    } else if (data[i] < 0) {
+      help.push(sum + data[i]);
     } else {
-      if (data[i] < 0) {
-        help.push(sum + data[i]);
-      } else {
-        help.push(sum);
-      }
+      help.push(sum);
     }
     sum += data[i];
   }
@@ -406,50 +437,50 @@ function buildWaterfallOptions(config: FigureConfig): ECOption {
   const seriesColor = series.length > 0 ? series[0].color : '#1890ff';
 
   return {
-    title: { text: title || 'Waterfall Plot', left: 'center', textStyle: { fontSize: 14, fontFamily: 'Arial' } },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: 80, right: 40, top: 50, bottom: 60 },
-    xAxis: {
-      type: 'category',
-      name: xAxis.label || 'Visit',
-      data: categories,
-      axisLine: { lineStyle: { color: '#999' } },
-      splitLine: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      name: yAxis.label || 'Sum (%)',
-      axisLine: { lineStyle: { color: '#999' } },
-      splitLine: { lineStyle: { color: '#eee' } },
-    },
+    grid: { bottom: 60, left: 80, right: 40, top: 50 },
     series: [
       // Transparent helper — creates the floating bar effect
       {
-        name: 'Helper',
-        type: 'bar' as const,
-        stack: 'all',
-        itemStyle: { borderColor: 'rgba(0,0,0,0)', color: 'rgba(0,0,0,0)' },
-        emphasis: { itemStyle: { borderColor: 'rgba(0,0,0,0)', color: 'rgba(0,0,0,0)' } },
         data: help,
+        emphasis: { itemStyle: { borderColor: 'rgba(0,0,0,0)', color: 'rgba(0,0,0,0)' } },
+        itemStyle: { borderColor: 'rgba(0,0,0,0)', color: 'rgba(0,0,0,0)' },
+        name: 'Helper',
+        stack: 'all',
         tooltip: { show: false },
+        type: 'bar' as const
       },
       // Positive changes
       {
-        name: 'Increase',
-        type: 'bar' as const,
-        stack: 'all',
-        itemStyle: { color: '#52c41a', borderRadius: [4, 4, 0, 0] },
         data: positive,
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: '#52c41a' },
+        name: 'Increase',
+        stack: 'all',
+        type: 'bar' as const
       },
       // Negative changes
       {
-        name: 'Decrease',
-        type: 'bar' as const,
-        stack: 'all',
-        itemStyle: { color: '#ff4d4f', borderRadius: [0, 0, 4, 4] },
         data: negative,
-      },
+        itemStyle: { borderRadius: [0, 0, 4, 4], color: '#ff4d4f' },
+        name: 'Decrease',
+        stack: 'all',
+        type: 'bar' as const
+      }
     ],
+    title: { left: 'center', text: title || 'Waterfall Plot', textStyle: { fontFamily: 'Arial', fontSize: 14 } },
+    tooltip: { axisPointer: { type: 'shadow' }, trigger: 'axis' },
+    xAxis: {
+      axisLine: { lineStyle: { color: '#999' } },
+      data: categories,
+      name: xAxis.label || 'Visit',
+      splitLine: { show: false },
+      type: 'category'
+    },
+    yAxis: {
+      axisLine: { lineStyle: { color: '#999' } },
+      name: yAxis.label || 'Sum (%)',
+      splitLine: { lineStyle: { color: '#eee' } },
+      type: 'value'
+    }
   };
 }
 
@@ -457,20 +488,28 @@ function buildWaterfallOptions(config: FigureConfig): ECOption {
 
 function buildChartOptions(config: FigureConfig): ECOption {
   switch (config.chartType) {
-    case 'line': return buildLineOptions(config);
-    case 'bar': return buildBarOptions(config);
-    case 'scatter': return buildScatterOptions(config);
-    case 'box': return buildBoxPlotOptions(config);
-    case 'km_curve': return buildKMCurveOptions(config);
-    case 'forest': return buildForestPlotOptions(config);
-    case 'waterfall': return buildWaterfallOptions(config);
-    default: return buildLineOptions(config);
+    case 'line':
+      return buildLineOptions(config);
+    case 'bar':
+      return buildBarOptions(config);
+    case 'scatter':
+      return buildScatterOptions(config);
+    case 'box':
+      return buildBoxPlotOptions(config);
+    case 'km_curve':
+      return buildKMCurveOptions(config);
+    case 'forest':
+      return buildForestPlotOptions(config);
+    case 'waterfall':
+      return buildWaterfallOptions(config);
+    default:
+      return buildLineOptions(config);
   }
 }
 
 const SUPPORTED_CHART_TYPES = new Set<ChartType>(['line', 'bar', 'scatter', 'box', 'km_curve', 'forest', 'waterfall']);
 const UNSUPPORTED_CHART_TYPES: Partial<Record<ChartType, string>> = {
-  violin: 'Violin Plot',
+  violin: 'Violin Plot'
 };
 
 // ==================== Component ====================
@@ -481,14 +520,22 @@ export default function FigurePreview({ config, loading = false, onStyleChange }
   const chartRef = useRef<echarts.ECharts | null>(null);
 
   const chartType = config?.chartType || '';
-  const isUnsupported = !!UNSUPPORTED_CHART_TYPES[chartType as ChartType];
+  const isUnsupported = Boolean(UNSUPPORTED_CHART_TYPES[chartType as ChartType]);
 
   const chartOptions = useMemo(() => {
     if (!config || !config.chartType || isUnsupported) return null;
     return buildChartOptions(config);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.chartType, config?.title, config?.xAxis?.label, config?.xAxis?.type,
-    config?.yAxis?.label, config?.yAxis?.range, config?.series?.length, isUnsupported]);
+  }, [
+    config?.chartType,
+    config?.title,
+    config?.xAxis?.label,
+    config?.xAxis?.type,
+    config?.yAxis?.label,
+    config?.yAxis?.range,
+    config?.series?.length,
+    isUnsupported
+  ]);
 
   // Init / update chart — key ensures full re-init on chart type switch
   useEffect(() => {
@@ -526,30 +573,37 @@ export default function FigurePreview({ config, loading = false, onStyleChange }
 
   if (!config || !config.chartType) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[300px]">
+      <div className="h-full min-h-[300px] flex items-center justify-center">
         <Empty description={t('page.mdr.tflDesigner.figureHints.selectChartType')} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8px h-full overflow-auto">
+    <div className="h-full flex flex-col gap-8px overflow-auto">
       {/* Hints */}
       {hints.length > 0 && (
         <Alert
-          type={isUnsupported ? 'warning' : 'info'}
           showIcon
           icon={<InfoCircleOutlined />}
+          type={isUnsupported ? 'warning' : 'info'}
           message={
             <div className="flex flex-col gap-2px">
-              {hints.map((hint, i) => <Text key={i} className="text-12px">{hint}</Text>)}
+              {hints.map((hint, i) => (
+                <Text
+                  className="text-12px"
+                  key={i}
+                >
+                  {hint}
+                </Text>
+              ))}
             </div>
           }
         />
       )}
 
       {/* Chart type tag + export */}
-      <div className="flex items-center justify-between flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center justify-between">
         <Space>
           <Tag>{config.chartType}</Tag>
           {config.xAxis?.logScale && <Tag color="blue">Log Scale (X)</Tag>}
@@ -557,7 +611,9 @@ export default function FigurePreview({ config, loading = false, onStyleChange }
         </Space>
         <Tooltip title="Export as PNG">
           <Button
-            type="text" size="small" icon={<DownloadOutlined />}
+            icon={<DownloadOutlined />}
+            size="small"
+            type="text"
             onClick={() => {
               const canvas = domRef.current?.querySelector('canvas');
               if (canvas) {
@@ -574,14 +630,17 @@ export default function FigurePreview({ config, loading = false, onStyleChange }
 
       {/* Chart container — key forces re-mount on chart type change */}
       {isUnsupported ? (
-        <div className="flex items-center justify-center bg-gray-50 rounded flex-1 min-h-[300px]">
-          <Empty description={`${UNSUPPORTED_CHART_TYPES[config.chartType]} — coming soon`} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <div className="min-h-[300px] flex flex-1 items-center justify-center rounded bg-gray-50">
+          <Empty
+            description={`${UNSUPPORTED_CHART_TYPES[config.chartType]} — coming soon`}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
         </div>
       ) : (
         <div
+          className="min-h-[300px] w-full flex-1 rounded bg-gray-50"
           key={chartType}
           ref={domRef}
-          className="w-full bg-gray-50 rounded flex-1 min-h-[300px]"
         />
       )}
     </div>

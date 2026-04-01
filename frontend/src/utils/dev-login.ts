@@ -4,18 +4,19 @@
  * 在开发环境下自动使用默认账号登录，方便开发调试
  */
 
-import { clearAuthStorage } from '@/features/auth/shared';
 import { setToken } from '@/features/auth/authStore';
+import { clearAuthStorage } from '@/features/auth/shared';
 import { store } from '@/store';
 import { localStg } from '@/utils/storage';
 
 /** 缓存的登录 Promise，确保同一时间只有一个登录请求在进行 */
 let loginPromise: Promise<string | null> | null = null;
 
-/** 开发模式自动登录
- * 如果没有 token 或 token 已过期，则使用默认账号密码登录
+/**
+ * 开发模式自动登录 如果没有 token 或 token 已过期，则使用默认账号密码登录
  *
  * 特性：
+ *
  * - 幂等性：多次调用只会发起一次登录请求
  * - 缓存：成功登录后直接返回缓存的 token
  */
@@ -41,7 +42,7 @@ export async function devAutoLogin(): Promise<string | null> {
         // 验证 token 是否有效
         try {
           const verifyResp = await fetch('/proxy-default/api/v1/auth/getUserInfo', {
-            headers: { 'Authorization': `Bearer ${existingToken}` }
+            headers: { Authorization: `Bearer ${existingToken}` }
           });
           if (verifyResp.ok) {
             const verifyData = await verifyResp.json();

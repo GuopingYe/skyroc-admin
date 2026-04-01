@@ -1,51 +1,52 @@
 /**
  * useTFLData - TFL Shell Data Management Hook
- * 
- * Connects TFL Designer to backend ARSDisplay API.
- * Uses clinical context pattern to get scopeNodeId from analysis selection.
+ *
+ * Connects TFL Designer to backend ARSDisplay API. Uses clinical context pattern to get scopeNodeId from analysis
+ * selection.
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import type { TableShell, FigureShell, ListingShell } from '../types';
 import {
-  getTFLShells,
-  createTFLTable,
   createTFLFigure,
   createTFLListing,
-  updateTFLTable,
-  updateTFLFigure,
-  updateTFLListing,
-  deleteTFLTable,
+  createTFLTable,
   deleteTFLFigure,
   deleteTFLListing,
+  deleteTFLTable,
+  getTFLShells,
+  updateTFLFigure,
+  updateTFLListing,
+  updateTFLTable
 } from '@/service/api/mdr';
 import {
+  type BackendTFLListResponse,
   transformBackendTFLList,
-  transformTableToBackend,
   transformFigureToBackend,
   transformListingToBackend,
-  type BackendTFLListResponse,
+  transformTableToBackend
 } from '@/service/transforms/tfl';
 
+import type { FigureShell, ListingShell, TableShell } from '../types';
+
 interface UseTFLDataReturn {
-  tables: TableShell[];
+  deleteFigure: (figureId: string) => Promise<boolean>;
+  deleteListing: (listingId: string) => Promise<boolean>;
+  deleteTable: (tableId: string) => Promise<boolean>;
+  error: string | null;
   figures: FigureShell[];
   listings: ListingShell[];
   loading: boolean;
-  saving: boolean;
-  error: string | null;
   refresh: () => Promise<void>;
-  saveTable: (table: TableShell, userId: string) => Promise<boolean>;
   saveFigure: (figure: FigureShell, userId: string) => Promise<boolean>;
   saveListing: (listing: ListingShell, userId: string) => Promise<boolean>;
-  deleteTable: (tableId: string) => Promise<boolean>;
-  deleteFigure: (figureId: string) => Promise<boolean>;
-  deleteListing: (listingId: string) => Promise<boolean>;
+  saveTable: (table: TableShell, userId: string) => Promise<boolean>;
+  saving: boolean;
+  tables: TableShell[];
 }
 
 /**
  * Hook to manage TFL data for a given scope (analysis)
- * 
+ *
  * @param scopeNodeId - The analysis scope node ID (from clinical context)
  * @returns TFL data and CRUD operations
  */
@@ -90,154 +91,172 @@ export function useTFLData(scopeNodeId: number | null): UseTFLDataReturn {
   }, [refresh]);
 
   // Save table shell (create or update)
-  const saveTable = useCallback(async (table: TableShell, userId: string): Promise<boolean> => {
-    if (!scopeNodeId) return false;
-    setSaving(true);
-    try {
-      const backendData = transformTableToBackend(table, scopeNodeId, userId);
-      const isNew = table.id.includes('_'); // New items have temp IDs like 'table_abc123'
-      
-      if (isNew) {
-        await createTFLTable(backendData as Parameters<typeof createTFLTable>[0]);
-      } else {
-        await updateTFLTable(table.id, {
-          display_id: table.shellNumber,
-          title: table.title,
-          footnote: table.programmingNotes,
-          display_config: backendData.display_config as Record<string, unknown> | null,
-          updated_by: userId,
-        });
+  const saveTable = useCallback(
+    async (table: TableShell, userId: string): Promise<boolean> => {
+      if (!scopeNodeId) return false;
+      setSaving(true);
+      try {
+        const backendData = transformTableToBackend(table, scopeNodeId, userId);
+        const isNew = table.id.includes('_'); // New items have temp IDs like 'table_abc123'
+
+        if (isNew) {
+          await createTFLTable(backendData as Parameters<typeof createTFLTable>[0]);
+        } else {
+          await updateTFLTable(table.id, {
+            display_config: backendData.display_config as Record<string, unknown> | null,
+            display_id: table.shellNumber,
+            footnote: table.programmingNotes,
+            title: table.title,
+            updated_by: userId
+          });
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to save table:', err);
+        setError(err instanceof Error ? err.message : 'Failed to save table');
+        return false;
+      } finally {
+        setSaving(false);
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to save table:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save table');
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }, [scopeNodeId, refresh]);
+    },
+    [scopeNodeId, refresh]
+  );
 
   // Save figure shell (create or update)
-  const saveFigure = useCallback(async (figure: FigureShell, userId: string): Promise<boolean> => {
-    if (!scopeNodeId) return false;
-    setSaving(true);
-    try {
-      const backendData = transformFigureToBackend(figure, scopeNodeId, userId);
-      const isNew = figure.id.includes('_');
-      
-      if (isNew) {
-        await createTFLFigure(backendData as Parameters<typeof createTFLFigure>[0]);
-      } else {
-        await updateTFLFigure(figure.id, {
-          display_id: figure.figureNumber,
-          title: figure.title,
-          footnote: figure.programmingNotes,
-          display_config: backendData.display_config as Record<string, unknown> | null,
-          updated_by: userId,
-        });
+  const saveFigure = useCallback(
+    async (figure: FigureShell, userId: string): Promise<boolean> => {
+      if (!scopeNodeId) return false;
+      setSaving(true);
+      try {
+        const backendData = transformFigureToBackend(figure, scopeNodeId, userId);
+        const isNew = figure.id.includes('_');
+
+        if (isNew) {
+          await createTFLFigure(backendData as Parameters<typeof createTFLFigure>[0]);
+        } else {
+          await updateTFLFigure(figure.id, {
+            display_config: backendData.display_config as Record<string, unknown> | null,
+            display_id: figure.figureNumber,
+            footnote: figure.programmingNotes,
+            title: figure.title,
+            updated_by: userId
+          });
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to save figure:', err);
+        setError(err instanceof Error ? err.message : 'Failed to save figure');
+        return false;
+      } finally {
+        setSaving(false);
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to save figure:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save figure');
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }, [scopeNodeId, refresh]);
+    },
+    [scopeNodeId, refresh]
+  );
 
   // Save listing shell (create or update)
-  const saveListing = useCallback(async (listing: ListingShell, userId: string): Promise<boolean> => {
-    if (!scopeNodeId) return false;
-    setSaving(true);
-    try {
-      const backendData = transformListingToBackend(listing, scopeNodeId, userId);
-      const isNew = listing.id.includes('_');
-      
-      if (isNew) {
-        await createTFLListing(backendData as Parameters<typeof createTFLListing>[0]);
-      } else {
-        await updateTFLListing(listing.id, {
-          display_id: listing.listingNumber,
-          title: listing.title,
-          footnote: listing.programmingNotes,
-          display_config: backendData.display_config as Record<string, unknown> | null,
-          updated_by: userId,
-        });
+  const saveListing = useCallback(
+    async (listing: ListingShell, userId: string): Promise<boolean> => {
+      if (!scopeNodeId) return false;
+      setSaving(true);
+      try {
+        const backendData = transformListingToBackend(listing, scopeNodeId, userId);
+        const isNew = listing.id.includes('_');
+
+        if (isNew) {
+          await createTFLListing(backendData as Parameters<typeof createTFLListing>[0]);
+        } else {
+          await updateTFLListing(listing.id, {
+            display_config: backendData.display_config as Record<string, unknown> | null,
+            display_id: listing.listingNumber,
+            footnote: listing.programmingNotes,
+            title: listing.title,
+            updated_by: userId
+          });
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to save listing:', err);
+        setError(err instanceof Error ? err.message : 'Failed to save listing');
+        return false;
+      } finally {
+        setSaving(false);
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to save listing:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save listing');
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }, [scopeNodeId, refresh]);
+    },
+    [scopeNodeId, refresh]
+  );
 
   // Delete table shell
-  const deleteTable = useCallback(async (tableId: string): Promise<boolean> => {
-    try {
-      if (!tableId.includes('_')) {
-        await deleteTFLTable(tableId);
+  const deleteTable = useCallback(
+    async (tableId: string): Promise<boolean> => {
+      try {
+        if (!tableId.includes('_')) {
+          await deleteTFLTable(tableId);
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to delete table:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete table');
+        return false;
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to delete table:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete table');
-      return false;
-    }
-  }, [refresh]);
+    },
+    [refresh]
+  );
 
   // Delete figure shell
-  const deleteFigure = useCallback(async (figureId: string): Promise<boolean> => {
-    try {
-      if (!figureId.includes('_')) {
-        await deleteTFLFigure(figureId);
+  const deleteFigure = useCallback(
+    async (figureId: string): Promise<boolean> => {
+      try {
+        if (!figureId.includes('_')) {
+          await deleteTFLFigure(figureId);
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to delete figure:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete figure');
+        return false;
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to delete figure:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete figure');
-      return false;
-    }
-  }, [refresh]);
+    },
+    [refresh]
+  );
 
   // Delete listing shell
-  const deleteListing = useCallback(async (listingId: string): Promise<boolean> => {
-    try {
-      if (!listingId.includes('_')) {
-        await deleteTFLListing(listingId);
+  const deleteListing = useCallback(
+    async (listingId: string): Promise<boolean> => {
+      try {
+        if (!listingId.includes('_')) {
+          await deleteTFLListing(listingId);
+        }
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error('Failed to delete listing:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete listing');
+        return false;
       }
-      await refresh();
-      return true;
-    } catch (err) {
-      console.error('Failed to delete listing:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete listing');
-      return false;
-    }
-  }, [refresh]);
+    },
+    [refresh]
+  );
 
   return {
-    tables,
+    deleteFigure,
+    deleteListing,
+    deleteTable,
+    error,
     figures,
     listings,
     loading,
-    saving,
-    error,
     refresh,
-    saveTable,
     saveFigure,
     saveListing,
-    deleteTable,
-    deleteFigure,
-    deleteListing,
+    saveTable,
+    saving,
+    tables
   };
 }
 

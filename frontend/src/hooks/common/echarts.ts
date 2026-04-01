@@ -1,4 +1,13 @@
-import { BarChart, BoxplotChart, GaugeChart, LineChart, PictorialBarChart, PieChart, RadarChart, ScatterChart } from 'echarts/charts';
+import {
+  BarChart,
+  BoxplotChart,
+  GaugeChart,
+  LineChart,
+  PictorialBarChart,
+  PieChart,
+  RadarChart,
+  ScatterChart
+} from 'echarts/charts';
 import type {
   BarSeriesOption,
   BoxplotSeriesOption,

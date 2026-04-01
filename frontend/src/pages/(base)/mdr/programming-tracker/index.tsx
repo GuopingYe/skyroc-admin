@@ -1,25 +1,16 @@
 /**
  * Programming Tracker - 编程任务跟踪器
  *
- * 基于 Product/Study/Analysis 层级的多类型任务管理（SDTM/ADaM/TFL/Other）
- * 使用全局临床上下文 (useClinicalContext) 进行作用域管理
- * 连接后端 API 进行数据持久化
+ * 基于 Product/Study/Analysis 层级的多类型任务管理（SDTM/ADaM/TFL/Other） 使用全局临床上下文 (useClinicalContext) 进行作用域管理 连接后端 API 进行数据持久化
  */
-import { Card, Col, Row, Typography, message, Spin, Alert } from 'antd';
+import { Alert, Card, Col, Row, Spin, Typography, message } from 'antd';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useClinicalContext } from '@/features/clinical-context';
 import { useUserPermissions } from '@/hooks/business/useUserPermissions';
-import {
-  createTrackerTask,
-  deleteTrackerTask,
-  updateTrackerTask
-} from '@/service/api/mdr';
-import {
-  transformToFrontendCreateParams,
-  type FrontendTrackerTask
-} from '@/service/transforms/tracker';
+import { createTrackerTask, deleteTrackerTask, updateTrackerTask } from '@/service/api/mdr';
+import { type FrontendTrackerTask, transformToFrontendCreateParams } from '@/service/transforms/tracker';
 
 import { CategoryTabs, TaskFormModal, TrackerTable } from './components';
 import { useTrackerState } from './hooks';
@@ -46,7 +37,7 @@ const ProgrammingTracker: React.FC = () => {
   const isLead = isSuperAdmin || hasRole('Study Lead' as never) || Boolean(userInfo);
 
   // 使用全局临床上下文
-  const { addRecent, analysisId, isReady, productId, studyId, context } = useClinicalContext();
+  const { addRecent, analysisId, context, isReady, productId, studyId } = useClinicalContext();
 
   // 获取数据库主键 ID (scopeNodeId) 用于 API 调用
   // 后端需要整数 ID，而不是字符串 ID
@@ -58,11 +49,11 @@ const ProgrammingTracker: React.FC = () => {
   // 使用 useTrackerTasks hook 获取真实数据
   // 使用 scopeNodeId (数据库主键) 而不是字符串 analysisId
   const {
-    tasks: currentTasks,
-    loading: tasksLoading,
+    categoryCounts: allCategoryCounts,
     error: tasksError,
+    loading: tasksLoading,
     refresh: refreshTasks,
-    categoryCounts: allCategoryCounts
+    tasks: currentTasks
   } = useTrackerTasks(analysisDbId ? String(analysisDbId) : null, activeCategory);
 
   // Modal 状态
@@ -74,12 +65,12 @@ const ProgrammingTracker: React.FC = () => {
   // 统计数据 - 从任务列表计算
   const stats = useMemo(() => {
     const result = {
-      total: currentTasks.length,
-      signedOff: 0,
+      inProgress: 0,
+      notStarted: 0,
       qcPass: 0,
       readyForQC: 0,
-      inProgress: 0,
-      notStarted: 0
+      signedOff: 0,
+      total: currentTasks.length
     };
 
     currentTasks.forEach(task => {
@@ -283,18 +274,16 @@ const ProgrammingTracker: React.FC = () => {
                 >
                   {t('page.mdr.programmingTracker.title')}
                 </Title>
-                <span className="text-12px text-gray-500">
-                  {contextDisplay}
-                </span>
+                <span className="text-12px text-gray-500">{contextDisplay}</span>
               </div>
             }
           >
             {tasksError && (
               <Alert
+                showIcon
                 className="mb-12px"
                 message={tasksError}
                 type="error"
-                showIcon
               />
             )}
             <TrackerTable

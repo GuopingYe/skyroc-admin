@@ -3,48 +3,31 @@
  *
  * Paginated listing display with virtual scrolling support
  */
-import { useState, useMemo } from 'react';
-import {
-  Table,
-  Pagination,
-  Space,
-  Tag,
-  Typography,
-  Button,
-  Tooltip,
-  Select,
-  Empty,
-  Card,
-  Statistic
-} from 'antd';
 import {
   DownloadOutlined,
+  FilterOutlined,
   FullscreenOutlined,
   ReloadOutlined,
-  FilterOutlined,
   SortAscendingOutlined
 } from '@ant-design/icons';
+import { Button, Card, Empty, Pagination, Select, Space, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { ListingColumn, SortConfig, FilterConfig, ColumnHeaderGroup } from '../../types';
-import { useListingStore, useStudyStore, mockPreviewData } from '../../stores';
+import { useMemo, useState } from 'react';
+
+import { mockPreviewData, useListingStore, useStudyStore } from '../../stores';
+import type { ColumnHeaderGroup, FilterConfig, ListingColumn, SortConfig } from '../../types';
 
 const { Text, Title } = Typography;
 
 interface Props {
-  displayId: string;
   columns: ListingColumn[];
-  sortRules: SortConfig[];
+  displayId: string;
   filterRules: FilterConfig[];
   readOnly?: boolean;
+  sortRules: SortConfig[];
 }
 
-export default function ListingPreview({
-  displayId,
-  columns,
-  sortRules,
-  filterRules,
-  readOnly = false
-}: Props) {
+export default function ListingPreview({ columns, displayId, filterRules, readOnly = false, sortRules }: Props) {
   const currentListing = useListingStore(s => s.currentListing);
   const columnHeaderSets = useStudyStore(s => s.columnHeaderSets);
 
@@ -106,7 +89,7 @@ export default function ListingPreview({
 
   // Apply sorting (mock implementation)
   const sortedData = useMemo(() => {
-    let data = [...filteredData];
+    const data = [...filteredData];
     sortRules.forEach(rule => {
       const col = columns.find(c => c.id === rule.columnId);
       const fieldName = col?.name || rule.columnId;
@@ -115,9 +98,8 @@ export default function ListingPreview({
         const bVal = (b as Record<string, unknown>)[fieldName];
         if (rule.order === 'asc') {
           return (aVal as any) > (bVal as any) ? 1 : -1;
-        } else {
-          return (aVal as any) < (bVal as any) ? 1 : -1;
         }
+        return (aVal as any) < (bVal as any) ? 1 : -1;
       });
     });
     return data;
@@ -137,18 +119,16 @@ export default function ListingPreview({
         // Group with children → antd column group
         if (g.children?.length) {
           return {
-            title: <Text strong>{g.label}</Text>,
-            key: g.id,
             children: g.children.map(buildFromGroup),
+            key: g.id,
+            title: <Text strong>{g.label}</Text>
           };
         }
         // Leaf → data column
         return {
-          title: <Text strong>{g.label}</Text>,
+          align: g.align || 'left',
           dataIndex: g.variable || g.id,
           key: g.id,
-          width: g.width || 120,
-          align: g.align || 'left',
           render: (value: any) => {
             const paddingLeft = g.indentLevel ? g.indentLevel * 24 : 0;
             return (
@@ -157,6 +137,8 @@ export default function ListingPreview({
               </div>
             );
           },
+          title: <Text strong>{g.label}</Text>,
+          width: g.width || 120
         };
       };
       return selectedHeaderSet.headers.map(buildFromGroup);
@@ -167,39 +149,31 @@ export default function ListingPreview({
       if (col.hidden) return null;
 
       if (col.children && col.children.length > 0) {
-        const childColumns = col.children
-          .map(child => buildAntdColumn(child))
-          .filter(Boolean);
+        const childColumns = col.children.map(child => buildAntdColumn(child)).filter(Boolean);
         if (childColumns.length === 0) return null;
         return {
+          children: childColumns,
+          key: col.id,
           title: (
             <div style={{ textAlign: col.align || 'center' }}>
               <Text strong>{col.label || col.name}</Text>
             </div>
-          ),
-          key: col.id,
-          children: childColumns,
+          )
         };
       }
 
       return {
-        title: (
-          <div style={{ textAlign: col.align }}>
-            <Text strong>{col.label || col.name}</Text>
-          </div>
-        ),
+        align: col.align,
         dataIndex: col.name,
         key: col.name,
-        width: col.width || 120,
-        align: col.align,
         render: (value: any, record: Record<string, any>) => {
           let displayValue = value ?? '-';
 
           if (col.combineFormat && col.sourceColumns?.length) {
             let formatted = col.combineFormat;
             col.sourceColumns.forEach((sourceCol, idx) => {
-               const srcVal = record[sourceCol] ?? '';
-               formatted = formatted.replace(new RegExp(`\\{${idx}\\}`, 'g'), String(srcVal));
+              const srcVal = record[sourceCol] ?? '';
+              formatted = formatted.replace(new RegExp(`\\{${idx}\\}`, 'g'), String(srcVal));
             });
             displayValue = formatted;
           }
@@ -208,10 +182,16 @@ export default function ListingPreview({
 
           return (
             <div style={{ paddingLeft }}>
-               <Text>{displayValue}</Text>
+              <Text>{displayValue}</Text>
             </div>
           );
         },
+        title: (
+          <div style={{ textAlign: col.align }}>
+            <Text strong>{col.label || col.name}</Text>
+          </div>
+        ),
+        width: col.width || 120
       };
     };
 
@@ -219,21 +199,22 @@ export default function ListingPreview({
   }, [columns, selectedHeaderSet]);
 
   // Row number column
-  const rowNumberColumn: ColumnsType<Record<string, any>> = useMemo(() => [
-    {
-      title: '#',
-      key: 'rowNumber',
-      width: 60,
-      align: 'center',
-      fixed: 'left' as const,
-      render: (_: unknown, __: unknown, index: number) => (
-        <Text type="secondary">
-          {(currentPage - 1) * pageSize + index + 1}
-        </Text>
-      ),
-    },
-    ...tableColumns
-  ], [tableColumns, currentPage, pageSize]);
+  const rowNumberColumn: ColumnsType<Record<string, any>> = useMemo(
+    () => [
+      {
+        align: 'center',
+        fixed: 'left' as const,
+        key: 'rowNumber',
+        render: (_: unknown, __: unknown, index: number) => (
+          <Text type="secondary">{(currentPage - 1) * pageSize + index + 1}</Text>
+        ),
+        title: '#',
+        width: 60
+      },
+      ...tableColumns
+    ],
+    [tableColumns, currentPage, pageSize]
+  );
 
   // Handle export to CSV
   const handleExportCSV = () => {
@@ -291,43 +272,37 @@ export default function ListingPreview({
       className="listing-preview"
       style={{
         position: 'relative',
-        ...(fullscreen ? {
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1000,
-          backgroundColor: '#fff',
-          padding: 24,
-        } : {})
+        ...(fullscreen
+          ? {
+              backgroundColor: '#fff',
+              bottom: 0,
+              left: 0,
+              padding: 24,
+              position: 'fixed',
+              right: 0,
+              top: 0,
+              zIndex: 1000
+            }
+          : {})
       }}
     >
       {/* Preview Header */}
       <Card
         size="small"
         style={{ marginBottom: 16 }}
-        title={
-          <Space>
-            <Title level={5} style={{ margin: 0 }}>Listing Preview</Title>
-            {fullscreen && (
-              <Tag color="blue">Fullscreen</Tag>
-            )}
-          </Space>
-        }
         extra={
           <Space>
             <Tooltip title="Toggle Fullscreen">
               <Button
-                type="text"
                 icon={<FullscreenOutlined />}
+                type="text"
                 onClick={() => setFullscreen(!fullscreen)}
               />
             </Tooltip>
             <Tooltip title="Export to CSV">
               <Button
-                type="text"
                 icon={<DownloadOutlined />}
+                type="text"
                 onClick={handleExportCSV}
               >
                 Export
@@ -335,31 +310,45 @@ export default function ListingPreview({
             </Tooltip>
             <Tooltip title="Refresh Data">
               <Button
-                type="text"
                 icon={<ReloadOutlined />}
+                type="text"
                 onClick={() => setCurrentPage(1)}
               />
             </Tooltip>
           </Space>
         }
+        title={
+          <Space>
+            <Title
+              level={5}
+              style={{ margin: 0 }}
+            >
+              Listing Preview
+            </Title>
+            {fullscreen && <Tag color="blue">Fullscreen</Tag>}
+          </Space>
+        }
       >
         {/* Statistics */}
-        <Space size="large" wrap>
+        <Space
+          wrap
+          size="large"
+        >
           <Statistic
+            prefix={<FilterOutlined />}
             title="Total Records"
             value={sortedData.length}
-            prefix={<FilterOutlined />}
           />
           <Statistic
+            prefix={<FilterOutlined />}
             title="Filters Applied"
             value={filterRules.length}
-            prefix={<FilterOutlined />}
             valueStyle={{ color: filterRules.length > 0 ? '#cf1322' : undefined }}
           />
           <Statistic
+            prefix={<SortAscendingOutlined />}
             title="Sort Rules"
             value={sortRules.length}
-            prefix={<SortAscendingOutlined />}
             valueStyle={{ color: sortRules.length > 0 ? '#1890ff' : undefined }}
           />
         </Space>
@@ -371,9 +360,12 @@ export default function ListingPreview({
             <div style={{ marginTop: 4 }}>
               <Space wrap>
                 {filterRules.map((rule, index) => (
-                  <Tag key={`filter-${index}`} closable={!readOnly}>
-                    {columns.find(c => c.id === rule.columnId)?.label || rule.columnId}{' '}
-                    {rule.operator} {String(rule.value)}
+                  <Tag
+                    closable={!readOnly}
+                    key={`filter-${index}`}
+                  >
+                    {columns.find(c => c.id === rule.columnId)?.label || rule.columnId} {rule.operator}{' '}
+                    {String(rule.value)}
                   </Tag>
                 ))}
               </Space>
@@ -388,7 +380,10 @@ export default function ListingPreview({
             <div style={{ marginTop: 4 }}>
               <Space wrap>
                 {sortRules.map((rule, index) => (
-                  <Tag key={`sort-${index}`} icon={<SortAscendingOutlined />}>
+                  <Tag
+                    icon={<SortAscendingOutlined />}
+                    key={`sort-${index}`}
+                  >
                     {columns.find(c => c.id === rule.columnId)?.label || rule.columnId}{' '}
                     {rule.order === 'asc' ? '\u2191' : '\u2193'}
                     {index < sortRules.length - 1 && <Text type="secondary">{'\u2192'}</Text>}
@@ -402,53 +397,51 @@ export default function ListingPreview({
 
       {/* Data Table */}
       <Card
-        size="small"
         bodyStyle={{ padding: 0 }}
+        size="small"
       >
         <Table
+          bordered
           columns={rowNumberColumn}
           dataSource={paginatedData}
           pagination={false}
-          size="small"
-          bordered
+          rowClassName={(_record, index) => (index % 2 === 0 ? 'listing-row-even' : 'listing-row-odd')}
           scroll={{ x: 'max-content', y: fullscreen ? 'calc(100vh - 300px)' : 500 }}
-          rowClassName={(_record, index) =>
-            index % 2 === 0 ? 'listing-row-even' : 'listing-row-odd'
-          }
+          size="small"
         />
 
         {/* Pagination */}
         <div
           style={{
-            padding: '12px 16px',
+            alignItems: 'center',
             borderTop: '1px solid #f0f0f0',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            padding: '12px 16px'
           }}
         >
           <Text type="secondary">
-            Showing {(currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} records
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, sortedData.length)} of{' '}
+            {sortedData.length} records
           </Text>
           <Space>
             <Text type="secondary">Rows per page:</Text>
             <Select
+              style={{ width: 80 }}
               value={pageSize}
-              onChange={handlePageSizeChange}
               options={[10, 20, 50, 100].map(size => ({
                 label: size.toString(),
-                value: size,
+                value: size
               }))}
-              style={{ width: 80 }}
+              onChange={handlePageSizeChange}
             />
             <Pagination
+              showQuickJumper
               current={currentPage}
               pageSize={pageSize}
+              showSizeChanger={false}
               total={sortedData.length}
               onChange={setCurrentPage}
-              showSizeChanger={false}
-              showQuickJumper
             />
           </Space>
         </div>

@@ -1,8 +1,8 @@
 /**
  * TFL Designer Integration Example
- * 
- * This file shows how to integrate the useTFLData hook into the main TFL Designer page.
- * Add these changes to src/pages/(base)/mdr/tfl-designer/index.tsx
+ *
+ * This file shows how to integrate the useTFLData hook into the main TFL Designer page. Add these changes to
+ * src/pages/(base)/mdr/tfl-designer/index.tsx
  */
 
 // ============================================================

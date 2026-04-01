@@ -30,24 +30,6 @@ export default defineConfig(configEnv => {
   const enableProxy = configEnv.command === 'serve' && !configEnv.isPreview;
   return {
     base: viteEnv.VITE_BASE_URL,
-    optimizeDeps: {
-      include: [
-        'react',
-        'react-dom',
-        'react-router-dom',
-        'antd',
-        '@ant-design/icons',
-        'dayjs',
-        'dayjs/locale/zh-cn',
-        'axios',
-        '@tanstack/react-query',
-        'zustand',
-        'lodash-es',
-        'clsx'
-      ],
-      exclude: [],
-      force: false
-    },
     build: {
       rollupOptions: {
         output: {
@@ -92,7 +74,7 @@ export default defineConfig(configEnv => {
 
             return 'js/[name]-[hash].js'; // 默认处理方式
           },
-          manualChunks: (id) => {
+          manualChunks: id => {
             for (const { modules, name } of VENDOR_CHUNKS) {
               if (modules.some(m => id.includes(`node_modules/${m}`))) {
                 return name;
@@ -115,6 +97,24 @@ export default defineConfig(configEnv => {
     },
     define: {
       BUILD_TIME: JSON.stringify(buildTime)
+    },
+    optimizeDeps: {
+      exclude: [],
+      force: false,
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        'antd',
+        '@ant-design/icons',
+        'dayjs',
+        'dayjs/locale/zh-cn',
+        'axios',
+        '@tanstack/react-query',
+        'zustand',
+        'lodash-es',
+        'clsx'
+      ]
     },
     plugins: setupVitePlugins(viteEnv, buildTime),
     preview: {

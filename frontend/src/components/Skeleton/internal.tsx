@@ -7,20 +7,17 @@ interface DataSkeletonProps {
   rows?: number;
 }
 
-function DataSkeleton({ rows = 4, className = '' }: DataSkeletonProps) {
+function DataSkeleton({ className = '', rows = 4 }: DataSkeletonProps) {
   // Generate stable random widths on mount to prevent visual jitter
-  const widths = useMemo(
-    () => Array.from({ length: rows }, () => Math.random() * 50 + 25),
-    [rows]
-  );
+  const widths = useMemo(() => Array.from({ length: rows }, () => Math.random() * 50 + 25), [rows]);
 
   return (
     <div className={`p-16px ${className}`}>
-      <div className="animate-pulse flex flex-col gap-8px">
+      <div className="flex flex-col animate-pulse gap-8px">
         {widths.map((width, index) => (
           <div
+            className="h-16px rounded bg-gray-200 dark:bg-gray-700"
             key={index}
-            className="h-16px bg-gray-200 dark:bg-gray-700 rounded"
             style={{ width: `${width}%` }}
           />
         ))}
@@ -33,23 +30,23 @@ function TableSkeleton({ columns = 5, rows = 5 }: { columns?: number; rows?: num
   return (
     <div className="p-16px">
       <div className="animate-pulse">
-        <div className="flex gap-8px mb-8px">
+        <div className="mb-8px flex gap-8px">
           {Array.from({ length: columns }).map((_, i) => (
             <div
+              className="h-32px flex-1 rounded bg-gray-200 dark:bg-gray-700"
               key={i}
-              className="h-32px bg-gray-200 dark:bg-gray-700 rounded flex-1"
             />
           ))}
         </div>
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <div
+            className="mb-4px flex gap-8px"
             key={rowIndex}
-            className="flex gap-8px mb-4px"
           >
             {Array.from({ length: columns }).map((_, colIndex) => (
               <div
+                className="h-24px flex-1 rounded bg-gray-100 dark:bg-gray-800"
                 key={colIndex}
-                className="h-24px bg-gray-100 dark:bg-gray-800 rounded flex-1"
               />
             ))}
           </div>

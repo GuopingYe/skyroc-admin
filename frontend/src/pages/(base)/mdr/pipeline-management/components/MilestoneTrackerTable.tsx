@@ -5,18 +5,10 @@ import dayjs from 'dayjs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  createPipelineMilestone,
-  deletePipelineMilestone,
-  updatePipelineMilestone
-} from '@/service/api/mdr';
+import { createPipelineMilestone, deletePipelineMilestone, updatePipelineMilestone } from '@/service/api/mdr';
 
 import type { IProjectMilestone, MilestoneStatus, PresetMilestoneType } from '../types';
-import {
-  milestoneStatusConfig,
-  presetMilestoneConfig,
-  presetMilestoneOptions
-} from '../types';
+import { milestoneStatusConfig, presetMilestoneConfig, presetMilestoneOptions } from '../types';
 
 interface MilestoneTrackerTableProps {
   analysisId?: string;
@@ -57,7 +49,7 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
       form.setFieldsValue({
         ...record,
         actualDate: record.actualDate ? dayjs(record.actualDate) : null,
-      plannedDate: record.plannedDate ? dayjs(record.plannedDate) : null
+        plannedDate: record.plannedDate ? dayjs(record.plannedDate) : null
       });
       setModalOpen(true);
     },
@@ -75,7 +67,7 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
         analysis_id: values.level === 'Analysis' ? analysisId : undefined,
         assignee: values.assignee,
         comment: values.comment,
-        level: values.level as 'Study' | 'Analysis',
+        level: values.level as 'Analysis' | 'Study',
         name: values.name || presetMilestoneConfig[values.presetType as PresetMilestoneType].label,
         planned_date: values.plannedDate?.format('YYYY-MM-DD') || null,
         preset_type: values.presetType as string,
@@ -123,97 +115,102 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
     () => [
       {
         dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record) => (
-        <Space>
-          <div className={`${record.level === 'Study' ? 'i-mdi-folder-outline text-orange-500' : 'i-mdi-chart-timeline-variant text-purple-500'}`} />
-          <span>{text}</span>
-        </Space>
-      ),
-      title: t('page.mdr.pipelineManagement.milestone.cols.name'),
-      width: 200
+        key: 'name',
+        render: (text: string, record) => (
+          <Space>
+            <div
+              className={`${record.level === 'Study' ? 'i-mdi-folder-outline text-orange-500' : 'i-mdi-chart-timeline-variant text-purple-500'}`}
+            />
+            <span>{text}</span>
+          </Space>
+        ),
+        title: t('page.mdr.pipelineManagement.milestone.cols.name'),
+        width: 200
       },
       {
-        title: t('page.mdr.pipelineManagement.milestone.cols.level'),
         dataIndex: 'level',
         key: 'level',
-        width: 80,
-        render: (level: string) => <Tag color={level === 'Study' ? 'orange' : 'purple'}>{level}</Tag>
+        render: (level: string) => <Tag color={level === 'Study' ? 'orange' : 'purple'}>{level}</Tag>,
+        title: t('page.mdr.pipelineManagement.milestone.cols.level'),
+        width: 80
       },
       {
         dataIndex: 'plannedDate',
-      key: 'plannedDate',
-      render: (date: string) => date || '-',
-      title: t('page.mdr.pipelineManagement.milestone.cols.plannedDate'),
-      width: 110
+        key: 'plannedDate',
+        render: (date: string) => date || '-',
+        title: t('page.mdr.pipelineManagement.milestone.cols.plannedDate'),
+        width: 110
       },
       {
-        title: t('page.mdr.pipelineManagement.milestone.cols.actualDate'),
         dataIndex: 'actualDate',
         key: 'actualDate',
-        width: 110,
-        render: (date: string) => date || '-'
+        render: (date: string) => date || '-',
+        title: t('page.mdr.pipelineManagement.milestone.cols.actualDate'),
+        width: 110
       },
       {
         dataIndex: 'status',
-      key: 'status',
-      render: (status: MilestoneStatus) => (
-        <Tag color={milestoneStatusConfig[status].color}>
-          {t(`page.mdr.pipelineManagement.milestone.status.${status}`)}
-        </Tag>
-      ),
-      title: t('page.mdr.pipelineManagement.milestone.cols.status'),
-      width: 100
+        key: 'status',
+        render: (status: MilestoneStatus) => (
+          <Tag color={milestoneStatusConfig[status].color}>
+            {t(`page.mdr.pipelineManagement.milestone.status.${status}`)}
+          </Tag>
+        ),
+        title: t('page.mdr.pipelineManagement.milestone.cols.status'),
+        width: 100
       },
       {
         dataIndex: 'assignee',
-      ellipsis: true,
-      key: 'assignee',
-      render: (text: string) => text || '-',
-      title: t('page.mdr.pipelineManagement.milestone.cols.assignee'),
-      width: 120
+        ellipsis: true,
+        key: 'assignee',
+        render: (text: string) => text || '-',
+        title: t('page.mdr.pipelineManagement.milestone.cols.assignee'),
+        width: 120
       },
       {
         dataIndex: 'comment',
         ellipsis: true,
         key: 'comment',
-        render: (text: string) => text ? (
-          <Tooltip title={text}>
-            <span className="text-gray-500">{text}</span>
-          </Tooltip>
-        ) : '-',
+        render: (text: string) =>
+          text ? (
+            <Tooltip title={text}>
+              <span className="text-gray-500">{text}</span>
+            </Tooltip>
+          ) : (
+            '-'
+          ),
         title: t('page.mdr.pipelineManagement.milestone.cols.comment')
       },
       {
         fixed: 'right',
-      key: 'action',
-      render: (_: unknown, record: IProjectMilestone) => (
-        <Space size={4}>
-          <Button
-            size="small"
-            type="link"
-            disabled={!canEdit}
-            onClick={() => handleEdit(record)}
-          >
-            {t('page.mdr.pipelineManagement.milestone.edit')}
-          </Button>
-          <Popconfirm
-            title={t('page.mdr.pipelineManagement.milestone.deleteConfirm')}
-            onConfirm={() => handleDelete(record.id)}
-          >
+        key: 'action',
+        render: (_: unknown, record: IProjectMilestone) => (
+          <Space size={4}>
             <Button
-              danger
+              disabled={!canEdit}
               size="small"
               type="link"
-              disabled={!canEdit}
+              onClick={() => handleEdit(record)}
             >
-              {t('page.mdr.pipelineManagement.milestone.delete')}
+              {t('page.mdr.pipelineManagement.milestone.edit')}
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-      title: t('page.mdr.pipelineManagement.milestone.cols.action'),
-      width: 100
+            <Popconfirm
+              title={t('page.mdr.pipelineManagement.milestone.deleteConfirm')}
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <Button
+                danger
+                disabled={!canEdit}
+                size="small"
+                type="link"
+              >
+                {t('page.mdr.pipelineManagement.milestone.delete')}
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+        title: t('page.mdr.pipelineManagement.milestone.cols.action'),
+        width: 100
       }
     ],
     [t, canEdit, handleEdit, handleDelete]
@@ -250,9 +247,10 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
       <Modal
         confirmLoading={loading}
         open={modalOpen}
-        title={editingMilestone
-          ? t('page.mdr.pipelineManagement.milestone.editModal.title')
-          : t('page.mdr.pipelineManagement.milestone.createModal.title')
+        title={
+          editingMilestone
+            ? t('page.mdr.pipelineManagement.milestone.editModal.title')
+            : t('page.mdr.pipelineManagement.milestone.createModal.title')
         }
         onCancel={() => setModalOpen(false)}
         onOk={handleSubmit}
@@ -329,8 +327,8 @@ const MilestoneTrackerTable: React.FC<MilestoneTrackerTableProps> = ({
                   value={key}
                 >
                   <Tag
-                    color={config.color}
                     className="mr-0"
+                    color={config.color}
                   >
                     {t(`page.mdr.pipelineManagement.milestone.status.${key}`)}
                   </Tag>

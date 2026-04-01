@@ -199,6 +199,10 @@ class ARSDisplayCreate(ARSDisplayBase):
         default_factory=list,
         description="区块列表",
     )
+    source_template_id: int | None = Field(None, description="来源 Shell 模板 ID")
+    source_template_version: int | None = Field(None, description="来源模板版本快照")
+    decimal_override: dict[str, Any] | None = Field(None, description="Shell 级小数位覆盖")
+    statistics_set_id: int | None = Field(None, description="关联的统计量集合 ID")
     created_by: str = Field(..., max_length=100, description="创建者用户 ID")
 
 
@@ -207,6 +211,10 @@ class ARSDisplayRead(ARSDisplayBase):
 
     id: int
     scope_node_id: int
+    source_template_id: int | None = None
+    source_template_version: int | None = None
+    decimal_override: dict[str, Any] | None = None
+    statistics_set_id: int | None = None
     created_by: str
     updated_by: str | None
     created_at: datetime
@@ -254,6 +262,10 @@ class ARSDisplayLayoutUpdate(BaseSchema):
     subtitle: str | None = Field(None, max_length=500, description="副标题")
     footnote: str | None = Field(None, description="脚注")
     display_config: dict[str, Any] | None = Field(None, description="显示配置")
+    source_template_id: int | None = Field(None, description="来源 Shell 模板 ID")
+    source_template_version: int | None = Field(None, description="来源模板版本快照")
+    decimal_override: dict[str, Any] | None = Field(None, description="Shell 级小数位覆盖")
+    statistics_set_id: int | None = Field(None, description="关联的统计量集合 ID")
 
     sections: list[ARSDisplaySectionCreate] = Field(
         default_factory=list,

@@ -37,6 +37,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -60,9 +61,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useClinicalContext, useStudyScopeNodeId } from '@/features/clinical-context';
-import { useStudyDatasets, useStudySpecs, useStudyVariables } from '@/service/hooks';
-import { useQueryClient } from '@tanstack/react-query';
 import { addDatasetFromGlobalLibrary, createCustomDataset } from '@/service/api';
+import { useStudyDatasets, useStudySpecs, useStudyVariables } from '@/service/hooks';
 
 import type { SpecDataset, SpecVariable, StandardType, VariableOrigin } from './mockData';
 import { originConfig } from './mockData';
@@ -158,9 +158,11 @@ const StudySpec: React.FC = () => {
   // ==================== API Hooks ====================
 
   // 获取 Study Spec 列表（按 scopeNodeId 过滤）
-  const { data: specsData, isLoading: specsLoading, error: specsError } = useStudySpecs(
-    scopeNodeId ? { scope_node_id: scopeNodeId } : undefined
-  );
+  const {
+    data: specsData,
+    error: specsError,
+    isLoading: specsLoading
+  } = useStudySpecs(scopeNodeId ? { scope_node_id: scopeNodeId } : undefined);
 
   // Debug: log any errors
   useEffect(() => {
@@ -177,14 +179,10 @@ const StudySpec: React.FC = () => {
   }, [specsData, selectedStandard]);
 
   // 获取数据集列表
-  const { data: datasetsData, isLoading: datasetsLoading } = useStudyDatasets(
-    currentSpec?.id ?? null
-  );
+  const { data: datasetsData, isLoading: datasetsLoading } = useStudyDatasets(currentSpec?.id ?? null);
 
   // 获取变量列表
-  const { data: variablesData, isLoading: variablesLoading } = useStudyVariables(
-    selectedDatasetId
-  );
+  const { data: variablesData, isLoading: variablesLoading } = useStudyVariables(selectedDatasetId);
 
   // 当 spec 变化时，重置到第一个 Dataset
   useEffect(() => {
@@ -202,17 +200,16 @@ const StudySpec: React.FC = () => {
     if (searchText) {
       const keyword = searchText.toLowerCase();
       datasets = datasets.filter(
-        d => d.dataset_name.toLowerCase().includes(keyword) ||
-             (d.description?.toLowerCase().includes(keyword) ?? false)
+        d => d.dataset_name.toLowerCase().includes(keyword) || (d.description?.toLowerCase().includes(keyword) ?? false)
       );
     }
     return datasets.map(d => ({
-      key: String(d.id),
-      name: d.dataset_name,
-      label: d.description || '',
       class: d.class_type,
-      structure: '',
+      key: String(d.id),
       keys: [],
+      label: d.description || '',
+      name: d.dataset_name,
+      structure: '',
       variableCount: d.variable_count
     }));
   }, [datasetsData, searchText]);
@@ -225,20 +222,20 @@ const StudySpec: React.FC = () => {
     }
     if (!variablesData?.items) return [];
     return variablesData.items.map(v => ({
-      key: String(v.id),
-      name: v.variable_name,
-      label: v.variable_label || '',
+      codelist: v.codelist_name ?? undefined,
+      comment: v.description || '',
+      core: v.core,
       dataType: v.data_type === 'Char' ? 'Char' : v.data_type === 'Num' ? 'Num' : 'DateTime',
+      globalLibraryRef: v.base_id ? String(v.base_id) : undefined,
+      implementationNotes: '',
+      key: String(v.id),
+      label: v.variable_label || '',
       length: v.length || 0,
+      name: v.variable_name,
+      order: v.sort_order,
       origin: ORIGIN_TYPE_MAP[v.origin_type] || 'Assigned',
       role: v.role || '',
-      core: v.core,
-      codelist: v.codelist_name ?? undefined,
-      sourceDerivation: '',
-      implementationNotes: '',
-      comment: v.description || '',
-      globalLibraryRef: v.base_id ? String(v.base_id) : undefined,
-      order: v.sort_order
+      sourceDerivation: ''
     }));
   }, [variablesData, selectedDatasetId, variableStates]);
 
@@ -362,7 +359,7 @@ const StudySpec: React.FC = () => {
 
   // 处理添加 Dataset
   const handleAddDataset = useCallback(
-    async (values: { type: 'global_library' | 'custom'; data: Record<string, unknown> }) => {
+    async (values: { data: Record<string, unknown>; type: 'custom' | 'global_library' }) => {
       if (!currentSpec?.id) {
         message.error('No specification selected');
         return;
@@ -377,9 +374,9 @@ const StudySpec: React.FC = () => {
           message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
         } else {
           const result = await createCustomDataset(currentSpec.id, {
-            domain_name: values.data.domain_name as string,
-            domain_label: values.data.domain_label as string,
             class_type: values.data.class_type as string,
+            domain_label: values.data.domain_label as string,
+            domain_name: values.data.domain_name as string,
             inherit_from_model: values.data.inherit_from_model as boolean
           });
           message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
@@ -408,12 +405,12 @@ const StudySpec: React.FC = () => {
     const dataset = datasetsData.items.find(d => d.id === selectedDatasetId);
     if (!dataset) return null;
     return {
-      key: String(dataset.id),
-      name: dataset.dataset_name,
-      label: dataset.description || '',
       class: dataset.class_type,
-      structure: '',
-      keys: []
+      key: String(dataset.id),
+      keys: [],
+      label: dataset.description || '',
+      name: dataset.dataset_name,
+      structure: ''
     };
   }, [datasetsData, selectedDatasetId]);
 
@@ -703,7 +700,7 @@ const StudySpec: React.FC = () => {
               <List
                 dataSource={filteredDatasets}
                 size="small"
-                renderItem={(item) => {
+                renderItem={item => {
                   const isSelected = selectedDatasetId === Number(item.key);
 
                   return (
@@ -717,7 +714,10 @@ const StudySpec: React.FC = () => {
                           <span className="text-13px">{item.label}</span>
                         </Space>
                         {item.variableCount !== undefined && (
-                          <Tag className="m-0 text-10px" color="blue">
+                          <Tag
+                            className="m-0 text-10px"
+                            color="blue"
+                          >
                             {item.variableCount}
                           </Tag>
                         )}

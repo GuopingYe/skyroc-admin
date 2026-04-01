@@ -1,33 +1,28 @@
 /**
  * TFL Designer - Population Manager
  *
- * Manage analysis populations (Safety, FAS, PPS, MITT, etc.)
- * Connected to global studyStore for persistent state.
+ * Manage analysis populations (Safety, FAS, PPS, MITT, etc.) Connected to global studyStore for persistent state.
  */
-import { useState, useCallback } from 'react';
+import { CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import {
-  Card,
-  Table,
   Button,
-  Space,
-  Typography,
-  Modal,
+  Card,
   Form,
   Input,
-  Select,
-  message,
+  Modal,
   Popconfirm,
+  Select,
+  Space,
+  Table,
   Tag,
-  Tooltip
+  Tooltip,
+  Typography,
+  message
 } from 'antd';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckOutlined
-} from '@ant-design/icons';
-import type { PopulationSet } from '../../types';
+import { useCallback, useState } from 'react';
+
 import { useStudyStore } from '../../stores';
+import type { PopulationSet } from '../../types';
 
 const { Text, Title } = Typography;
 
@@ -57,10 +52,10 @@ export default function PopulationManager({ readOnly = false }: Props) {
   const handleEdit = (population: PopulationSet) => {
     setEditingPopulation(population);
     form.setFieldsValue({
-      name: population.name,
-      description: population.description,
       dataset: population.dataset,
+      description: population.description,
       filterExpression: population.filterExpression,
+      name: population.name
     });
     setModalVisible(true);
   };
@@ -87,7 +82,7 @@ export default function PopulationManager({ readOnly = false }: Props) {
         message.success('Population updated');
       } else {
         addPopulationSet({
-          ...values,
+          ...values
         });
         message.success('Population added');
       }
@@ -107,114 +102,115 @@ export default function PopulationManager({ readOnly = false }: Props) {
   // Table columns
   const columns = [
     {
-      title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
+      title: 'Name',
+      width: 150
     },
     {
-      title: 'Description',
       dataIndex: 'description',
-      key: 'description',
       ellipsis: true,
+      key: 'description',
+      title: 'Description'
     },
     {
-      title: 'Dataset',
       dataIndex: 'dataset',
       key: 'dataset',
-      width: 120,
+      title: 'Dataset',
+      width: 120
     },
     {
-      title: 'Filter Expression',
       dataIndex: 'filterExpression',
-      key: 'filterExpression',
       ellipsis: true,
+      key: 'filterExpression',
       render: (text: string) => (
-        <code style={{ fontSize: 11, background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
-          {text || '-'}
-        </code>
+        <code style={{ background: '#f5f5f5', borderRadius: 3, fontSize: 11, padding: '2px 6px' }}>{text || '-'}</code>
       ),
+      title: 'Filter Expression'
     },
     {
-      title: 'Default',
       key: 'isDefault',
-      width: 70,
-      render: (_: unknown, record: PopulationSet) => (
-        record.isDefault ? <Tag color="green">Default</Tag> : null
-      ),
+      render: (_: unknown, record: PopulationSet) => (record.isDefault ? <Tag color="green">Default</Tag> : null),
+      title: 'Default',
+      width: 70
     },
     {
-      title: 'Actions',
       key: 'actions',
-      width: 120,
       render: (_: unknown, record: PopulationSet) => (
         <Space size="small">
           <Tooltip title="Set as Default">
             <Button
-              type="text"
-              size="small"
               icon={<CheckOutlined />}
+              size="small"
+              type="text"
               onClick={() => handleSetDefault(record.id)}
             />
           </Tooltip>
           <Tooltip title="Edit">
             <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
               disabled={readOnly}
+              icon={<EditOutlined />}
+              size="small"
+              type="text"
+              onClick={() => handleEdit(record)}
             />
           </Tooltip>
           <Popconfirm
-            title="Are you sure you want to delete this population?"
-            description="This action cannot be undone."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
             cancelText="Cancel"
+            description="This action cannot be undone."
             disabled={readOnly}
+            okText="Delete"
+            title="Are you sure you want to delete this population?"
+            onConfirm={() => handleDelete(record.id)}
           >
             <Tooltip title="Delete">
               <Button
-                type="text"
-                size="small"
                 danger
-                icon={<DeleteOutlined />}
                 disabled={readOnly}
+                icon={<DeleteOutlined />}
+                size="small"
+                type="text"
               />
             </Tooltip>
           </Popconfirm>
         </Space>
       ),
-    },
+      title: 'Actions',
+      width: 120
+    }
   ];
 
   return (
     <Card
-      title={
-        <Space>
-          <Title level={5} style={{ margin: 0 }}>Populations</Title>
-          <Tag color="blue">{populations.length}</Tag>
-        </Space>
-      }
       size="small"
       extra={
         <Button
-          type="primary"
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={handleAdd}
           disabled={readOnly}
+          icon={<PlusOutlined />}
+          size="small"
+          type="primary"
+          onClick={handleAdd}
         >
           Add Population
         </Button>
       }
+      title={
+        <Space>
+          <Title
+            level={5}
+            style={{ margin: 0 }}
+          >
+            Populations
+          </Title>
+          <Tag color="blue">{populations.length}</Tag>
+        </Space>
+      }
     >
       <Table
-        dataSource={populations}
         columns={columns}
-        rowKey="id"
+        dataSource={populations}
         pagination={false}
+        rowKey="id"
         size="small"
         locale={{
           emptyText: (
@@ -222,58 +218,58 @@ export default function PopulationManager({ readOnly = false }: Props) {
               <Text type="secondary">No populations defined</Text>
               <div style={{ marginTop: 8 }}>
                 <Button
-                  type="dashed"
-                  icon={<PlusOutlined />}
-                  onClick={handleAdd}
                   disabled={readOnly}
+                  icon={<PlusOutlined />}
+                  type="dashed"
+                  onClick={handleAdd}
                 >
                   Add First Population
                 </Button>
               </div>
             </div>
-          ),
+          )
         }}
       />
 
       {/* Add/Edit Modal */}
       <Modal
-        title={editingPopulation ? 'Edit Population' : 'Add Population'}
+        okText={editingPopulation ? 'Update' : 'Add'}
         open={modalVisible}
+        title={editingPopulation ? 'Edit Population' : 'Add Population'}
+        width={600}
+        onOk={handleSubmit}
         onCancel={() => {
           setModalVisible(false);
           form.resetFields();
           setEditingPopulation(null);
         }}
-        onOk={handleSubmit}
-        width={600}
-        okText={editingPopulation ? 'Update' : 'Add'}
       >
         <Form
           form={form}
           layout="vertical"
           initialValues={{
-            name: '',
-            description: '',
             dataset: '',
+            description: '',
             filterExpression: '',
+            name: ''
           }}
         >
           <Form.Item
-            name="name"
             label="Population Name"
-            rules={[{ required: true, message: 'Please enter population name' }]}
+            name="name"
+            rules={[{ message: 'Please enter population name', required: true }]}
           >
             <Input
-              placeholder="e.g., Safety, FAS, PPS"
               showCount
               maxLength={50}
+              placeholder="e.g., Safety, FAS, PPS"
             />
           </Form.Item>
 
           <Form.Item
-            name="description"
             label="Description"
-            rules={[{ required: true, message: 'Please enter description' }]}
+            name="description"
+            rules={[{ message: 'Please enter description', required: true }]}
           >
             <Input.TextArea
               placeholder="Purpose and inclusion criteria"
@@ -282,28 +278,28 @@ export default function PopulationManager({ readOnly = false }: Props) {
           </Form.Item>
 
           <Form.Item
-            name="dataset"
             label="Reference Dataset"
-            rules={[{ required: true, message: 'Please select dataset' }]}
+            name="dataset"
+            rules={[{ message: 'Please select dataset', required: true }]}
           >
             <Select
               placeholder="Select dataset"
               options={[
-                { value: 'ADSL', label: 'ADSL - Subject Level' },
-                { value: 'ADES', label: 'ADES - ECG Subset' },
-                { value: 'ADAE', label: 'ADAE - Adverse Events' },
-                { value: 'ADLB', label: 'ADLB - Laboratory' },
-                { value: 'ADVS', label: 'ADVS - Vital Signs' },
-                { value: 'ADPC', label: 'ADPC - PK Parameters' },
-                { value: 'ADRS', label: 'ADRS - Efficacy' },
-                { value: 'ADCM', label: 'ADCM - Concomitant Meds' },
+                { label: 'ADSL - Subject Level', value: 'ADSL' },
+                { label: 'ADES - ECG Subset', value: 'ADES' },
+                { label: 'ADAE - Adverse Events', value: 'ADAE' },
+                { label: 'ADLB - Laboratory', value: 'ADLB' },
+                { label: 'ADVS - Vital Signs', value: 'ADVS' },
+                { label: 'ADPC - PK Parameters', value: 'ADPC' },
+                { label: 'ADRS - Efficacy', value: 'ADRS' },
+                { label: 'ADCM - Concomitant Meds', value: 'ADCM' }
               ]}
             />
           </Form.Item>
 
           <Form.Item
-            name="filterExpression"
             label="Filter Expression"
+            name="filterExpression"
             tooltip="SQL/SAS filter expression (optional)"
           >
             <Input.TextArea
@@ -314,8 +310,11 @@ export default function PopulationManager({ readOnly = false }: Props) {
           </Form.Item>
 
           {editingPopulation && (
-            <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: 4 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+            <div style={{ background: '#f5f5f5', borderRadius: 4, padding: '8px 12px' }}>
+              <Text
+                style={{ fontSize: 11 }}
+                type="secondary"
+              >
                 ID: {editingPopulation.id}
               </Text>
             </div>

@@ -202,12 +202,14 @@ async def root():
 from app.api.routers import (
     admin_sync_router,
     ars_builder_router,
+    ars_study_router,
     auth_router,
     global_library_router,
     mapping_studio_router,
     pipeline_router,
     pull_requests_router,
     rbac_router,
+    shell_library_router,
     study_spec_router,
     tfl_router,
     tracker_router,
@@ -225,6 +227,11 @@ app.include_router(
 
 app.include_router(
     ars_builder_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    ars_study_router,
     prefix="/api/v1",
 )
 
@@ -265,5 +272,10 @@ app.include_router(
 
 app.include_router(
     tfl_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    shell_library_router,
     prefix="/api/v1",
 )
