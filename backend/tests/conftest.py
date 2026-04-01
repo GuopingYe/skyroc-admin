@@ -124,7 +124,8 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://test"
+        base_url="http://test",
+        follow_redirects=True,
     ) as ac:
         yield ac
 
@@ -189,6 +190,23 @@ async def authenticated_client(
 
     # Set audit context for compliance tests
     set_audit_context(str(test_user.id), test_user.username)
+
+    yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def admin_authenticated_client(
+    client: AsyncClient,
+    admin_user: User,
+) -> AsyncClient:
+    """Create admin-authenticated test client with audit context."""
+    async def override_get_current_user():
+        return admin_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    set_audit_context(str(admin_user.id), admin_user.username)
 
     yield client
 
