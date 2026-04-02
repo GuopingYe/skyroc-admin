@@ -3,7 +3,6 @@
 !.env.prod.example
 !.vscode/extensions.json
 !.vscode/launch.json
-!.vscode/settings.json
 !.vscode/tasks.json
 # =========================
 # Alembic

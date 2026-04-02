@@ -1,9 +1,0 @@
-{
-    "claudeCode.environmentVariables": [
-        {
-            "ANTHROPIC_AUTH_TOKEN": "sk-sp-ba932e25aa2b4fa1b0072787db8ca3c0",
-            "ANTHROPIC_MODLE": "glm-5",
-            "ANTHROPIC_BASE_URL": "https://coding.dashscope.aliyuncs.com/apps/anthropic"
-        }
-    ]
-}
