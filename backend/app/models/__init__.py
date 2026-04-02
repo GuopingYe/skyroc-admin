@@ -48,6 +48,7 @@ from app.models.audit_listener import (
 )
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 from app.models.biomedical_concept import BiomedicalConcept
+from app.models.cdisc_sync import CdiscLibraryConfig, CdiscSyncLog
 from app.models.codelist import Codelist, CodelistTerm
 from app.models.enums import AuditAction, LifecycleStatus, NodeType, ReferenceDataCategory, VisibilityContext, WorkspaceType
 from app.models.mapping_enums import (
@@ -156,6 +157,9 @@ __all__ = [
     "BiomedicalConcept",
     "Codelist",
     "CodelistTerm",
+    # CDISC Sync Models
+    "CdiscLibraryConfig",
+    "CdiscSyncLog",
     # Audit utilities
     "register_audit_listeners",
     "set_audit_context",
