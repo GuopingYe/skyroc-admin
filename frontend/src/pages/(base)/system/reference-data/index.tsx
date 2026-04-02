@@ -11,6 +11,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Result,
   Space,
   Switch,
   Table,
@@ -26,6 +27,8 @@ import {
   useRestoreReferenceItem,
   useUpdateReferenceItem
 } from '@/service/hooks/useReferenceData';
+
+import CdiscLibraryTab from './modules/CdiscLibraryTab';
 
 const CATEGORIES = [
   { key: 'POPULATION', label: 'Population' },
@@ -50,6 +53,7 @@ export const handle = {
 };
 
 const ReferenceDataPage: React.FC = () => {
+  const [mainTab, setMainTab] = useState('reference-data');
   const [activeCategory, setActiveCategory] = useState('POPULATION');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Api.ReferenceData.ReferenceDataItem | null>(null);
@@ -196,9 +200,8 @@ const ReferenceDataPage: React.FC = () => {
     }
   }, [editingItem, form, createMutation, updateMutation, messageApi]);
 
-  return (
-    <Card>
-      {contextHolder}
+  const referenceDataTab = (
+    <>
       <Tabs
         activeKey={activeCategory}
         onChange={key => {
@@ -271,6 +274,32 @@ const ReferenceDataPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+    </>
+  );
+
+  return (
+    <Card>
+      {contextHolder}
+      <Tabs
+        activeKey={mainTab}
+        onChange={setMainTab}
+        items={[
+          {
+            key: 'reference-data',
+            label: 'Reference Data',
+            children: referenceDataTab
+          },
+          {
+            key: 'cdisc-library',
+            label: 'CDISC Library',
+            children: isSuperuser ? (
+              <CdiscLibraryTab />
+            ) : (
+              <Result status="403" title="403" subTitle="You do not have permission to access CDISC Library settings." />
+            )
+          }
+        ]}
+      />
     </Card>
   );
 };

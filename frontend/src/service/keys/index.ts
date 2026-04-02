@@ -63,6 +63,13 @@ export const QUERY_KEYS = {
     ROLE_LIST: (params?: Api.SystemManage.RoleSearchParams) => ['systemManage', 'roleList', params] as const,
     USER_LIST: (params?: Api.SystemManage.UserSearchParams) => ['systemManage', 'userList', params] as const
   },
+  // CDISC Sync
+  CDISC_SYNC: {
+    CONFIG: ['cdiscSync', 'config'] as const,
+    SYNC_LOGS: (params?: { status?: string; standard_type?: string; offset?: number; limit?: number }) =>
+      ['cdiscSync', 'logs', params] as const,
+    TASK_STATUS: (taskId: string) => ['cdiscSync', 'taskStatus', taskId] as const
+  },
   // Reference Data
   REFERENCE_DATA: {
     CATEGORIES: ['referenceData', 'categories'] as const,

@@ -5,6 +5,7 @@
  */
 
 export * from './useAuth';
+export * from './useCdiscSync';
 export * from './useGlobalLibrary';
 export * from './useRBAC';
 export * from './useReferenceData';

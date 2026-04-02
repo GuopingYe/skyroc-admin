@@ -5,6 +5,7 @@
  */
 
 export * from './auth';
+export * from './cdisc-sync';
 export * from './global-library';
 export * from './mdr';
 export * from './rbac';
