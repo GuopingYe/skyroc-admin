@@ -68,10 +68,3 @@ export function fetchSyncLogs(params?: { status?: string; standard_type?: string
     url: CDISC_SYNC_URLS.SYNC_LOGS
   });
 }
-
-export function fetchSyncLogDetail(taskId: string) {
-  return rbacRequest<Api.CdiscSync.SyncLogItem>({
-    method: 'get',
-    url: CDISC_SYNC_URLS.SYNC_LOG_DETAIL(taskId)
-  });
-}

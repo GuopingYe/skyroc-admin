@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cancelSync,
   fetchCdiscConfig,
-  fetchSyncLogDetail,
   fetchSyncLogs,
   fetchTaskStatus,
   retrySync,
@@ -104,13 +103,5 @@ export function useSyncLogs(
     queryFn: () => fetchSyncLogs(params),
     queryKey: QUERY_KEYS.CDISC_SYNC.SYNC_LOGS(params),
     staleTime: 30 * 1000
-  });
-}
-
-export function useSyncLogDetail(taskId: string | null, enabled = true) {
-  return useQuery({
-    enabled: enabled && Boolean(taskId),
-    queryFn: () => fetchSyncLogDetail(taskId!),
-    queryKey: QUERY_KEYS.CDISC_SYNC.TASK_STATUS(taskId ?? '')
   });
 }

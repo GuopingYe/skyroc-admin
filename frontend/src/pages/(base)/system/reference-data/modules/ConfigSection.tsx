@@ -8,19 +8,7 @@ import {
   useUpdateCdiscConfig
 } from '@/service/hooks/useCdiscSync';
 
-const STANDARD_TYPES = [
-  { label: 'SDTM', value: 'SDTM' },
-  { label: 'SDTMIG', value: 'SDTMIG' },
-  { label: 'ADaM', value: 'ADaM' },
-  { label: 'ADaMIG', value: 'ADaMIG' },
-  { label: 'CDASHIG', value: 'CDASHIG' },
-  { label: 'SENDIG', value: 'SENDIG' },
-  { label: 'TIG', value: 'TIG' },
-  { label: 'QRS', value: 'QRS' },
-  { label: 'CT', value: 'CT' },
-  { label: 'BC', value: 'BC' },
-  { label: 'Integrated', value: 'Integrated' }
-] as const;
+import { CDISC_STANDARD_TYPES } from './standard-types';
 
 const ConfigSection: React.FC = () => {
   const [form] = Form.useForm();
@@ -110,7 +98,7 @@ const ConfigSection: React.FC = () => {
           label="Enabled Standard Types"
           rules={[{ required: true, message: 'Select at least one standard type' }]}
         >
-          <Checkbox.Group options={STANDARD_TYPES.map(t => ({ label: t.label, value: t.value }))} />
+          <Checkbox.Group options={CDISC_STANDARD_TYPES.map(t => ({ label: t.label, value: t.value }))} />
         </Form.Item>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
           {testResult && (

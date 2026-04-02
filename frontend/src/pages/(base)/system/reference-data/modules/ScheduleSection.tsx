@@ -5,13 +5,13 @@ import { Button, Card, Form, InputNumber, Radio, Select, Switch, message } from 
 import { useCdiscConfig, useUpdateSchedule } from '@/service/hooks/useCdiscSync';
 
 const DAY_OF_WEEK_OPTIONS = [
-  { label: 'Monday', value: 0 },
-  { label: 'Tuesday', value: 1 },
-  { label: 'Wednesday', value: 2 },
-  { label: 'Thursday', value: 3 },
-  { label: 'Friday', value: 4 },
-  { label: 'Saturday', value: 5 },
-  { label: 'Sunday', value: 6 }
+  { label: 'Monday', value: 'monday' },
+  { label: 'Tuesday', value: 'tuesday' },
+  { label: 'Wednesday', value: 'wednesday' },
+  { label: 'Thursday', value: 'thursday' },
+  { label: 'Friday', value: 'friday' },
+  { label: 'Saturday', value: 'saturday' },
+  { label: 'Sunday', value: 'sunday' }
 ] as const;
 
 const ScheduleSection: React.FC = () => {
@@ -27,7 +27,7 @@ const ScheduleSection: React.FC = () => {
     if (config?.sync_schedule) {
       form.setFieldsValue({
         type: config.sync_schedule.type,
-        day_of_week: config.sync_schedule.day_of_week ?? 0,
+        day_of_week: config.sync_schedule.day_of_week ?? 'monday',
         day_of_month: config.sync_schedule.day_of_month ?? 1,
         interval_hours: config.sync_schedule.interval_hours ?? 24,
         sync_enabled: config.sync_enabled

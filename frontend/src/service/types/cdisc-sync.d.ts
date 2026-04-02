@@ -1,89 +1,95 @@
 /**
- * 命名空间 Api.CdiscSync
- *
- * 后端 API 模块：CDISC Library 同步管理
+ * Api.CdiscSync — CDISC Library sync management types
  */
 declare namespace Api {
   namespace CdiscSync {
-    /** CDISC 配置 */
+    /** CDISC configuration */
     interface CdiscConfig {
       id: number;
       api_base_url: string;
       api_key_masked: string;
       enabled_standard_types: string[];
-      sync_schedule: ScheduleInfo;
+      sync_schedule: ScheduleInfo | null;
       sync_enabled: boolean;
       updated_at: string;
     }
 
-    /** 调度信息 */
+    /** Schedule info */
     interface ScheduleInfo {
       type: 'daily' | 'weekly' | 'monthly' | 'custom';
       interval_hours?: number | null;
-      day_of_week?: number | null;
+      day_of_week?: string | null;
       day_of_month?: number | null;
     }
 
-    /** 更新配置请求 */
+    /** Update config request */
     interface CdiscConfigUpdate {
       api_base_url?: string;
       api_key?: string;
       enabled_standard_types?: string[];
     }
 
-    /** 测试连接响应 */
+    /** Test connection response */
     interface CdiscConfigTestResponse {
       status: 'success' | 'error';
       message: string;
     }
 
-    /** 更新调度请求 */
+    /** Update schedule request */
     interface ScheduleUpdate {
       type: 'daily' | 'weekly' | 'monthly' | 'custom';
       interval_hours?: number | null;
-      day_of_week?: number | null;
+      day_of_week?: string | null;
       day_of_month?: number | null;
       sync_enabled: boolean;
     }
 
-    /** 同步触发请求 */
+    /** Sync trigger request */
     interface SyncTriggerRequest {
       standard_type: string;
       version: string;
     }
 
-    /** 同步触发响应 */
+    /** Sync trigger response */
     interface SyncTriggerResponse {
       task_id: string;
       message: string;
     }
 
-    /** 任务进度 */
+    /** Progress checkpoint */
+    interface ProgressInfo {
+      current_step: string;
+      completed: number;
+      total: number;
+      percentage: number;
+    }
+
+    /** Task progress */
     interface SyncProgress {
       task_id: string;
       standard_type: string;
       version: string;
       status: 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
-      progress: number;
+      progress: ProgressInfo | null;
     }
 
-    /** 同步日志项 */
+    /** Sync log item */
     interface SyncLogItem {
       id: number;
       task_id: string;
       standard_type: string;
       version: string;
       status: 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
-      progress: number;
+      progress: ProgressInfo | null;
       result_summary: Record<string, unknown> | null;
       started_at: string | null;
       completed_at: string | null;
-      triggered_by: string | null;
+      triggered_by: string;
       created_by: string | null;
       error_message: string | null;
     }
 
-    /** 同步日志列表响应 */
+    /** Sync log list response */
     interface SyncLogListResponse {
       total: number;
       items: SyncLogItem[];

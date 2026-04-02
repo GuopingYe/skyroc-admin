@@ -4,19 +4,7 @@ import { Button, Card, Input, Progress, Select, Space, Typography, message } fro
 
 import { useCancelSync, useTaskPolling, useTriggerSync } from '@/service/hooks/useCdiscSync';
 
-const STANDARD_TYPE_OPTIONS = [
-  { label: 'SDTM', value: 'SDTM' },
-  { label: 'SDTMIG', value: 'SDTMIG' },
-  { label: 'ADaM', value: 'ADaM' },
-  { label: 'ADaMIG', value: 'ADaMIG' },
-  { label: 'CDASHIG', value: 'CDASHIG' },
-  { label: 'SENDIG', value: 'SENDIG' },
-  { label: 'TIG', value: 'TIG' },
-  { label: 'QRS', value: 'QRS' },
-  { label: 'CT', value: 'CT' },
-  { label: 'BC', value: 'BC' },
-  { label: 'Integrated', value: 'Integrated' }
-] as const;
+import { CDISC_STANDARD_TYPES } from './standard-types';
 
 interface SyncControlSectionProps {
   activeTaskId: string | null;
@@ -70,7 +58,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
           <Select
             value={standardType}
             onChange={setStandardType}
-            options={STANDARD_TYPE_OPTIONS.map(o => ({ label: o.label, value: o.value }))}
+            options={CDISC_STANDARD_TYPES.map(o => ({ label: o.label, value: o.value }))}
             style={{ width: 200 }}
             disabled={isTaskActive}
           />
@@ -106,7 +94,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
                 <Typography.Text>{taskProgress?.version}</Typography.Text>
               </div>
               <Progress
-                percent={taskProgress?.progress ?? 0}
+                percent={taskProgress?.progress?.percentage ?? 0}
                 status={taskProgress?.status === 'pending' ? 'active' : undefined}
               />
               <div>

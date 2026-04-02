@@ -6,6 +6,8 @@ import dayjs from 'dayjs';
 
 import { useRetrySync, useSyncLogs } from '@/service/hooks/useCdiscSync';
 
+import { CDISC_STANDARD_TYPES } from './standard-types';
+
 const STATUS_COLOR_MAP: Record<string, string> = {
   completed: 'green',
   failed: 'red',
@@ -14,20 +16,10 @@ const STATUS_COLOR_MAP: Record<string, string> = {
   pending: 'default'
 };
 
-const STANDARD_TYPE_OPTIONS = [
+const STANDARD_TYPE_FILTER_OPTIONS = [
   { label: 'All Types', value: '' },
-  { label: 'SDTM', value: 'SDTM' },
-  { label: 'SDTMIG', value: 'SDTMIG' },
-  { label: 'ADaM', value: 'ADaM' },
-  { label: 'ADaMIG', value: 'ADaMIG' },
-  { label: 'CDASHIG', value: 'CDASHIG' },
-  { label: 'SENDIG', value: 'SENDIG' },
-  { label: 'TIG', value: 'TIG' },
-  { label: 'QRS', value: 'QRS' },
-  { label: 'CT', value: 'CT' },
-  { label: 'BC', value: 'BC' },
-  { label: 'Integrated', value: 'Integrated' }
-] as const;
+  ...CDISC_STANDARD_TYPES.map(t => ({ label: t.label, value: t.value }))
+];
 
 const STATUS_OPTIONS = [
   { label: 'All Statuses', value: '' },
@@ -151,7 +143,7 @@ const SyncHistorySection: React.FC<SyncHistorySectionProps> = ({ onRetry }) => {
             setTypeFilter(val);
             setPagination(prev => ({ ...prev, offset: 0 }));
           }}
-          options={STANDARD_TYPE_OPTIONS.map(t => ({ label: t.label, value: t.value }))}
+          options={STANDARD_TYPE_FILTER_OPTIONS}
           style={{ width: 160 }}
         />
       </Space>

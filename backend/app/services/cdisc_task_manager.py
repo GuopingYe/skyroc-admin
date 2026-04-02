@@ -203,19 +203,9 @@ class CDISCBackgroundTaskManager:
         self._tasks[task_id].cancel()
         return True
 
-    def get_progress(self, task_id: str) -> SyncProgressResponse | None:
-        """Get in-memory progress. Falls back to DB for non-running tasks."""
-        if task_id in self._tasks and not self._tasks[task_id].done():
-            return None  # Caller should query DB for latest checkpoint
-        return None
-
     def is_running(self, task_id: str) -> bool:
         """Check if a task is currently running."""
         return task_id in self._tasks and not self._tasks[task_id].done()
-
-    def get_active_tasks(self) -> list[str]:
-        """Return list of currently active task IDs."""
-        return [tid for tid, t in self._tasks.items() if not t.done()]
 
 
 # Singleton instance
