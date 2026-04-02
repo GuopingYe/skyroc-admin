@@ -118,23 +118,30 @@ SEED_DATA = {
 }
 
 
-def upgrade() -> None:
-    conn = op.get_bind()
+def _flatten_seed_data() -> list[dict]:
+    """Flatten SEED_DATA dict-of-lists into a single list of param dicts."""
+    rows = []
     for category, items in SEED_DATA.items():
         for item in items:
-            conn.execute(
-                sa.text(
-                    "INSERT INTO reference_data (category, code, label, sort_order, is_active, is_deleted) "
-                    "VALUES (:category, :code, :label, :sort_order, true, false) "
-                    "ON CONFLICT DO NOTHING"
-                ),
-                {
-                    "category": category,
-                    "code": item["code"],
-                    "label": item["label"],
-                    "sort_order": item["sort_order"],
-                },
-            )
+            rows.append({
+                "category": category,
+                "code": item["code"],
+                "label": item["label"],
+                "sort_order": item["sort_order"],
+            })
+    return rows
+
+
+def upgrade() -> None:
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "INSERT INTO reference_data (category, code, label, sort_order, is_active, is_deleted) "
+            "VALUES (:category, :code, :label, :sort_order, true, false) "
+            "ON CONFLICT DO NOTHING"
+        ),
+        _flatten_seed_data(),
+    )
 
 
 def downgrade() -> None:

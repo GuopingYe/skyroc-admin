@@ -6,24 +6,11 @@ Mapping Studio Pydantic Schemas
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
 from app.models.enums import VisibilityContext
 from app.models.mapping_enums import MappingStatus, SourceType
-
-
-# ============================================================
-# Base Models
-# ============================================================
-
-class BaseSchema(BaseModel):
-    """Pydantic v2 基础配置"""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        use_enum_values=True,
-    )
+from app.schemas.base import BaseSchema
 
 
 # ============================================================

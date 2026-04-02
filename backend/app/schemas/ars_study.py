@@ -6,21 +6,9 @@ Study Defaults, Statistics Sets, Study Templates, Clone, PR propagation.
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-
-# ============================================================
-# Base
-# ============================================================
-
-class BaseSchema(BaseModel):
-    """Pydantic v2 base config"""
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-        use_enum_values=True,
-    )
+from app.schemas.base import BaseSchema
 
 
 # ============================================================

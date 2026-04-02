@@ -6,7 +6,7 @@ Specification Pydantic Schemas
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
 from app.models.mapping_enums import (
     DatasetClass,
@@ -17,20 +17,7 @@ from app.models.mapping_enums import (
     SpecType,
     VariableCore,
 )
-
-
-# ============================================================
-# Base Models
-# ============================================================
-
-class BaseSchema(BaseModel):
-    """Pydantic v2 基础配置"""
-
-    model_config = ConfigDict(
-        from_attributes=True,  # 替代 v1 的 orm_mode
-        populate_by_name=True,
-        use_enum_values=True,
-    )
+from app.schemas.base import BaseSchema
 
 
 # ============================================================

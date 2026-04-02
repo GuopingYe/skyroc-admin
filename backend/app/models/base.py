@@ -101,3 +101,9 @@ class SoftDeleteMixin:
         self.is_deleted = True
         self.deleted_at = datetime.utcnow()
         self.deleted_by = deleted_by
+
+    def soft_restore(self) -> None:
+        """撤销软删除"""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None

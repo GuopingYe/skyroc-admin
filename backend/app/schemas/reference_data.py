@@ -2,15 +2,9 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-
-class BaseSchema(BaseModel):
-    """Base schema with common config."""
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-    )
+from app.schemas.base import BaseSchema
 
 
 # --- Request Schemas ---
@@ -58,3 +52,11 @@ class CategorySummary(BaseSchema):
     label: str
     count: int
     active_count: int
+
+
+class PaginatedReferenceDataResponse(BaseSchema):
+    """Paginated response for reference data items."""
+    total: int = Field(..., description="Total number of items matching the filter")
+    items: list[ReferenceDataResponse] = Field(default_factory=list, description="Page of items")
+    offset: int = Field(0, description="Current page offset")
+    limit: int = Field(100, description="Page size")
