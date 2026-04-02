@@ -1,4 +1,6 @@
 export { default as ExportModal } from './components/common/ExportModal';
+export { default as CollapseButton } from './components/shared/CollapseButton';
+export { default as CollapsedRail } from './components/shared/CollapsedRail';
 export { default as AxesConfig } from './components/figure/AxesConfig';
 
 export { default as ChartTypeSelector } from './components/figure/ChartTypeSelector';

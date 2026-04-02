@@ -66,8 +66,8 @@ export const QUERY_KEYS = {
   // Reference Data
   REFERENCE_DATA: {
     CATEGORIES: ['referenceData', 'categories'] as const,
-    ITEMS: (category: string, params?: { is_active?: boolean; is_deleted?: boolean }) =>
-      ['referenceData', 'items', category, params] as const,
+    ITEMS: (category: string, params?: { is_active?: boolean; is_deleted?: boolean; offset?: number; limit?: number }) =>
+['referenceData', 'items', category, params] as const,
     ITEM: (category: string, code: string) => ['referenceData', 'item', category, code] as const
   }
 } as const;

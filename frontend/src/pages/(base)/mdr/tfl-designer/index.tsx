@@ -22,11 +22,13 @@ import {
   FileTextOutlined,
   FilterOutlined,
   LayoutOutlined,
+  LeftOutlined,
   LoadingOutlined,
   NumberOutlined,
   PlusOutlined,
   RedoOutlined,
   ReloadOutlined,
+  RightOutlined,
   SaveOutlined,
   SendOutlined,
   SettingOutlined,
@@ -96,6 +98,7 @@ import {
   useTFLDesignerData,
   useTableStore
 } from '@/features/tfl-designer';
+import { CollapsedRail, CollapseButton } from '@/features/tfl-designer';
 import type {
   ColumnHeaderGroup,
   FigureShell,
@@ -301,6 +304,8 @@ const TflDesigner: React.FC = () => {
   const [editorPanelWidth, setEditorPanelWidth] = useState(380);
   const [isResizing, setIsResizing] = useState(false);
   const [resizingTarget, setResizingTarget] = useState<'editor' | 'sidebar'>('sidebar');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editorCollapsed, setEditorCollapsed] = useState(false);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent, target: 'editor' | 'sidebar') => {
@@ -797,17 +802,24 @@ const TflDesigner: React.FC = () => {
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
         <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
-          {/* Left: Editor Tabs */}
-          <Card
-            className="flex-shrink-0 overflow-auto"
-            size="small"
-            style={{ width: editorPanelWidth }}
-            variant="borderless"
-          >
-            <Tabs
-              activeKey={tableEditorTab}
-              popupClassName="editor-tab-nav"
-              size="small"
+          {editorCollapsed ? (
+            <CollapsedRail tooltip="Expand editor" onExpand={() => setEditorCollapsed(false)} />
+          ) : (
+            <>
+              {/* Left: Editor Tabs */}
+              <Card
+                className="flex-shrink-0 overflow-auto"
+                size="small"
+                style={{ width: editorPanelWidth }}
+                variant="borderless"
+              >
+                <div className="flex items-center justify-end mb-4px">
+                  <CollapseButton tooltip="Collapse editor" onCollapse={() => setEditorCollapsed(true)} />
+                </div>
+                <Tabs
+                  activeKey={tableEditorTab}
+                  popupClassName="editor-tab-nav"
+                  size="small"
               tabBarStyle={{ marginBottom: 0 }}
               type="card"
               items={[
@@ -1048,10 +1060,12 @@ const TflDesigner: React.FC = () => {
               if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           />
+        </>
+      )}
 
-          {/* Right: Live Preview - Interactive */}
-          <Card
-            className="min-w-0 flex-1 overflow-auto"
+      {/* Right: Live Preview - Interactive */}
+      <Card
+        className="min-w-0 flex-1 overflow-hidden"
             size="small"
             variant="borderless"
             title={
@@ -1137,17 +1151,24 @@ const TflDesigner: React.FC = () => {
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
         <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
-          {/* Left: Editor Tabs */}
-          <Card
-            className="flex-shrink-0 overflow-auto"
-            size="small"
-            style={{ width: editorPanelWidth }}
-            variant="borderless"
-          >
-            <Tabs
-              activeKey={figureEditorTab}
-              popupClassName="editor-tab-nav"
-              size="small"
+          {editorCollapsed ? (
+            <CollapsedRail tooltip="Expand editor" onExpand={() => setEditorCollapsed(false)} />
+          ) : (
+            <>
+              {/* Left: Editor Tabs */}
+              <Card
+                className="flex-shrink-0 overflow-auto"
+                size="small"
+                style={{ width: editorPanelWidth }}
+                variant="borderless"
+              >
+                <div className="flex items-center justify-end mb-4px">
+                  <CollapseButton tooltip="Collapse editor" onCollapse={() => setEditorCollapsed(true)} />
+                </div>
+                <Tabs
+                  activeKey={figureEditorTab}
+                  popupClassName="editor-tab-nav"
+                  size="small"
               tabBarStyle={{ marginBottom: 0 }}
               type="card"
               items={[
@@ -1287,10 +1308,12 @@ const TflDesigner: React.FC = () => {
               if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           />
+        </>
+      )}
 
-          {/* Right: Live Preview - ECharts */}
+      {/* Right: Live Preview - ECharts */}
           <Card
-            className="min-w-0 flex-1 overflow-auto"
+            className="min-w-0 flex-1 overflow-hidden"
             size="small"
             variant="borderless"
             title={
@@ -1388,17 +1411,24 @@ const TflDesigner: React.FC = () => {
 
         {/* Side-by-side: Editor (left) + Live Preview (right) */}
         <div className="min-h-0 flex flex-1 gap-8px overflow-hidden">
-          {/* Left: Editor Tabs */}
-          <Card
-            className="flex-shrink-0 overflow-auto"
-            size="small"
-            style={{ width: editorPanelWidth }}
-            variant="borderless"
-          >
-            <Tabs
-              activeKey={listingEditorTab}
-              popupClassName="editor-tab-nav"
-              size="small"
+          {editorCollapsed ? (
+            <CollapsedRail tooltip="Expand editor" onExpand={() => setEditorCollapsed(false)} />
+          ) : (
+            <>
+              {/* Left: Editor Tabs */}
+              <Card
+                className="flex-shrink-0 overflow-auto"
+                size="small"
+                style={{ width: editorPanelWidth }}
+                variant="borderless"
+              >
+                <div className="flex items-center justify-end mb-4px">
+                  <CollapseButton tooltip="Collapse editor" onCollapse={() => setEditorCollapsed(true)} />
+                </div>
+                <Tabs
+                  activeKey={listingEditorTab}
+                  popupClassName="editor-tab-nav"
+                  size="small"
               tabBarStyle={{ marginBottom: 0 }}
               type="card"
               items={[
@@ -1606,10 +1636,12 @@ const TflDesigner: React.FC = () => {
               if (!(isResizing && resizingTarget === 'editor')) e.currentTarget.style.backgroundColor = 'transparent';
             }}
           />
+        </>
+      )}
 
-          {/* Right: Live Preview - Interactive */}
-          <Card
-            className="min-w-0 flex-1 overflow-auto"
+      {/* Right: Live Preview - Interactive */}
+      <Card
+        className="min-w-0 flex-1 overflow-hidden"
             size="small"
             variant="borderless"
             title={
@@ -1900,13 +1932,20 @@ const TflDesigner: React.FC = () => {
 
           {/* Main content: Left sidebar + Center editor */}
           <div className="min-h-0 flex flex-1 overflow-hidden">
-            {/* Left sidebar - Outputs Tree (resizable) */}
-            <Card
-              className="flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
-              size="small"
-              style={{ width: sidebarWidth }}
-              variant="borderless"
-            >
+            {/* Left sidebar - Outputs Tree (collapsible, resizable) */}
+            {sidebarCollapsed ? (
+              <CollapsedRail tooltip="Expand sidebar" onExpand={() => setSidebarCollapsed(false)} />
+            ) : (
+              <>
+              <Card
+                className="flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
+                size="small"
+                style={{ width: sidebarWidth }}
+                variant="borderless"
+              >
+                <div className="mb-4px flex items-center justify-end px-4px">
+                  <CollapseButton tooltip="Collapse sidebar" onCollapse={() => setSidebarCollapsed(true)} />
+                </div>
               {/* Study Settings button */}
               <div className="mb-8px">
                 <Tooltip title={t('page.mdr.tflDesigner.sidebar.studySettings')}>
@@ -2085,6 +2124,9 @@ const TflDesigner: React.FC = () => {
                 if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
               }}
             />
+            </>
+            )}
+
 
             {/* Center - Editor area */}
             <Card

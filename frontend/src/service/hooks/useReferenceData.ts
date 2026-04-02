@@ -23,19 +23,20 @@ export function useReferenceCategories(enabled = true) {
 
 export function useReferenceItems(
   category: string,
-  params?: { is_active?: boolean; is_deleted?: boolean },
+  params?: { is_active?: boolean; is_deleted?: boolean; offset?: number; limit?: number },
   enabled = true
 ) {
   return useQuery({
     queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category, params),
     queryFn: () => fetchReferenceItems(category, params),
     enabled: enabled && Boolean(category),
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    select: data => data?.items ?? []
   });
 }
 
 export function useReferenceOptions(category: string, enabled = true) {
-  const { data, isLoading } = useReferenceItems(category, { is_active: true }, enabled);
+  const { data, isLoading } = useReferenceItems(category, { is_active: true, limit: 500 }, enabled);
   const options = useMemo<Api.ReferenceData.DropdownOption[]>(
     () => (data || []).map(item => ({ label: item.label, value: item.code })),
     [data]
@@ -69,9 +70,11 @@ export function useUpdateReferenceItem(category: string) {
       fetchUpdateReferenceItem(category, code, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.ITEMS(category) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.REFERENCE_DATA.CATEGORIES });
     }
   });
 }
+
 
 export function useDeactivateReferenceItem(category: string) {
   const queryClient = useQueryClient();

@@ -85,5 +85,13 @@ declare namespace Api {
       label: string;
       value: string;
     }
+
+    /** 分页响应 */
+    interface PaginatedResponse {
+      total: number;
+      items: ReferenceDataItem[];
+      offset: number;
+      limit: number;
+    }
   }
 }

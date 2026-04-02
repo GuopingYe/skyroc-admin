@@ -10,9 +10,9 @@ export function fetchReferenceCategories() {
 
 export function fetchReferenceItems(
   category: string,
-  params?: { is_active?: boolean; is_deleted?: boolean }
+  params?: { is_active?: boolean; is_deleted?: boolean; offset?: number; limit?: number }
 ) {
-  return rbacRequest<Api.ReferenceData.ReferenceDataItem[]>({
+  return rbacRequest<Api.ReferenceData.PaginatedResponse>({
     method: 'get',
     params,
     url: REFERENCE_DATA_URLS.ITEMS(category)

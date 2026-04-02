@@ -20,7 +20,9 @@ import {
   CopyOutlined,
   DeleteOutlined,
   ImportOutlined,
+  LeftOutlined,
   RedoOutlined,
+  RightOutlined,
   SaveOutlined,
   SearchOutlined,
   TableOutlined,
@@ -57,6 +59,7 @@ import {
   useTemplateEditorStore,
   useTemplateStore
 } from '@/features/tfl-designer';
+import { CollapsedRail, CollapseButton } from '@/features/tfl-designer';
 
 const { Text, Title } = Typography;
 
@@ -120,6 +123,8 @@ const TemplateLibrary: React.FC = () => {
   const [scopeLevelFilter, setScopeLevelFilter] = useState<ScopeLevelFilter>('all');
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizing, setIsResizing] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editorCollapsed, setEditorCollapsed] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importedTemplates, setImportedTemplates] = useState<Template[]>([]);
   const [pendingSelect, setPendingSelect] = useState<Template | null>(null);
@@ -482,218 +487,233 @@ const TemplateLibrary: React.FC = () => {
 
       {/* Three-column layout */}
       <div className="min-h-0 flex flex-1 overflow-hidden">
-        {/* Left sidebar */}
-        <Card
-          className="flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
-          size="small"
-          style={{ width: sidebarWidth }}
-          styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', padding: '8px' } }}
-          variant="borderless"
-        >
-          <div className="mb-8px">
-            <Input
-              allowClear
-              placeholder={t('page.mdr.tflTemplateLibrary.searchPlaceholder')}
-              prefix={<SearchOutlined />}
+        {/* Left sidebar — collapsible */}
+        {sidebarCollapsed ? (
+          <CollapsedRail tooltip="Expand sidebar" onExpand={() => setSidebarCollapsed(false)} />
+        ) : (
+          <>
+            <Card
+              className="flex flex-col flex-shrink-0 overflow-hidden card-wrapper"
               size="small"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              style={{ width: sidebarWidth }}
+              styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', padding: '8px' } }}
+              variant="borderless"
+            >
+              <div className="mb-4px flex items-center justify-end">
+                <CollapseButton tooltip="Collapse sidebar" onCollapse={() => setSidebarCollapsed(true)} />
+              </div>
+              <div className="mb-8px">
+                <Input
+                  allowClear
+                  placeholder={t('page.mdr.tflTemplateLibrary.searchPlaceholder')}
+                  prefix={<SearchOutlined />}
+                  size="small"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              <Segmented
+                size="small"
+                style={{ marginBottom: 8, width: '100%' }}
+                value={scopeLevelFilter}
+                options={[
+                  { label: 'All', value: 'all' },
+                  { label: 'Global', value: 'global' },
+                  { label: 'TA', value: 'ta' },
+                  { disabled: true, label: 'Product', value: 'product' }
+                ]}
+                onChange={v => setScopeLevelFilter(v as ScopeLevelFilter)}
+              />
+              <Segmented
+                block
+                size="small"
+                value={typeFilter}
+                options={[
+                  {
+                    label: (
+                      <Space size={2}>
+                        All<sup>{typeCounts.all}</sup>
+                      </Space>
+                    ),
+                    value: 'all'
+                  },
+                  {
+                    label: (
+                      <Space size={2}>
+                        T<sup>{typeCounts.table}</sup>
+                      </Space>
+                    ),
+                    value: 'table'
+                  },
+                  {
+                    label: (
+                      <Space size={2}>
+                        F<sup>{typeCounts.figure}</sup>
+                      </Space>
+                    ),
+                    value: 'figure'
+                  },
+                  {
+                    label: (
+                      <Space size={2}>
+                        L<sup>{typeCounts.listing}</sup>
+                      </Space>
+                    ),
+                    value: 'listing'
+                  }
+                ]}
+                onChange={v => setTypeFilter(v as TypeFilter)}
+              />
+              <div className="mt-8px">
+                <Select
+                  allowClear
+                  options={categories}
+                  placeholder={t('page.mdr.tflTemplateLibrary.categoryFilter')}
+                  popupMatchSelectWidth={false}
+                  size="small"
+                  style={{ width: '100%' }}
+                  value={categoryFilter || undefined}
+                  onChange={v => setCategoryFilter(v || undefined)}
+                />
+              </div>
+              <div className="flex-1 overflow-auto pt-8px">
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-32px">
+                    <Text
+                      className="text-12px"
+                      type="secondary"
+                    >
+                      {t('page.mdr.tflTemplateLibrary.empty')}
+                    </Text>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2px">
+                    {filtered.map(tpl => {
+                      const isActive = selectedTemplate?.id === tpl.id;
+                      const scopeTag = getScopeLevelTagProps(tpl.scopeLevel as ScopeLevel | undefined);
+                      return (
+                        <div
+                          className={`flex cursor-pointer items-center justify-between rounded px-8px py-5px transition-colors ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                          key={tpl.id}
+                          onClick={() => handleSelect(tpl)}
+                        >
+                          <Space size={6}>
+                            <span style={{ color: typeColor[tpl.type], fontSize: 13 }}>{typeIconMap[tpl.type]}</span>
+                            <span
+                              className="truncate text-13px"
+                              style={{ maxWidth: sidebarWidth - 100 }}
+                            >
+                              {tpl.name}
+                            </span>
+                          </Space>
+                          <Space size={4}>
+                            <Tag
+                              className="m-0 text-10px"
+                              style={{ fontSize: 10 }}
+                              color={scopeTag.color}
+                            >
+                              {scopeTag.label}
+                            </Tag>
+                            <Tag
+                              className="m-0 text-10px"
+                              color="green"
+                              style={{ fontSize: 10 }}
+                            >
+                              {categoryLabelMap[tpl.category]?.replace(/_/g, ' ') || tpl.category.replace(/_/g, ' ')}
+                            </Tag>
+                          </Space>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Resize handle */}
+            <div
+              style={{
+                backgroundColor: isResizing ? '#1890ff' : 'transparent',
+                cursor: 'col-resize',
+                flexShrink: 0,
+                transition: 'background-color 0.15s',
+                width: 4,
+                zIndex: 10
+              }}
+              onMouseDown={handleResizeStart}
+              onMouseEnter={e => {
+                if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
+              }}
+              onMouseLeave={e => {
+                if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             />
-          </div>
-          <Segmented
+
+            {/* Collapse sidebar button */}
+          </>
+        )}
+
+        {/* Center — Tabbed Editor Panel (collapsible) */}
+        {editorCollapsed ? (
+          <CollapsedRail tooltip="Expand editor" onExpand={() => setEditorCollapsed(false)} />
+        ) : (
+          <Card
+            className="min-w-0 flex flex-col flex-1 overflow-hidden card-wrapper"
             size="small"
-            style={{ marginBottom: 8, width: '100%' }}
-            value={scopeLevelFilter}
-            options={[
-              { label: 'All', value: 'all' },
-              { label: 'Global', value: 'global' },
-              { label: 'TA', value: 'ta' },
-              { disabled: true, label: 'Product', value: 'product' }
-            ]}
-            onChange={v => setScopeLevelFilter(v as ScopeLevelFilter)}
-          />
-          <Segmented
-            block
-            size="small"
-            value={typeFilter}
-            options={[
-              {
-                label: (
-                  <Space size={2}>
-                    All<sup>{typeCounts.all}</sup>
+            styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' } }}
+            variant="borderless"
+            title={
+              selectedTemplate ? (
+                <div className="flex items-center justify-between">
+                  <Space size={6}>
+                    <span style={{ color: typeColor[selectedTemplate.type], fontSize: 14 }}>
+                      {typeIconMap[selectedTemplate.type]}
+                    </span>
+                    <Text
+                      className="text-13px"
+                      strong
+                    >
+                      {selectedTemplate.name}
+                    </Text>
+                    <Tag
+                      color={typeColor[selectedTemplate.type]}
+                      style={{ fontSize: 10 }}
+                    >
+                      {selectedTemplate.type.toUpperCase()}
+                    </Tag>
                   </Space>
-                ),
-                value: 'all'
-              },
-              {
-                label: (
-                  <Space size={2}>
-                    T<sup>{typeCounts.table}</sup>
+                  <Space size={4}>
+                    <CollapseButton tooltip="Collapse editor" onCollapse={() => setEditorCollapsed(true)} />
+                    <Tooltip title="Duplicate">
+                      <Button
+                        icon={<CopyOutlined />}
+                        size="small"
+                        onClick={() => handleDuplicate(selectedTemplate.id)}
+                      />
+                    </Tooltip>
+                    {canManage && (
+                      <Popconfirm
+                        title={t('page.mdr.tflTemplateLibrary.confirmDelete')}
+                        onConfirm={() => handleDelete(selectedTemplate.id)}
+                      >
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          size="small"
+                        />
+                      </Popconfirm>
+                    )}
                   </Space>
-                ),
-                value: 'table'
-              },
-              {
-                label: (
-                  <Space size={2}>
-                    F<sup>{typeCounts.figure}</sup>
-                  </Space>
-                ),
-                value: 'figure'
-              },
-              {
-                label: (
-                  <Space size={2}>
-                    L<sup>{typeCounts.listing}</sup>
-                  </Space>
-                ),
-                value: 'listing'
-              }
-            ]}
-            onChange={v => setTypeFilter(v as TypeFilter)}
-          />
-          <div className="mt-8px">
-            <Select
-              allowClear
-              options={categories}
-              placeholder={t('page.mdr.tflTemplateLibrary.categoryFilter')}
-              popupMatchSelectWidth={false}
-              size="small"
-              style={{ width: '100%' }}
-              value={categoryFilter || undefined}
-              onChange={v => setCategoryFilter(v || undefined)}
-            />
-          </div>
-          <div className="flex-1 overflow-auto pt-8px">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32px">
+                </div>
+              ) : (
                 <Text
                   className="text-12px"
                   type="secondary"
                 >
-                  {t('page.mdr.tflTemplateLibrary.empty')}
+                  Editor
                 </Text>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2px">
-                {filtered.map(tpl => {
-                  const isActive = selectedTemplate?.id === tpl.id;
-                  const scopeTag = getScopeLevelTagProps(tpl.scopeLevel as ScopeLevel | undefined);
-                  return (
-                    <div
-                      className={`flex cursor-pointer items-center justify-between rounded px-8px py-5px transition-colors ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                      key={tpl.id}
-                      onClick={() => handleSelect(tpl)}
-                    >
-                      <Space size={6}>
-                        <span style={{ color: typeColor[tpl.type], fontSize: 13 }}>{typeIconMap[tpl.type]}</span>
-                        <span
-                          className="truncate text-13px"
-                          style={{ maxWidth: sidebarWidth - 100 }}
-                        >
-                          {tpl.name}
-                        </span>
-                      </Space>
-                      <Space size={4}>
-                        <Tag
-                          className="m-0 text-10px"
-                          style={{ fontSize: 10 }}
-                          color={scopeTag.color}
-                        >
-                          {scopeTag.label}
-                        </Tag>
-                        <Tag
-                          className="m-0 text-10px"
-                          color="green"
-                          style={{ fontSize: 10 }}
-                        >
-                          {categoryLabelMap[tpl.category]?.replace(/_/g, ' ') || tpl.category.replace(/_/g, ' ')}
-                        </Tag>
-                      </Space>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Resize handle */}
-        <div
-          style={{
-            backgroundColor: isResizing ? '#1890ff' : 'transparent',
-            cursor: 'col-resize',
-            flexShrink: 0,
-            transition: 'background-color 0.15s',
-            width: 4,
-            zIndex: 10
-          }}
-          onMouseDown={handleResizeStart}
-          onMouseEnter={e => {
-            if (!isResizing) e.currentTarget.style.backgroundColor = '#d9d9d9';
-          }}
-          onMouseLeave={e => {
-            if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        />
-
-        {/* Center — Tabbed Editor Panel */}
-        <Card
-          className="min-w-0 flex flex-col flex-1 overflow-hidden card-wrapper"
-          size="small"
-          styles={{ body: { display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' } }}
-          variant="borderless"
-          title={
-            selectedTemplate ? (
-              <div className="flex items-center justify-between">
-                <Space size={6}>
-                  <span style={{ color: typeColor[selectedTemplate.type], fontSize: 14 }}>
-                    {typeIconMap[selectedTemplate.type]}
-                  </span>
-                  <Text
-                    className="text-13px"
-                    strong
-                  >
-                    {selectedTemplate.name}
-                  </Text>
-                  <Tag
-                    color={typeColor[selectedTemplate.type]}
-                    style={{ fontSize: 10 }}
-                  >
-                    {selectedTemplate.type.toUpperCase()}
-                  </Tag>
-                </Space>
-                <Space size={4}>
-                  <Tooltip title="Duplicate">
-                    <Button
-                      icon={<CopyOutlined />}
-                      size="small"
-                      onClick={() => handleDuplicate(selectedTemplate.id)}
-                    />
-                  </Tooltip>
-                  {canManage && (
-                    <Popconfirm
-                      title={t('page.mdr.tflTemplateLibrary.confirmDelete')}
-                      onConfirm={() => handleDelete(selectedTemplate.id)}
-                    >
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        size="small"
-                      />
-                    </Popconfirm>
-                  )}
-                </Space>
-              </div>
-            ) : (
-              <Text
-                className="text-12px"
-                type="secondary"
-              >
-                Editor
-              </Text>
-            )
-          }
+              )
+            }
         >
           <div className="flex-1 overflow-auto">
             {editingTemplate ? (
@@ -712,6 +732,7 @@ const TemplateLibrary: React.FC = () => {
             )}
           </div>
         </Card>
+        )}
 
         {/* Right — Live Preview */}
         <Card
