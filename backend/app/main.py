@@ -92,10 +92,21 @@ async def lifespan(app: FastAPI):
     register_audit_listeners(Base)
     print("✅ Audit listeners registered")
 
+    # 启动 CDISC 同步调度器
+    from app.services.cdisc_scheduler import cdisc_scheduler
+
+    cdisc_scheduler.start()
+    print("✅ CDISC scheduler started")
+
     yield
 
     # 关闭
     print("🛑 Shutting down Clinical MDR Backend...")
+
+    # 停止 CDISC 同步调度器
+    cdisc_scheduler.stop()
+    print("✅ CDISC scheduler stopped")
+
     await engine.dispose()
     print("✅ Database connections closed")
 
@@ -204,6 +215,7 @@ from app.api.routers import (
     ars_builder_router,
     ars_study_router,
     auth_router,
+    cdisc_config_router,
     global_library_router,
     mapping_studio_router,
     pipeline_router,
@@ -283,5 +295,10 @@ app.include_router(
 
 app.include_router(
     reference_data_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    cdisc_config_router,
     prefix="/api/v1",
 )
