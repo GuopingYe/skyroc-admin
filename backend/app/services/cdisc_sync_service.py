@@ -143,14 +143,22 @@ class CDISCSyncService:
     支持同步多种 CDISC 标准，采用分类抓取策略
     """
 
-    def __init__(self):
-        self.base_url = settings.CDISC_API_BASE_URL
-        self.api_key = settings.CDISC_LIBRARY_API_KEY
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        progress_callback: Any = None,
+        cancel_check: Any = None,
+    ):
+        self.base_url = base_url or settings.CDISC_API_BASE_URL
+        self.api_key = api_key or settings.CDISC_LIBRARY_API_KEY
         self.headers = {
             "api-key": self.api_key,
             "Accept": "application/json",
         }
         self._client: httpx.AsyncClient | None = None
+        self._progress_callback = progress_callback
+        self._cancel_check = cancel_check
 
     async def _get_client(self) -> httpx.AsyncClient:
         """获取或创建 HTTP 客户端"""
@@ -175,6 +183,29 @@ class CDISCSyncService:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+    # ============================================================
+    # Progress / Cancel helpers
+    # ============================================================
+
+    async def _report_progress(
+        self, current_step: str, completed: int, total: int
+    ) -> None:
+        """Report progress via callback."""
+        if self._progress_callback:
+            pct = int((completed / total) * 100) if total > 0 else 0
+            await self._progress_callback({
+                "current_step": current_step,
+                "completed": completed,
+                "total": total,
+                "percentage": pct,
+            })
+
+    def _check_cancelled(self) -> bool:
+        """Check if the task has been cancelled."""
+        if self._cancel_check and self._cancel_check():
+            raise asyncio.CancelledError("Sync cancelled by user")
+        return False
 
     async def _fetch_json(self, endpoint: str) -> dict[str, Any] | None:
         """
@@ -529,6 +560,12 @@ class CDISCSyncService:
 
         # 遍历所有版本
         for idx, ver in enumerate(versions, 1):
+            self._check_cancelled()
+            await self._report_progress(
+                f"Syncing {standard_type.upper()} v{ver} ({idx}/{total_versions})",
+                idx,
+                total_versions,
+            )
             try:
                 remaining = total_versions - idx
                 logger.info(f"")
@@ -980,8 +1017,15 @@ class CDISCSyncService:
             # 从 _links.classes 获取
             links = data.get("_links", {})
             class_links = links.get("classes", [])
+            total_classes = len(class_links)
 
-            for class_link in class_links:
+            for class_idx, class_link in enumerate(class_links, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"SDTM Model: class {class_idx}/{total_classes}",
+                    class_idx,
+                    total_classes,
+                )
                 try:
                     class_href = class_link.get("href", "")
                     class_title = class_link.get("title", "")
@@ -1158,7 +1202,13 @@ class CDISCSyncService:
             logger.info(f"ADaM {version}: found {len(data_structures)} dataStructures")
 
             # 如果有 dataStructures，处理它们
-            for ds_info in data_structures:
+            for ds_idx, ds_info in enumerate(data_structures):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"ADaM: datastructure {ds_idx + 1}/{total_ds}",
+                    ds_idx + 1,
+                    total_ds,
+                )
                 try:
                     await self._process_adam_datastructure(
                         session=session,
@@ -1286,8 +1336,15 @@ class CDISCSyncService:
 
             # 获取 Classes (已包含 datasets 和 datasetVariables)
             classes = await self._fetch_sdtmig_classes(version)
+            total_classes = len(classes)
 
-            for class_info in classes:
+            for class_idx, class_info in enumerate(classes, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"SDTMIG: class {class_idx}/{total_classes}",
+                    class_idx,
+                    total_classes,
+                )
                 class_name = class_info.get("name", "")
                 class_type = self._map_class_to_dataset_class(class_name)
 
@@ -1404,6 +1461,12 @@ class CDISCSyncService:
             logger.info(f"ADaMIG {version}: found {len(data_structures)} dataStructures")
 
             for idx, ds_info in enumerate(data_structures):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"ADaMIG: datastructure {idx + 1}/{total_ds}",
+                    idx + 1,
+                    total_ds,
+                )
                 try:
                     await self._process_adam_datastructure(
                         session=session,
@@ -1469,7 +1532,13 @@ class CDISCSyncService:
             total_datasets = 0
             total_variables = 0
 
-            for class_info in classes:
+            for class_idx, class_info in enumerate(classes, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"CDASHIG: class {class_idx}/{total_classes}",
+                    class_idx,
+                    total_classes,
+                )
                 class_name = class_info.get("name", "")
                 class_type = self._map_class_to_dataset_class(class_name)
 
@@ -1594,7 +1663,13 @@ class CDISCSyncService:
             total_datasets = 0
             total_variables = 0
 
-            for class_info in classes:
+            for class_idx, class_info in enumerate(classes, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"SENDIG: class {class_idx}/{total_classes}",
+                    class_idx,
+                    total_classes,
+                )
                 class_name = class_info.get("name", "")
                 class_type = self._map_class_to_dataset_class(class_name)
 
@@ -1853,7 +1928,14 @@ class CDISCSyncService:
             # ============================================================
             # Step 2 & 3: 遍历量表，获取版本和题目
             # ============================================================
-            for instrument_name in instruments_to_sync:
+            total_instruments = len(instruments_to_sync)
+            for instr_idx, instrument_name in enumerate(instruments_to_sync, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"QRS: instrument {instr_idx}/{total_instruments} ({instrument_name})",
+                    instr_idx,
+                    total_instruments,
+                )
                 try:
                     logger.info(f"QRS Step 2: Fetching root node for {instrument_name}...")
 
@@ -2076,7 +2158,14 @@ class CDISCSyncService:
             bc_links = data.get("_links", {}).get("biomedicalConcepts", [])
             logger.info(f"Found {len(bc_links)} biomedical concept links to process")
 
-            for bc_link in bc_links:
+            total_bc = len(bc_links)
+            for bc_idx, bc_link in enumerate(bc_links, 1):
+                self._check_cancelled()
+                await self._report_progress(
+                    f"BC: concept {bc_idx}/{total_bc}",
+                    bc_idx,
+                    total_bc,
+                )
                 try:
                     bc_href = bc_link.get("href", "")
                     bc_title = bc_link.get("title", "")
@@ -2200,6 +2289,12 @@ class CDISCSyncService:
             # 分批处理 Codelist
             codelist_count = 0
             for codelist_link in codelist_links:
+                self._check_cancelled()
+                await self._report_progress(
+                    f"CT: codelist {codelist_count + 1}/{total_codelists}",
+                    codelist_count + 1,
+                    total_codelists,
+                )
                 try:
                     # 使用 SAVEPOINT 保护主事务
                     async with session.begin_nested():
@@ -2482,6 +2577,13 @@ class CDISCSyncService:
         logger.info(f"🔄 Syncing TIG: {product_href}")
 
         try:
+            self._check_cancelled()
+            await self._report_progress(
+                f"TIG: processing {product_href}",
+                0,
+                1,
+            )
+
             # Step 1: 获取 TIG 概览
             tig_data = await self._fetch_json(product_href)
             if not tig_data:
