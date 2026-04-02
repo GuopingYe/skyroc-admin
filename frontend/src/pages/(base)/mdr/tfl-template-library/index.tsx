@@ -42,9 +42,9 @@ import {
   Tag,
   Tooltip,
   Typography,
-  Upload,
-  message
+  Upload
 } from 'antd';
+import { App } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -93,6 +93,7 @@ export const handle = {
 const TemplateLibrary: React.FC = () => {
   const { t } = useTranslation();
   const { hasAuth } = useAuth();
+  const { message } = App.useApp();
   const canManage = hasAuth('R_ADMIN') || hasAuth('R_SUPER');
 
   // --- Template store (read-only list) ---
@@ -168,15 +169,17 @@ const TemplateLibrary: React.FC = () => {
       const allLoaded = results.flat();
 
       if (allLoaded.length > 0) {
+        let newCount = 0;
         setImportedTemplates(prev => {
           const existingIds = new Set(prev.map(t => t.id));
           const newTemplates = allLoaded.filter(t => !existingIds.has(t.id));
+          newCount = newTemplates.length;
           if (newTemplates.length === 0) return prev;
-          if (showToast || prev.length === 0) {
-            message.success(`Loaded ${newTemplates.length} reference templates`);
-          }
           return [...prev, ...newTemplates];
         });
+        if (newCount > 0 && (showToast || importedTemplates.length === 0)) {
+          message.success(`Loaded ${newCount} reference templates`);
+        }
       }
     } catch (error) {
       console.error('Error loading reference templates:', error);
