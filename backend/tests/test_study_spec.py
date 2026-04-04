@@ -75,7 +75,8 @@ async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client
     from app.models import ScopeNode, NodeType, LifecycleStatus
     from app.models.specification import Specification
     from app.models.target_dataset import TargetDataset
-    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass
+    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass, DataType, VariableCore, OriginType
+    from app.models.target_variable import TargetVariable
 
     suffix = uuid.uuid4().hex[:8]
 
@@ -100,6 +101,19 @@ async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client
     db_session.add(ds)
     await db_session.flush()
 
+    var = TargetVariable(
+        dataset_id=ds.id,
+        variable_name="AETERM",
+        variable_label="Reported Term for the Adverse Event",
+        data_type=DataType.CHAR,
+        core=VariableCore.REQ,
+        override_type=OverrideType.NONE,
+        origin_type=OriginType.CDISC,
+        created_by="test",
+    )
+    db_session.add(var)
+    await db_session.flush()
+
     # Target study
     study_b = ScopeNode(node_type=NodeType.STUDY, name="Study-B", code=f"COPY-B-{suffix}",
                         lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
@@ -114,4 +128,5 @@ async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["dataset_count"] == 1
+    assert data["variable_count"] == 1
     assert data["source_spec_id"] == source_spec.id
