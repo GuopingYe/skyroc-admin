@@ -249,3 +249,4 @@ venv/
 wheels/
 yarn-debug.log*
 yarn-error.log*
+.claude/worktrees/
