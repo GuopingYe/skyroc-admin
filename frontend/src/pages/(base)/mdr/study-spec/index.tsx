@@ -502,6 +502,13 @@ const StudySpec: React.FC = () => {
     setSaveLoading(true);
 
     try {
+      // NOTE: diff.added domains are NOT processed here because AddDatasetModal calls
+      // the backend API immediately when a domain is added (createCustomDataset /
+      // addDatasetFromGlobalLibrary). The ADD_DOMAIN dispatch that follows only records
+      // the real backend ID into the draft store for display tracking (green border, undo).
+      // By save time, added domains are already persisted — commitSave() below simply
+      // transitions their _status from 'added' to 'unchanged'.
+
       // Process EDITED domains
       for (const { after } of diff.modified) {
         await patchDataset(currentSpec.id, Number(after.id), {
