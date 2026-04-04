@@ -67,10 +67,20 @@ declare namespace Api.StudySpec {
     created_by: string;
     dataset_name: string;
     description: string | null;
+    extra_attrs: {
+      comments?: string;
+      [key: string]: unknown;
+    } | null;
     id: number;
     override_type: 'Added' | 'Deleted' | 'Modified' | 'None';
     sort_order: number;
     specification_id: number;
+    standard_metadata: {
+      key_variables?: string[];
+      sort_variables?: string[];
+      structure?: string;
+      [key: string]: unknown;
+    } | null;
     variable_count: number;
   }
 
@@ -181,4 +191,18 @@ declare namespace Api.StudySpec {
     message: string;
     variable_count: number;
   }
+
+  /** PATCH Dataset 请求 */
+  interface PatchDatasetRequest {
+    class_type?: string;
+    comments?: string;
+    domain_label?: string;
+    domain_name?: string;
+    key_variables?: string[];
+    sort_variables?: string[];
+    structure?: string;
+  }
+
+  /** PATCH Dataset 响应 */
+  type PatchDatasetResponse = StudyDatasetListItem;
 }

@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   copySpec,
+  deleteDataset,
   fetchStudyDatasets,
   fetchStudySpecDetail,
   fetchStudySpecs,
   fetchStudyVariables,
   getSpecSources,
   initializeSpec,
+  patchDataset,
   pushUpstream,
   toggleDataset,
   type CopySpecRequest,
@@ -94,7 +96,7 @@ export function useCopySpec() {
   return useMutation({
     mutationFn: (data: CopySpecRequest) => copySpec(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['study-spec'] });
+      qc.invalidateQueries({ queryKey: ['studySpec'] });
     },
   });
 }
@@ -105,7 +107,7 @@ export function useInitializeSpec() {
   return useMutation({
     mutationFn: (data: InitializeSpecRequest) => initializeSpec(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['study-spec'] });
+      qc.invalidateQueries({ queryKey: ['studySpec'] });
     },
   });
 }
@@ -117,7 +119,7 @@ export function useToggleDataset(specId: number) {
     mutationFn: ({ datasetId, exclude }: { datasetId: number; exclude: boolean }) =>
       toggleDataset(specId, datasetId, exclude),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['study-spec'] });
+      qc.invalidateQueries({ queryKey: ['studySpec'] });
     },
   });
 }
@@ -128,7 +130,30 @@ export function usePushUpstream() {
   return useMutation({
     mutationFn: (specId: number) => pushUpstream(specId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['study-spec'] });
+      qc.invalidateQueries({ queryKey: ['studySpec'] });
+    },
+  });
+}
+
+/** 更新数据集扩展信息 Mutation */
+export function usePatchDataset(specId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ datasetId, data }: { datasetId: number; data: Api.StudySpec.PatchDatasetRequest }) =>
+      patchDataset(specId, datasetId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.STUDY_SPEC.DATASETS(specId) });
+    },
+  });
+}
+
+/** 软删除数据集 Mutation */
+export function useDeleteDataset(specId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (datasetId: number) => deleteDataset(specId, datasetId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.STUDY_SPEC.DATASETS(specId) });
     },
   });
 }

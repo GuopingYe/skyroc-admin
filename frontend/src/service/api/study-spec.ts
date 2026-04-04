@@ -70,6 +70,23 @@ export function createCustomDataset(specId: number, data: Api.StudySpec.CreateCu
   });
 }
 
+/** 更新数据集扩展信息 */
+export function patchDataset(specId: number, datasetId: number, data: Api.StudySpec.PatchDatasetRequest) {
+  return request<Api.StudySpec.PatchDatasetResponse>({
+    data,
+    method: 'patch',
+    url: STUDY_SPEC_URLS.PATCH_DATASET(specId, datasetId)
+  });
+}
+
+/** 软删除数据集 */
+export function deleteDataset(specId: number, datasetId: number) {
+  return request<void>({
+    method: 'delete',
+    url: STUDY_SPEC_URLS.DELETE_DATASET(specId, datasetId)
+  });
+}
+
 // ============================================================
 // Types for new spec integration endpoints
 // ============================================================
@@ -89,6 +106,7 @@ export interface SpecSourcesResponse {
   cdisc_domains: SpecSource[]
   ta_domains: SpecSource[]
   product_domains: SpecSource[]
+  warning?: string | null
 }
 
 export interface CopySpecRequest {
