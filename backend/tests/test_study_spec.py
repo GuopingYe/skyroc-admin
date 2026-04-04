@@ -130,3 +130,54 @@ async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client
     assert data["dataset_count"] == 1
     assert data["variable_count"] == 1
     assert data["source_spec_id"] == source_spec.id
+
+
+@pytest.mark.asyncio
+async def test_initialize_spec_from_selected_datasets(authenticated_client: AsyncClient, db_session):
+    """POST /study-specs/initialize creates a new spec with selected datasets cloned from sources."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass
+
+    suffix = uuid.uuid4().hex[:8]
+
+    # Source spec (e.g., CDISC or TA spec)
+    source_node = ScopeNode(node_type=NodeType.TA, name="Oncology",
+                            code=f"ONC-{suffix}",
+                            lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(source_node)
+    await db_session.flush()
+
+    source_spec = Specification(scope_node_id=source_node.id, name="CDISC SDTM 3.4",
+                                spec_type=SpecType.SDTM, version="3.4",
+                                status=SpecStatus.ACTIVE, created_by="test")
+    db_session.add(source_spec)
+    await db_session.flush()
+
+    ds_ae = TargetDataset(specification_id=source_spec.id, dataset_name="AE",
+                          class_type=DatasetClass.EVENTS,
+                          override_type=OverrideType.NONE, created_by="test")
+    ds_dm = TargetDataset(specification_id=source_spec.id, dataset_name="DM",
+                          class_type=DatasetClass.SPECIAL_PURPOSE,
+                          override_type=OverrideType.NONE, created_by="test")
+    db_session.add_all([ds_ae, ds_dm])
+    await db_session.flush()
+
+    # Target study
+    study = ScopeNode(node_type=NodeType.STUDY, name="Study-Init",
+                      code=f"STD-INIT-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(study)
+    await db_session.flush()
+
+    resp = await authenticated_client.post("/api/v1/study-specs/initialize", json={
+        "scope_node_id": study.id,
+        "spec_type": "SDTM",
+        "name": "Study-Init SDTM",
+        "selected_dataset_ids": [ds_ae.id, ds_dm.id]
+    })
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["dataset_count"] == 2

@@ -551,6 +551,132 @@ async def copy_spec(
 
 
 # ============================================================
+# NEW: POST /study-specs/initialize
+# ============================================================
+
+class InitializeSpecRequest(BaseModel):
+    scope_node_id: int = Field(..., description="Study ScopeNode ID")
+    spec_type: str = Field(..., description="SDTM or ADaM")
+    name: str | None = Field(None, description="Spec name; defaults to '<study name> <type> Spec'")
+    selected_dataset_ids: list[int] = Field(..., description="TargetDataset IDs to clone from source specs")
+
+
+class InitializeSpecResponse(BaseModel):
+    id: int
+    name: str
+    spec_type: str
+    dataset_count: int
+    variable_count: int
+
+
+@router.post("/initialize", summary="Initialize a study spec from selected source datasets")
+async def initialize_spec(
+    request: InitializeSpecRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Create a new Specification by cloning selected TargetDatasets (and their variables) from any source spec."""
+    # 1. Validate scope_node_id exists
+    scope_q = select(ScopeNode).where(ScopeNode.id == request.scope_node_id)
+    scope_res = await db.execute(scope_q)
+    scope_node = scope_res.scalar_one_or_none()
+    if not scope_node:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"ScopeNode {request.scope_node_id} not found")
+
+    # 2. Validate spec_type
+    try:
+        spec_type_enum = SpecType(request.spec_type.upper())
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid spec_type: {request.spec_type}")
+
+    # 3. Check for existing spec of same type on same node
+    existing_q = select(Specification).where(
+        Specification.scope_node_id == request.scope_node_id,
+        Specification.spec_type == spec_type_enum,
+        Specification.is_deleted == False,  # noqa: E712
+    )
+    existing_res = await db.execute(existing_q)
+    if existing_res.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"{request.spec_type} Spec already exists for this node")
+
+    # 4. Create new Specification
+    spec_name = request.name or f"{scope_node.name} {request.spec_type.upper()} Spec"
+    new_spec = Specification(
+        scope_node_id=request.scope_node_id,
+        name=spec_name,
+        spec_type=spec_type_enum,
+        version="1.0",
+        status=SpecStatus.DRAFT,
+        created_by=user.username,
+    )
+    db.add(new_spec)
+    await db.flush()
+
+    # 5. Load all selected TargetDataset records with their variables
+    src_ds_q = (
+        select(TargetDataset)
+        .options(selectinload(TargetDataset.variables))
+        .where(
+            TargetDataset.id.in_(request.selected_dataset_ids),
+            TargetDataset.is_deleted == False,  # noqa: E712
+        )
+    )
+    src_ds_res = await db.execute(src_ds_q)
+    source_datasets = src_ds_res.scalars().all()
+
+    # 6. Clone each source dataset and its variables
+    dataset_count = 0
+    variable_count = 0
+    for src_ds in source_datasets:
+        new_ds = TargetDataset(
+            specification_id=new_spec.id,
+            dataset_name=src_ds.dataset_name,
+            description=src_ds.description,
+            class_type=src_ds.class_type,
+            sort_order=src_ds.sort_order,
+            base_id=src_ds.id,
+            override_type=OverrideType.NONE,
+            created_by=user.username,
+        )
+        db.add(new_ds)
+        await db.flush()
+        dataset_count += 1
+
+        for src_var in src_ds.variables:
+            if src_var.is_deleted:
+                continue
+            new_var = TargetVariable(
+                dataset_id=new_ds.id,
+                variable_name=src_var.variable_name,
+                variable_label=src_var.variable_label,
+                description=src_var.description,
+                data_type=src_var.data_type,
+                length=src_var.length,
+                core=src_var.core,
+                sort_order=src_var.sort_order,
+                base_id=src_var.id,
+                override_type=OverrideType.NONE,
+                origin_type=src_var.origin_type,
+                standard_metadata=src_var.standard_metadata,
+                created_by=user.username,
+            )
+            db.add(new_var)
+            variable_count += 1
+
+    await db.commit()
+    return _ok(InitializeSpecResponse(
+        id=new_spec.id,
+        name=new_spec.name,
+        spec_type=new_spec.spec_type.value,
+        dataset_count=dataset_count,
+        variable_count=variable_count,
+    ).model_dump())
+
+
+# ============================================================
 # API 2: GET /api/v1/study-specs/{spec_id} - 获取详情
 # ============================================================
 
