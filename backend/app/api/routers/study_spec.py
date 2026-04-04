@@ -826,7 +826,7 @@ async def create_study_spec_from_global_library(
         base_specification_id=request.base_specification_id,
         standard_name=base_spec.standard_name,
         standard_version=base_spec.standard_version,
-        created_by=current_user.get("id", "system"),
+        created_by=user.username,
     )
     db.add(new_spec)
     await db.flush()  # 获取 new_spec.id
@@ -848,7 +848,7 @@ async def create_study_spec_from_global_library(
             sort_order=base_dataset.sort_order,
             base_id=base_dataset.id,
             override_type=OverrideType.NONE,
-            created_by=current_user.get("id", "system"),
+            created_by=user.username,
         )
         db.add(new_dataset)
         await db.flush()
@@ -878,7 +878,7 @@ async def create_study_spec_from_global_library(
                 override_type=OverrideType.NONE,
                 origin_type=base_var.origin_type,
                 standard_metadata=base_var.standard_metadata,
-                created_by=current_user.get("id", "system"),
+                created_by=user.username,
             )
             db.add(new_var)
             variable_count += 1
@@ -996,7 +996,7 @@ async def add_dataset_from_global_library(
         sort_order=999,  # 放到最后
         base_id=base_dataset.id,
         override_type=OverrideType.NONE,
-        created_by=current_user.get("id", "system"),
+        created_by=user.username,
     )
     db.add(new_dataset)
     await db.flush()
@@ -1020,7 +1020,7 @@ async def add_dataset_from_global_library(
             origin_type=base_var.origin_type,
             override_type=OverrideType.NONE,
             standard_metadata=base_var.standard_metadata,
-            created_by=current_user.get("id", "system"),
+            created_by=user.username,
         )
         db.add(new_var)
         variable_count += 1
@@ -1206,7 +1206,7 @@ async def create_custom_dataset(
         sort_order=999,
         base_id=None,
         override_type=OverrideType.NONE,
-        created_by=current_user.get("id", "system"),
+        created_by=user.username,
     )
     db.add(new_dataset)
     await db.flush()
@@ -1225,7 +1225,7 @@ async def create_custom_dataset(
             origin_type=OriginType.CDISC,
             override_type=OverrideType.NONE,
             standard_metadata={"role": var_def["role"]},
-            created_by=current_user.get("id", "system"),
+            created_by=user.username,
         )
         db.add(var)
         variable_count += 1
@@ -1268,7 +1268,7 @@ async def create_custom_dataset(
                     "role": var_def["role"],
                     "template_variable": var_def["name"],  # 记录模板变量名
                 },
-                created_by=current_user.get("id", "system"),
+                created_by=user.username,
             )
             db.add(var)
             variable_count += 1
