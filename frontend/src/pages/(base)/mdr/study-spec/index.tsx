@@ -510,6 +510,8 @@ const StudySpec: React.FC = () => {
       // transitions their _status from 'added' to 'unchanged'.
 
       // Process EDITED domains
+      // Note: If this loop throws mid-way, already-patched items will be re-sent on retry.
+      // The PATCH endpoint is idempotent (same payload → same result), so this is safe.
       for (const { after } of diff.modified) {
         await patchDataset(currentSpec.id, Number(after.id), {
           class_type: after.class_type,
@@ -905,8 +907,8 @@ const StudySpec: React.FC = () => {
                 dataSource={filteredDatasets}
                 size="small"
                 renderItem={domain => {
-                  const domainNumId = Number(domain.id);
-                  const isSelected = selectedDatasetId === domainNumId;
+                  const domainNumId = /^\d+$/.test(domain.id) ? Number(domain.id) : null;
+                  const isSelected = domainNumId !== null && selectedDatasetId === domainNumId;
                   const isDeleted = domain._status === 'deleted';
 
                   return (
@@ -914,7 +916,7 @@ const StudySpec: React.FC = () => {
                       className={`cursor-pointer rounded transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                       style={statusStyle(domain._status)}
                       onClick={() => {
-                        if (isDeleted) return;
+                        if (isDeleted || domainNumId === null) return;
                         setSelectedDatasetId(domainNumId);
                       }}
                     >
