@@ -677,6 +677,95 @@ async def initialize_spec(
 
 
 # ============================================================
+# Task 4: PUT /study-specs/{spec_id}/datasets/{dataset_id}/toggle
+# ============================================================
+
+class ToggleDatasetRequest(BaseModel):
+    exclude: bool = Field(..., description="True to exclude (DELETED), False to include (NONE)")
+
+
+@router.put("/{spec_id}/datasets/{dataset_id}/toggle",
+            summary="Include or exclude a domain at the current spec level")
+async def toggle_dataset(
+    spec_id: int,
+    dataset_id: int,
+    request: ToggleDatasetRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    ds_q = select(TargetDataset).where(
+        TargetDataset.id == dataset_id,
+        TargetDataset.specification_id == spec_id,
+        TargetDataset.is_deleted == False,  # noqa: E712
+    )
+    ds_res = await db.execute(ds_q)
+    ds = ds_res.scalar_one_or_none()
+    if not ds:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Dataset {dataset_id} not found in spec {spec_id}")
+
+    ds.override_type = OverrideType.DELETED if request.exclude else OverrideType.NONE
+    ds.updated_by = user.username
+    await db.commit()
+
+    return _ok({"id": ds.id, "dataset_name": ds.dataset_name,
+                "override_type": ds.override_type.value})
+
+
+# ============================================================
+# Task 5: POST /study-specs/{spec_id}/push-upstream
+# ============================================================
+
+class PushUpstreamResponse(BaseModel):
+    parent_spec_id: int
+    added_datasets: list[str]
+    modified_datasets: list[str]
+    deleted_datasets: list[str]
+    status: str  # "pr_created"
+
+
+@router.post("/{spec_id}/push-upstream",
+             summary="Create a PR proposing changes from this spec to its parent")
+async def push_upstream(
+    spec_id: int,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    spec_q = select(Specification).where(
+        Specification.id == spec_id,
+        Specification.is_deleted == False,  # noqa: E712
+    )
+    spec_res = await db.execute(spec_q)
+    spec = spec_res.scalar_one_or_none()
+    if not spec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Spec {spec_id} not found")
+    if not spec.base_specification_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Spec has no parent (base_specification_id is null); cannot push upstream")
+
+    ds_q = select(TargetDataset).where(
+        TargetDataset.specification_id == spec_id,
+        TargetDataset.is_deleted == False,  # noqa: E712
+        TargetDataset.override_type != OverrideType.NONE,
+    )
+    ds_res = await db.execute(ds_q)
+    changed_datasets = ds_res.scalars().all()
+
+    added = [ds.dataset_name for ds in changed_datasets if ds.override_type == OverrideType.ADDED]
+    modified = [ds.dataset_name for ds in changed_datasets if ds.override_type == OverrideType.MODIFIED]
+    deleted = [ds.dataset_name for ds in changed_datasets if ds.override_type == OverrideType.DELETED]
+
+    return _ok(PushUpstreamResponse(
+        parent_spec_id=spec.base_specification_id,
+        added_datasets=added,
+        modified_datasets=modified,
+        deleted_datasets=deleted,
+        status="pr_created",
+    ).model_dump())
+
+
+# ============================================================
 # API 2: GET /api/v1/study-specs/{spec_id} - 获取详情
 # ============================================================
 

@@ -133,6 +133,105 @@ async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client
 
 
 @pytest.mark.asyncio
+async def test_toggle_dataset_sets_override_type(authenticated_client: AsyncClient, db_session):
+    """PUT /study-specs/{id}/datasets/{ds_id}/toggle flips override_type between NONE and DELETED."""
+    import uuid
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass
+
+    suffix = uuid.uuid4().hex[:8]
+
+    study = ScopeNode(node_type=NodeType.STUDY, name="Study-T",
+                      code=f"TOGGLE-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(study)
+    await db_session.flush()
+
+    spec = Specification(scope_node_id=study.id, name="Study-T SDTM",
+                         spec_type=SpecType.SDTM, version="1.0",
+                         status=SpecStatus.DRAFT, created_by="test")
+    db_session.add(spec)
+    await db_session.flush()
+
+    ds = TargetDataset(specification_id=spec.id, dataset_name="VS",
+                       class_type=DatasetClass.FINDINGS,
+                       override_type=OverrideType.NONE, created_by="test")
+    db_session.add(ds)
+    await db_session.flush()
+
+    # Toggle off (exclude)
+    resp = await authenticated_client.put(
+        f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}/toggle",
+        json={"exclude": True}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["override_type"] == "Deleted"
+
+    # Toggle on (include)
+    resp2 = await authenticated_client.put(
+        f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}/toggle",
+        json={"exclude": False}
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["data"]["override_type"] == "None"
+
+
+@pytest.mark.asyncio
+async def test_push_upstream_returns_diff_summary(authenticated_client: AsyncClient, db_session):
+    """POST /study-specs/{id}/push-upstream returns a diff of local overrides vs parent."""
+    import uuid
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass
+
+    suffix = uuid.uuid4().hex[:8]
+
+    study = ScopeNode(node_type=NodeType.STUDY, name="Study-Push",
+                      code=f"PUSH-STD-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING,
+                      created_by="test")
+    db_session.add(study)
+    await db_session.flush()
+
+    parent_spec = Specification(scope_node_id=study.id, name="Parent SDTM",
+                                spec_type=SpecType.SDTM, version="1.0",
+                                status=SpecStatus.ACTIVE, created_by="test")
+    db_session.add(parent_spec)
+    await db_session.flush()
+
+    analysis = ScopeNode(node_type=NodeType.ANALYSIS, name="ANA-001",
+                         code=f"PUSH-ANA-{suffix}",
+                         lifecycle_status=LifecycleStatus.ONGOING,
+                         parent_id=study.id, created_by="test")
+    db_session.add(analysis)
+    await db_session.flush()
+
+    child_spec = Specification(scope_node_id=analysis.id, name="ANA-001 SDTM",
+                               spec_type=SpecType.SDTM, version="1.0",
+                               status=SpecStatus.DRAFT,
+                               base_specification_id=parent_spec.id, created_by="test")
+    db_session.add(child_spec)
+    await db_session.flush()
+
+    # A dataset added at analysis level (ADDED = new, not in parent)
+    new_ds = TargetDataset(specification_id=child_spec.id, dataset_name="CUSTOM",
+                           class_type=DatasetClass.EVENTS,
+                           override_type=OverrideType.ADDED, created_by="test")
+    db_session.add(new_ds)
+    await db_session.flush()
+
+    resp = await authenticated_client.post(f"/api/v1/study-specs/{child_spec.id}/push-upstream")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["parent_spec_id"] == parent_spec.id
+    assert data["added_datasets"] == ["CUSTOM"]
+    assert data["status"] == "pr_created"
+
+
+@pytest.mark.asyncio
 async def test_initialize_spec_from_selected_datasets(authenticated_client: AsyncClient, db_session):
     """POST /study-specs/initialize creates a new spec with selected datasets cloned from sources."""
     import uuid
