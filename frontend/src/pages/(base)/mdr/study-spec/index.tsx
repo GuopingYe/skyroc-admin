@@ -18,7 +18,8 @@ import {
   LoadingOutlined,
   PlusOutlined,
   SearchOutlined,
-  TableOutlined
+  TableOutlined,
+  UploadOutlined
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -67,6 +68,10 @@ import { useStudyDatasets, useStudySpecs, useStudyVariables } from '@/service/ho
 import type { SpecDataset, SpecVariable, StandardType, VariableOrigin } from './mockData';
 import { originConfig } from './mockData';
 import { AddDatasetModal, VariableFormDrawer } from './modules';
+import { DomainPickerWizard } from './components/DomainPickerWizard';
+import { PushUpstreamModal } from './components/PushUpstreamModal';
+import { ScopeSwitcher } from './components/ScopeSwitcher';
+import { useInitializeSpec } from '@/service/hooks/useStudySpec';
 
 const { Text, Title } = Typography;
 
@@ -152,8 +157,20 @@ const StudySpec: React.FC = () => {
   const [addDatasetModalOpen, setAddDatasetModalOpen] = useState(false);
   const [addDatasetLoading, setAddDatasetLoading] = useState(false);
 
+  // Analysis scope switcher state
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<number | null>(null);
+
+  // Domain picker wizard state
+  const [domainPickerOpen, setDomainPickerOpen] = useState(false);
+
+  // Push upstream modal state
+  const [pushUpstreamOpen, setPushUpstreamOpen] = useState(false);
+
   // Query Client for cache invalidation
   const queryClient = useQueryClient();
+
+  // Initialize spec mutation
+  const initializeSpec = useInitializeSpec();
 
   // ==================== API Hooks ====================
 
@@ -636,8 +653,24 @@ const StudySpec: React.FC = () => {
               ]}
               onChange={value => setSelectedStandard(value as StandardType)}
             />
+            {/* Analysis scope switcher */}
+            <ScopeSwitcher
+              analyses={[]}
+              selectedAnalysisId={selectedAnalysisId}
+              onChange={setSelectedAnalysisId}
+            />
           </div>
           <div className="flex items-center gap-16px">
+            {/* Push Upstream button */}
+            {currentSpec && (
+              <Button
+                icon={<UploadOutlined />}
+                size="small"
+                onClick={() => setPushUpstreamOpen(true)}
+              >
+                Push Upstream
+              </Button>
+            )}
             {/* Origin 图例 */}
             <Space size={4}>
               {Object.entries(originConfig).map(([key, config]) => (
@@ -671,6 +704,17 @@ const StudySpec: React.FC = () => {
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
             />
+            {/* Initialize Spec trigger — shown when study is ready but no spec exists yet */}
+            {scopeNodeId && !currentSpec && !specsLoading && (
+              <Button
+                icon={<PlusOutlined />}
+                size="small"
+                type="dashed"
+                onClick={() => setDomainPickerOpen(true)}
+              >
+                Initialize Spec
+              </Button>
+            )}
             <Button
               icon={<PlusOutlined />}
               size="small"
@@ -964,6 +1008,36 @@ const StudySpec: React.FC = () => {
         onCancel={() => setAddDatasetModalOpen(false)}
         onSubmit={handleAddDataset}
       />
+
+      {/* Domain Picker Wizard */}
+      {scopeNodeId && (
+        <DomainPickerWizard
+          open={domainPickerOpen}
+          scopeNodeId={scopeNodeId}
+          onConfirm={async (datasetIds) => {
+            await initializeSpec.mutateAsync({
+              scope_node_id: scopeNodeId,
+              spec_type: selectedStandard,
+              selected_dataset_ids: datasetIds,
+            });
+            setDomainPickerOpen(false);
+          }}
+          onCancel={() => setDomainPickerOpen(false)}
+        />
+      )}
+
+      {/* Push Upstream Modal */}
+      {currentSpec && (
+        <PushUpstreamModal
+          open={pushUpstreamOpen}
+          specId={currentSpec.id}
+          parentLabel="Parent Spec"
+          onClose={() => setPushUpstreamOpen(false)}
+          onSuccess={() => {
+            setPushUpstreamOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };
