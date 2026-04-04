@@ -305,7 +305,8 @@ async def create_therapeutic_area(
     # Update path
     node.path = f"/{node.id}/"
     await db.commit()
-    
+    await db.refresh(node)
+
     return _ok(_format_node(node))
 
 
@@ -595,7 +596,23 @@ async def create_node(
         await db.commit()
         await db.refresh(node)
 
-        return _ok(_format_node(node))
+        # Determine spec_status for the response
+        spec_status = "none"
+        if data.node_type.upper() == "STUDY" and data.create_spec:
+            if data.spec_init_method == "build":
+                spec_status = "pending_setup"
+            elif data.spec_init_method in ("copy_study", "copy_analysis") and data.copy_from_spec_id:
+                spec_status = "ready"
+            # Store spec_status in extra_attrs for persistence
+            node.extra_attrs = {**(node.extra_attrs or {}), "spec_status": spec_status}
+            await db.commit()
+            await db.refresh(node)
+        elif data.node_type.upper() == "ANALYSIS":
+            spec_status = "inherited"
+
+        node_dict = _format_node(node)
+        node_dict["spec_status"] = spec_status
+        return _ok(node_dict)
     except Exception as e:
         await db.rollback()
         import traceback

@@ -62,6 +62,12 @@ class NodeCreate(BaseModel):
     phase: str | None = None
     protocol_title: str | None = None
     description: str | None = None
+    # Spec initialization (study nodes only)
+    create_spec: bool = False
+    spec_init_method: str | None = None  # "build" | "copy_study" | "copy_analysis"
+    copy_from_spec_id: int | None = None  # spec id to copy from (copy_study/copy_analysis)
+    # Analysis node: domain exclusions on creation
+    excluded_dataset_names: list[str] = []
 
 
 # ============================================================

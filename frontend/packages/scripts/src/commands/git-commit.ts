@@ -68,9 +68,10 @@ export async function gitCommit(lang: Lang = 'en-us') {
 
 /** Git commit message verify */
 export async function gitCommitVerify(lang: Lang = 'en-us', ignores: RegExp[] = []) {
-  const gitPath = await execCommand('git', ['rev-parse', '--show-toplevel']);
+  // Use --git-dir to correctly resolve COMMIT_EDITMSG in git worktrees
+  const gitDir = await execCommand('git', ['rev-parse', '--git-dir']);
 
-  const gitMsgPath = path.join(gitPath, '.git', 'COMMIT_EDITMSG');
+  const gitMsgPath = path.join(gitDir, 'COMMIT_EDITMSG');
 
   const commitMsg = readFileSync(gitMsgPath, 'utf8').trim();
 
