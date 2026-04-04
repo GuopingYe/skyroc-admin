@@ -609,6 +609,11 @@ async def create_node(
             await db.refresh(node)
         elif data.node_type.upper() == "ANALYSIS":
             spec_status = "inherited"
+            # Persist spec_status so GET /pipeline/tree can show badge state.
+            # Task 6 will update this to "customized" when domains are excluded.
+            node.extra_attrs = {**(node.extra_attrs or {}), "spec_status": spec_status}
+            await db.commit()
+            await db.refresh(node)
 
         node_dict = _format_node(node)
         node_dict["spec_status"] = spec_status
