@@ -9,5 +9,13 @@ export const STUDY_SPEC_URLS = {
   STUDY_DATASETS: '/api/v1/study-specs/:specId/datasets',
   STUDY_SPEC_DETAIL: '/api/v1/study-specs/:specId',
   // Specification APIs
-  STUDY_SPECS: '/api/v1/study-specs'
-} as const;
+  STUDY_SPECS: '/api/v1/study-specs',
+  // Spec integration endpoints
+  SPEC_SOURCES: '/api/v1/study-specs/sources',
+  SPEC_COPY: '/api/v1/study-specs/copy',
+  SPEC_INITIALIZE: '/api/v1/study-specs/initialize',
+  SPEC_TOGGLE_DATASET: (specId: number | string, datasetId: number | string) =>
+    `/api/v1/study-specs/${specId}/datasets/${datasetId}/toggle`,
+  SPEC_PUSH_UPSTREAM: (specId: number | string) =>
+    `/api/v1/study-specs/${specId}/push-upstream`,
+};

@@ -1,6 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchStudyDatasets, fetchStudySpecDetail, fetchStudySpecs, fetchStudyVariables } from '../api';
+import {
+  copySpec,
+  fetchStudyDatasets,
+  fetchStudySpecDetail,
+  fetchStudySpecs,
+  fetchStudyVariables,
+  getSpecSources,
+  initializeSpec,
+  pushUpstream,
+  toggleDataset,
+  type CopySpecRequest,
+  type InitializeSpecRequest,
+} from '../api';
 import { QUERY_KEYS } from '../keys';
 
 // ============================================================
@@ -55,5 +67,68 @@ export function useStudyVariables(datasetId: number | null, params?: Api.StudySp
     queryKey: QUERY_KEYS.STUDY_SPEC.VARIABLES(datasetId!, params),
     retry: 1,
     staleTime: 0 // 禁用缓存，每次都获取最新数据
+  });
+}
+
+// ============================================================
+// Spec Integration Hooks (sources, copy, initialize, toggle, push-upstream)
+// ============================================================
+
+export const STUDY_SPEC_QUERY_KEYS = {
+  sources: (scopeNodeId: number, specType: string) =>
+    ['study-spec', 'sources', scopeNodeId, specType] as const,
+};
+
+/** 获取 Spec Sources（CDISC / TA / Product 域列表）Hook */
+export function useSpecSources(scopeNodeId: number | undefined, specType = 'SDTM') {
+  return useQuery({
+    enabled: !!scopeNodeId,
+    queryFn: () => getSpecSources(scopeNodeId!, specType),
+    queryKey: STUDY_SPEC_QUERY_KEYS.sources(scopeNodeId ?? 0, specType),
+  });
+}
+
+/** 复制 Spec Mutation */
+export function useCopySpec() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CopySpecRequest) => copySpec(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['study-spec'] });
+    },
+  });
+}
+
+/** 初始化 Spec Mutation */
+export function useInitializeSpec() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: InitializeSpecRequest) => initializeSpec(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['study-spec'] });
+    },
+  });
+}
+
+/** 切换数据集 Mutation */
+export function useToggleDataset(specId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ datasetId, exclude }: { datasetId: number; exclude: boolean }) =>
+      toggleDataset(specId, datasetId, exclude),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['study-spec'] });
+    },
+  });
+}
+
+/** 推送覆盖到父 Spec Mutation */
+export function usePushUpstream() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (specId: number) => pushUpstream(specId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['study-spec'] });
+    },
   });
 }
