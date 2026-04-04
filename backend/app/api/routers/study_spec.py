@@ -337,6 +337,11 @@ async def get_spec_sources(
     study_node = study_res.scalar_one_or_none()
     if not study_node:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ScopeNode not found")
+    if study_node.node_type != NodeType.STUDY:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"scope_node_id must reference a STUDY node, got {study_node.node_type.value}",
+        )
 
     # Walk up the tree to find TA and Compound ancestors
     ta_node_id: int | None = None
@@ -369,28 +374,50 @@ async def get_spec_sources(
         )
         specs_res = await db.execute(specs_q)
         specs = specs_res.scalars().all()
-        items = []
-        for spec in specs:
-            datasets_q = select(TargetDataset).where(
-                TargetDataset.specification_id == spec.id,
-                TargetDataset.is_deleted == False,  # noqa: E712
-                TargetDataset.override_type != OverrideType.DELETED,
+        if not specs:
+            return []
+
+        spec_ids = [s.id for s in specs]
+        spec_map = {s.id: s for s in specs}
+
+        # Fetch all datasets in one query
+        datasets_q = select(TargetDataset).where(
+            TargetDataset.specification_id.in_(spec_ids),
+            TargetDataset.is_deleted == False,  # noqa: E712
+            TargetDataset.override_type != OverrideType.DELETED,
+        )
+        ds_res = await db.execute(datasets_q)
+        datasets = ds_res.scalars().all()
+        if not datasets:
+            return []
+
+        dataset_ids = [ds.id for ds in datasets]
+
+        # Bulk variable count via GROUP BY — one query instead of N
+        vc_q = (
+            select(TargetVariable.dataset_id, func.count().label("cnt"))
+            .where(
+                TargetVariable.dataset_id.in_(dataset_ids),
+                TargetVariable.is_deleted == False,  # noqa: E712
             )
-            ds_res = await db.execute(datasets_q)
-            datasets = ds_res.scalars().all()
-            for ds in datasets:
-                var_count_q = select(func.count()).where(
-                    TargetVariable.dataset_id == ds.id,
-                    TargetVariable.is_deleted == False,  # noqa: E712
-                )
-                vc_res = await db.execute(var_count_q)
-                vc = vc_res.scalar() or 0
-                items.append(DomainSourceItem(
-                    id=ds.id, dataset_name=ds.dataset_name, description=ds.description,
-                    class_type=ds.class_type.value, variable_count=vc,
-                    spec_id=spec.id, spec_name=spec.name, origin=origin,
-                ))
-        return items
+            .group_by(TargetVariable.dataset_id)
+        )
+        vc_res = await db.execute(vc_q)
+        var_counts: dict[int, int] = {row.dataset_id: row.cnt for row in vc_res}
+
+        return [
+            DomainSourceItem(
+                id=ds.id,
+                dataset_name=ds.dataset_name,
+                description=ds.description,
+                class_type=ds.class_type.value,
+                variable_count=var_counts.get(ds.id, 0),
+                spec_id=ds.specification_id,
+                spec_name=spec_map[ds.specification_id].name,
+                origin=origin,
+            )
+            for ds in datasets
+        ]
 
     # CDISC domains: specs attached to CDISC/GLOBAL scope nodes
     cdisc_q = select(ScopeNode).where(ScopeNode.node_type.in_([NodeType.CDISC, NodeType.GLOBAL]))
