@@ -322,3 +322,149 @@ async def test_create_analysis_auto_inherits_study_specs(authenticated_client: A
     inherited = inh_res.scalars().all()
     assert len(inherited) == 2
     assert all(s.base_specification_id is not None for s in inherited)
+
+
+@pytest.mark.asyncio
+async def test_patch_dataset_updates_extended_info(authenticated_client, db_session):
+    """PATCH /study-specs/{spec_id}/datasets/{dataset_id} updates standard_metadata fields."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, DatasetClass, OverrideType
+
+    suffix = uuid.uuid4().hex[:8]
+    ta = ScopeNode(node_type=NodeType.TA, name="TA-Patch", code=f"TA-P-{suffix}",
+                   lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(ta); await db_session.flush()
+    compound = ScopeNode(node_type=NodeType.COMPOUND, name="CMP-P", code=f"CMP-P-{suffix}",
+                         lifecycle_status=LifecycleStatus.ONGOING, parent_id=ta.id, created_by="test")
+    db_session.add(compound); await db_session.flush()
+    study = ScopeNode(node_type=NodeType.STUDY, name="STD-P", code=f"STD-P-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, parent_id=compound.id, created_by="test")
+    db_session.add(study); await db_session.flush()
+    spec = Specification(scope_node_id=study.id, name=f"SDTM-P-{suffix}", spec_type=SpecType.SDTM,
+                         status=SpecStatus.DRAFT, version="1.0", created_by="test")
+    db_session.add(spec); await db_session.flush()
+    ds = TargetDataset(specification_id=spec.id, dataset_name="AE", class_type=DatasetClass.EVENTS,
+                       override_type=OverrideType.ADDED, created_by="test")
+    db_session.add(ds); await db_session.flush()
+
+    resp = await authenticated_client.patch(
+        f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}",
+        json={
+            "structure": "One record per subject per adverse event",
+            "key_variables": ["STUDYID", "USUBJID", "AESEQ"],
+            "sort_variables": ["USUBJID", "AESTDTC"],
+            "comments": "Primary safety dataset",
+        }
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["standard_metadata"]["structure"] == "One record per subject per adverse event"
+    assert data["standard_metadata"]["key_variables"] == ["STUDYID", "USUBJID", "AESEQ"]
+    assert data["extra_attrs"]["comments"] == "Primary safety dataset"
+
+
+@pytest.mark.asyncio
+async def test_patch_dataset_custom_allows_name_change(authenticated_client, db_session):
+    """PATCH allows domain_name change for custom (base_id=None) datasets."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, DatasetClass, OverrideType
+
+    suffix = uuid.uuid4().hex[:8]
+    ta = ScopeNode(node_type=NodeType.TA, name="TA-Name", code=f"TA-N-{suffix}",
+                   lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(ta); await db_session.flush()
+    compound = ScopeNode(node_type=NodeType.COMPOUND, name="CMP-N", code=f"CMP-N-{suffix}",
+                         lifecycle_status=LifecycleStatus.ONGOING, parent_id=ta.id, created_by="test")
+    db_session.add(compound); await db_session.flush()
+    study = ScopeNode(node_type=NodeType.STUDY, name="STD-N", code=f"STD-N-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, parent_id=compound.id, created_by="test")
+    db_session.add(study); await db_session.flush()
+    spec = Specification(scope_node_id=study.id, name=f"SDTM-N-{suffix}", spec_type=SpecType.SDTM,
+                         status=SpecStatus.DRAFT, version="1.0", created_by="test")
+    db_session.add(spec); await db_session.flush()
+    ds = TargetDataset(specification_id=spec.id, dataset_name="MYDOM", class_type=DatasetClass.EVENTS,
+                       override_type=OverrideType.ADDED, base_id=None, created_by="test")
+    db_session.add(ds); await db_session.flush()
+
+    resp = await authenticated_client.patch(
+        f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}",
+        json={"domain_name": "NEWDOM", "domain_label": "New Domain Label"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["dataset_name"] == "NEWDOM"
+
+
+@pytest.mark.asyncio
+async def test_patch_dataset_global_library_rejects_name_change(authenticated_client, db_session):
+    """PATCH rejects domain_name change for global-library (base_id set) datasets."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, DatasetClass, OverrideType
+
+    suffix = uuid.uuid4().hex[:8]
+    ta = ScopeNode(node_type=NodeType.TA, name="TA-GL", code=f"TA-GL-{suffix}",
+                   lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(ta); await db_session.flush()
+    compound = ScopeNode(node_type=NodeType.COMPOUND, name="CMP-GL", code=f"CMP-GL-{suffix}",
+                         lifecycle_status=LifecycleStatus.ONGOING, parent_id=ta.id, created_by="test")
+    db_session.add(compound); await db_session.flush()
+    study = ScopeNode(node_type=NodeType.STUDY, name="STD-GL", code=f"STD-GL-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, parent_id=compound.id, created_by="test")
+    db_session.add(study); await db_session.flush()
+    spec = Specification(scope_node_id=study.id, name=f"SDTM-GL-{suffix}", spec_type=SpecType.SDTM,
+                         status=SpecStatus.DRAFT, version="1.0", created_by="test")
+    db_session.add(spec); await db_session.flush()
+    base_ds = TargetDataset(specification_id=spec.id, dataset_name="AE_BASE",
+                            class_type=DatasetClass.EVENTS, override_type=OverrideType.NONE, created_by="test")
+    db_session.add(base_ds); await db_session.flush()
+    ds = TargetDataset(specification_id=spec.id, dataset_name="AE", class_type=DatasetClass.EVENTS,
+                       override_type=OverrideType.NONE, base_id=base_ds.id, created_by="test")
+    db_session.add(ds); await db_session.flush()
+
+    resp = await authenticated_client.patch(
+        f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}",
+        json={"domain_name": "NEWAE"}
+    )
+    # App uses unified error response: HTTP 200 with error code in body
+    assert resp.json()["code"] == "422"
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_dataset(authenticated_client, db_session):
+    """DELETE /study-specs/{spec_id}/datasets/{dataset_id} soft-deletes, not physical delete."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, DatasetClass, OverrideType
+
+    suffix = uuid.uuid4().hex[:8]
+    ta = ScopeNode(node_type=NodeType.TA, name="TA-Del", code=f"TA-D-{suffix}",
+                   lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(ta); await db_session.flush()
+    compound = ScopeNode(node_type=NodeType.COMPOUND, name="CMP-D", code=f"CMP-D-{suffix}",
+                         lifecycle_status=LifecycleStatus.ONGOING, parent_id=ta.id, created_by="test")
+    db_session.add(compound); await db_session.flush()
+    study = ScopeNode(node_type=NodeType.STUDY, name="STD-D", code=f"STD-D-{suffix}",
+                      lifecycle_status=LifecycleStatus.ONGOING, parent_id=compound.id, created_by="test")
+    db_session.add(study); await db_session.flush()
+    spec = Specification(scope_node_id=study.id, name=f"SDTM-D-{suffix}", spec_type=SpecType.SDTM,
+                         status=SpecStatus.DRAFT, version="1.0", created_by="test")
+    db_session.add(spec); await db_session.flush()
+    ds = TargetDataset(specification_id=spec.id, dataset_name="DM", class_type=DatasetClass.SPECIAL_PURPOSE,
+                       override_type=OverrideType.ADDED, created_by="test")
+    db_session.add(ds); await db_session.flush()
+
+    resp = await authenticated_client.delete(f"/api/v1/study-specs/{spec.id}/datasets/{ds.id}")
+    assert resp.status_code == 204
+
+    await db_session.refresh(ds)
+    assert ds.is_deleted is True

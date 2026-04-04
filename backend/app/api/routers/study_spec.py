@@ -87,6 +87,9 @@ class StudyDatasetListItem(BaseModel):
     override_type: str
     # 统计
     variable_count: int = 0
+    # 扩展字段
+    standard_metadata: dict[str, Any] | None = None
+    extra_attrs: dict[str, Any] | None = None
     # 审计
     created_by: str
     created_at: str
@@ -97,6 +100,16 @@ class StudyDatasetListResponse(BaseModel):
 
     total: int
     items: list[StudyDatasetListItem]
+
+
+class PatchDatasetRequest(BaseModel):
+    domain_name: str | None = Field(None, max_length=8)
+    domain_label: str | None = None
+    class_type: str | None = None
+    structure: str | None = None
+    key_variables: list[str] | None = None
+    sort_variables: list[str] | None = None
+    comments: str | None = None
 
 
 class StudyVariableListItem(BaseModel):
@@ -321,6 +334,7 @@ class SpecSourcesResponse(BaseModel):
     cdisc_domains: list[DomainSourceItem]
     ta_domains: list[DomainSourceItem]
     product_domains: list[DomainSourceItem]
+    warning: str | None = None  # Set when no version is configured on the study
 
 
 @router.get("/sources", summary="Get available domain sources for spec initialization")
@@ -419,21 +433,51 @@ async def get_spec_sources(
             for ds in datasets
         ]
 
-    # CDISC domains: specs attached to CDISC/GLOBAL scope nodes
-    cdisc_q = select(ScopeNode).where(ScopeNode.node_type.in_([NodeType.CDISC, NodeType.GLOBAL]))
-    cdisc_res = await db.execute(cdisc_q)
-    cdisc_nodes = cdisc_res.scalars().all()
+    # CDISC domains: only from the spec version configured on the study node.
+    # study_node.extra_attrs["config"]["sdtmIgVersion"] (or "adamIgVersion") stores the
+    # Specification.standard_name that was selected in Study Configuration.
+    study_config: dict = (study_node.extra_attrs or {}).get("study_config", {})
+    config_key = "sdtmIgVersion" if target_spec_type == SpecType.SDTM else "adamIgVersion"
+    configured_standard_name: str | None = study_config.get(config_key)
+
     cdisc_domains: list[DomainSourceItem] = []
-    for cn in cdisc_nodes:
-        cdisc_domains.extend(await _get_domains(cn.id, "cdisc"))
+    if configured_standard_name:
+        # Find the single Specification (on a CDISC/GLOBAL node) whose standard_name
+        # matches what the study was configured with.
+        matching_spec_q = (
+            select(Specification)
+            .join(ScopeNode, Specification.scope_node_id == ScopeNode.id)
+            .where(
+                Specification.spec_type == target_spec_type,
+                Specification.standard_name == configured_standard_name,
+                Specification.is_deleted == False,  # noqa: E712
+                ScopeNode.node_type.in_([NodeType.CDISC, NodeType.GLOBAL]),
+            )
+        )
+        matching_res = await db.execute(matching_spec_q)
+        matching_specs = matching_res.scalars().all()
+        for spec in matching_specs:
+            cdisc_domains.extend(await _get_domains(spec.scope_node_id, "cdisc"))
+    else:
+        # Fallback: no version configured — return nothing from CDISC library so
+        # the user is prompted to configure their study settings first.
+        pass
 
     ta_domains = await _get_domains(ta_node_id, "ta")
     product_domains = await _get_domains(product_node_id, "product")
+
+    warning: str | None = None
+    if not configured_standard_name:
+        warning = (
+            f"No {target_spec_type.value} version configured on this study. "
+            "Go to Study Configuration to set the standard version before initializing a spec."
+        )
 
     return _ok(SpecSourcesResponse(
         cdisc_domains=cdisc_domains,
         ta_domains=ta_domains,
         product_domains=product_domains,
+        warning=warning,
     ).model_dump())
 
 
@@ -944,12 +988,122 @@ async def get_study_datasets(
                 base_id=dataset.base_id,
                 override_type=dataset.override_type.value,
                 variable_count=var_counts.get(dataset.id, 0),
+                standard_metadata=dataset.standard_metadata,
+                extra_attrs=dataset.extra_attrs,
                 created_by=dataset.created_by,
                 created_at=dataset.created_at.isoformat() if dataset.created_at else "",
             ).model_dump()
         )
 
     return _ok(StudyDatasetListResponse(total=total, items=items).model_dump())
+
+
+@router.patch(
+    "/{spec_id}/datasets/{dataset_id}",
+    summary="更新数据集扩展信息",
+    status_code=status.HTTP_200_OK,
+)
+async def patch_dataset(
+    spec_id: int,
+    dataset_id: int,
+    body: PatchDatasetRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    q = select(TargetDataset).where(
+        TargetDataset.id == dataset_id,
+        TargetDataset.specification_id == spec_id,
+        TargetDataset.is_deleted == False,  # noqa: E712
+    )
+    result = await db.execute(q)
+    ds = result.scalar_one_or_none()
+    if not ds:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+
+    is_custom = ds.base_id is None
+
+    if body.domain_name is not None and not is_custom:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="domain_name cannot be changed for global-library domains")
+    if body.class_type is not None and not is_custom:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="class_type cannot be changed for global-library domains")
+
+    if body.domain_name is not None:
+        ds.dataset_name = body.domain_name.upper()
+    if body.domain_label is not None:
+        ds.description = body.domain_label
+    if body.class_type is not None:
+        try:
+            ds.class_type = DatasetClass(body.class_type)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid class_type: {body.class_type}")
+
+    current_metadata = dict(ds.standard_metadata or {})
+    if body.structure is not None:
+        current_metadata["structure"] = body.structure
+    if body.key_variables is not None:
+        current_metadata["key_variables"] = body.key_variables
+    if body.sort_variables is not None:
+        current_metadata["sort_variables"] = body.sort_variables
+    ds.standard_metadata = current_metadata
+
+    current_extra = dict(ds.extra_attrs or {})
+    if body.comments is not None:
+        current_extra["comments"] = body.comments
+    ds.extra_attrs = current_extra
+
+    ds.updated_by = user.username
+    await db.commit()
+    await db.refresh(ds)
+
+    var_count_q = select(func.count()).where(
+        TargetVariable.dataset_id == ds.id,
+        TargetVariable.is_deleted == False,  # noqa: E712
+    )
+    var_count_res = await db.execute(var_count_q)
+    var_count = var_count_res.scalar() or 0
+
+    return _ok(StudyDatasetListItem(
+        id=ds.id,
+        specification_id=ds.specification_id,
+        dataset_name=ds.dataset_name,
+        description=ds.description,
+        class_type=ds.class_type.value,
+        sort_order=ds.sort_order,
+        base_id=ds.base_id,
+        override_type=ds.override_type.value,
+        variable_count=var_count,
+        standard_metadata=ds.standard_metadata,
+        extra_attrs=ds.extra_attrs,
+        created_by=ds.created_by,
+        created_at=ds.created_at.isoformat() if ds.created_at else "",
+    ).model_dump())
+
+
+@router.delete(
+    "/{spec_id}/datasets/{dataset_id}",
+    summary="软删除数据集（21 CFR Part 11 合规）",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_dataset(
+    spec_id: int,
+    dataset_id: int,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    q = select(TargetDataset).where(
+        TargetDataset.id == dataset_id,
+        TargetDataset.specification_id == spec_id,
+        TargetDataset.is_deleted == False,  # noqa: E712
+    )
+    result = await db.execute(q)
+    ds = result.scalar_one_or_none()
+    if not ds:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+
+    ds.soft_delete(deleted_by=user.username)
+    await db.commit()
 
 
 # ============================================================
