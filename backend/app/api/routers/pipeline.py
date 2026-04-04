@@ -220,9 +220,13 @@ def _format_node(node: ScopeNode) -> dict:
         base_dict["product_id"] = str(node.parent_id)
         # Supply study config
         base_dict["config"] = meta.get("study_config", {})
+        # Spec status badge — driven by spec_status stored in extra_attrs on creation
+        base_dict["spec_status"] = meta.get("spec_status", "none")
     elif node.node_type == NodeType.ANALYSIS:
         base_dict["study_id"] = str(node.parent_id)
         base_dict["type"] = meta.get("analysis_type", "Interim")
+        # Spec status badge
+        base_dict["spec_status"] = meta.get("spec_status", "none")
 
     return base_dict
 

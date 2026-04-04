@@ -67,6 +67,8 @@ class NodeCreate(BaseModel):
     spec_init_method: Literal["build", "copy_study", "copy_analysis"] | None = None
     copy_from_spec_id: int | None = None  # spec id to copy from (copy_study/copy_analysis)
     # Analysis node: domain exclusions on creation
+    # TODO: wire this into pipeline.py create_node handler to call toggle_dataset
+    # after auto-inherit completes (currently accepted but not acted upon)
     excluded_dataset_names: list[str] = []
 
 

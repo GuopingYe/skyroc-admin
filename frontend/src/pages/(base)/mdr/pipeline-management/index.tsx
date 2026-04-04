@@ -402,13 +402,13 @@ const PipelineManagement: React.FC = () => {
           <Space>
             {getNodeIcon(record.nodeType)}
             <span className={record.status === 'Archived' ? 'line-through text-gray-400' : ''}>{text}</span>
-            {record.nodeType === 'STUDY' && record.extra_attrs?.spec_status === 'pending_setup' && (
+            {record.nodeType === 'STUDY' && (record as any).spec_status === 'pending_setup' && (
               <Tag color="blue" style={{ fontSize: 10 }}>Spec Pending</Tag>
             )}
-            {record.nodeType === 'STUDY' && record.extra_attrs?.spec_status === 'ready' && (
+            {record.nodeType === 'STUDY' && (record as any).spec_status === 'ready' && (
               <Tag color="green" style={{ fontSize: 10 }}>Spec Ready</Tag>
             )}
-            {record.nodeType === 'ANALYSIS' && record.extra_attrs?.spec_status === 'inherited' && (
+            {record.nodeType === 'ANALYSIS' && (record as any).spec_status === 'inherited' && (
               <Tag color="green" style={{ fontSize: 10 }}>Spec Inherited</Tag>
             )}
           </Space>
