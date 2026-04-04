@@ -66,3 +66,52 @@ async def test_get_study_spec_sources_returns_structure(authenticated_client: As
     assert "ta_domains" in data
     assert "product_domains" in data
     assert isinstance(data["cdisc_domains"], list)
+
+
+@pytest.mark.asyncio
+async def test_copy_spec_creates_new_spec_with_all_datasets(authenticated_client: AsyncClient, db_session):
+    """POST /study-specs/copy creates a full clone of source spec under a new scope_node_id."""
+    import uuid
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.target_dataset import TargetDataset
+    from app.models.mapping_enums import SpecType, SpecStatus, OverrideType, DatasetClass
+
+    suffix = uuid.uuid4().hex[:8]
+
+    # Set up source study + spec
+    study_a = ScopeNode(node_type=NodeType.STUDY, name="Study-A", code=f"COPY-A-{suffix}",
+                        lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(study_a)
+    await db_session.flush()
+
+    source_spec = Specification(
+        scope_node_id=study_a.id, name="Study-A SDTM", spec_type=SpecType.SDTM,
+        version="1.0", status=SpecStatus.DRAFT, created_by="test"
+    )
+    db_session.add(source_spec)
+    await db_session.flush()
+
+    ds = TargetDataset(
+        specification_id=source_spec.id, dataset_name="AE",
+        description="Adverse Events", class_type=DatasetClass.EVENTS,
+        override_type=OverrideType.NONE, created_by="test"
+    )
+    db_session.add(ds)
+    await db_session.flush()
+
+    # Target study
+    study_b = ScopeNode(node_type=NodeType.STUDY, name="Study-B", code=f"COPY-B-{suffix}",
+                        lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(study_b)
+    await db_session.flush()
+
+    resp = await authenticated_client.post("/api/v1/study-specs/copy", json={
+        "source_spec_id": source_spec.id,
+        "target_scope_node_id": study_b.id,
+        "name": "Study-B SDTM (copied)"
+    })
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["dataset_count"] == 1
+    assert data["source_spec_id"] == source_spec.id

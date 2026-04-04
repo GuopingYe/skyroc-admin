@@ -438,6 +438,119 @@ async def get_spec_sources(
 
 
 # ============================================================
+# NEW: POST /study-specs/copy
+# ============================================================
+
+class CopySpecRequest(BaseModel):
+    source_spec_id: int = Field(..., description="Specification ID to clone from")
+    target_scope_node_id: int = Field(..., description="ScopeNode ID for the new spec")
+    name: str | None = Field(None, description="Name for the new spec; defaults to source name + (copy)")
+
+
+class CopySpecResponse(BaseModel):
+    id: int
+    name: str
+    spec_type: str
+    source_spec_id: int
+    dataset_count: int
+    variable_count: int
+
+
+@router.post("/copy", summary="Clone a spec from an existing Specification")
+async def copy_spec(
+    request: CopySpecRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Deep-clone a Specification (all datasets + variables) to a new scope node.
+
+    Sets base_specification_id to the source so the inheritance chain is preserved.
+    """
+    # Load source spec with datasets
+    src_q = (
+        select(Specification)
+        .options(selectinload(Specification.datasets))
+        .where(Specification.id == request.source_spec_id, Specification.is_deleted == False)  # noqa: E712
+    )
+    src_res = await db.execute(src_q)
+    source = src_res.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Source spec {request.source_spec_id} not found")
+
+    # Verify target scope node exists
+    target_q = select(ScopeNode).where(ScopeNode.id == request.target_scope_node_id)
+    target_res = await db.execute(target_q)
+    if not target_res.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Target ScopeNode {request.target_scope_node_id} not found")
+
+    new_name = request.name or f"{source.name} (copy)"
+    new_spec = Specification(
+        scope_node_id=request.target_scope_node_id,
+        name=new_name,
+        spec_type=source.spec_type,
+        version="1.0",
+        status=SpecStatus.DRAFT,
+        base_specification_id=source.id,
+        standard_name=source.standard_name,
+        standard_version=source.standard_version,
+        created_by=user.username,
+    )
+    db.add(new_spec)
+    await db.flush()
+
+    dataset_count = 0
+    variable_count = 0
+    for src_ds in source.datasets:
+        if src_ds.is_deleted:
+            continue
+        new_ds = TargetDataset(
+            specification_id=new_spec.id,
+            dataset_name=src_ds.dataset_name,
+            description=src_ds.description,
+            class_type=src_ds.class_type,
+            sort_order=src_ds.sort_order,
+            base_id=src_ds.id,
+            override_type=OverrideType.NONE,
+            created_by=user.username,
+        )
+        db.add(new_ds)
+        await db.flush()
+        dataset_count += 1
+
+        var_q = select(TargetVariable).where(
+            TargetVariable.dataset_id == src_ds.id,
+            TargetVariable.is_deleted == False,  # noqa: E712
+        ).order_by(TargetVariable.sort_order)
+        var_res = await db.execute(var_q)
+        for src_var in var_res.scalars().all():
+            new_var = TargetVariable(
+                dataset_id=new_ds.id,
+                variable_name=src_var.variable_name,
+                variable_label=src_var.variable_label,
+                description=src_var.description,
+                data_type=src_var.data_type,
+                length=src_var.length,
+                core=src_var.core,
+                sort_order=src_var.sort_order,
+                base_id=src_var.id,
+                override_type=OverrideType.NONE,
+                origin_type=src_var.origin_type,
+                standard_metadata=src_var.standard_metadata,
+                created_by=user.username,
+            )
+            db.add(new_var)
+            variable_count += 1
+
+    await db.commit()
+    return _ok(CopySpecResponse(
+        id=new_spec.id, name=new_spec.name, spec_type=new_spec.spec_type.value,
+        source_spec_id=source.id, dataset_count=dataset_count, variable_count=variable_count,
+    ).model_dump())
+
+
+# ============================================================
 # API 2: GET /api/v1/study-specs/{spec_id} - 获取详情
 # ============================================================
 
