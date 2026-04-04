@@ -9,6 +9,7 @@
  * - 支持行拖拽排序调整变量顺序
  * - 使用全局临床上下文 (useClinicalContext) 进行作用域管理
  * - 通过 scopeNodeId 关联到后端 ScopeNode 进行数据过滤
+ * - Draft store (command pattern) enables undo/redo and staged saves
  */
 import {
   BookOutlined,
@@ -17,8 +18,11 @@ import {
   EditOutlined,
   LoadingOutlined,
   PlusOutlined,
+  RedoOutlined,
+  RollbackOutlined,
   SearchOutlined,
   TableOutlined,
+  UndoOutlined,
   UploadOutlined
 } from '@ant-design/icons';
 import {
@@ -40,6 +44,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  Badge,
   Button,
   Card,
   Descriptions,
@@ -62,16 +67,27 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useClinicalContext, useStudyScopeNodeId } from '@/features/clinical-context';
-import { addDatasetFromGlobalLibrary, createCustomDataset } from '@/service/api';
+import { addDatasetFromGlobalLibrary, createCustomDataset, deleteDataset, patchDataset } from '@/service/api';
 import { useStudyDatasets, useStudySpecs, useStudyVariables } from '@/service/hooks';
 
-import type { SpecDataset, SpecVariable, StandardType, VariableOrigin } from './mockData';
+import type { SpecVariable, StandardType, VariableOrigin } from './mockData';
 import { originConfig } from './mockData';
 import { AddDatasetModal, VariableFormDrawer } from './modules';
 import { DomainPickerWizard } from './components/DomainPickerWizard';
+import { DomainEditDrawer } from './components/DomainEditDrawer';
 import { PushUpstreamModal } from './components/PushUpstreamModal';
+import { SaveChangesModal } from './components/SaveChangesModal';
 import { ScopeSwitcher } from './components/ScopeSwitcher';
 import { useInitializeSpec } from '@/service/hooks/useStudySpec';
+import {
+  type DomainDraft,
+  type DraftStatus,
+  computeDiff,
+  datasetToDomainDraft,
+  getDomainDraftStore,
+  hasPendingChanges,
+  pendingChangeCount,
+} from './store/domainDraftStore';
 
 const { Text, Title } = Typography;
 
@@ -82,6 +98,21 @@ const ORIGIN_TYPE_MAP: Record<string, VariableOrigin> = {
   Study_Custom: 'Protocol',
   TA_Standard: 'Assigned'
 };
+
+/** Status-based border/style for domain list items */
+const statusStyle = (status: DraftStatus): React.CSSProperties => ({
+  borderLeft:
+    status === 'added'
+      ? '3px solid #52c41a'
+      : status === 'modified'
+        ? '3px solid #1677ff'
+        : status === 'deleted'
+          ? '3px solid #ff4d4f'
+          : '3px solid transparent',
+  opacity: status === 'deleted' ? 0.6 : 1,
+  textDecoration: status === 'deleted' ? 'line-through' : 'none',
+  padding: '4px 8px',
+});
 
 /** 可拖拽行组件 */
 interface SortableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
@@ -125,7 +156,7 @@ const StudySpec: React.FC = () => {
   const { t } = useTranslation();
 
   // 使用全局临床上下文
-  const { context, isReady, isStudyReady } = useClinicalContext();
+  const { isStudyReady } = useClinicalContext();
   const scopeNodeId = useStudyScopeNodeId();
 
   // 标准类型切换 (SDTM / ADaM)
@@ -199,37 +230,61 @@ const StudySpec: React.FC = () => {
   const { data: datasetsData, isLoading: datasetsLoading } = useStudyDatasets(currentSpec?.id ?? null);
 
   // 获取变量列表
-  const { data: variablesData, isLoading: variablesLoading } = useStudyVariables(selectedDatasetId);
+  const { data: variablesData } = useStudyVariables(selectedDatasetId);
 
-  // 当 spec 变化时，重置到第一个 Dataset
+  // ---- Draft store (command pattern, persisted to localStorage) ----
+  const specIdStr = currentSpec ? String(currentSpec.id) : null;
+  const draftStore = specIdStr ? getDomainDraftStore(specIdStr) : null;
+
+  // Force re-render when draft store changes
+  const [, setDraftVersion] = React.useState(0);
+  React.useEffect(() => {
+    if (!draftStore) return;
+    return draftStore.subscribe(() => setDraftVersion(v => v + 1));
+  }, [draftStore]);
+
+  const draftCurrent = draftStore?.getState().current ?? [];
+  const draftPast = draftStore?.getState().past ?? [];
+  const draftFuture = draftStore?.getState().future ?? [];
+  const isDirty = hasPendingChanges(draftCurrent);
+  const changeCount = pendingChangeCount(draftCurrent);
+
+  // Edit drawer state
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [editingDomain, setEditingDomain] = useState<DomainDraft | null>(null);
+  const [editingDatasetId, setEditingDatasetId] = useState<number | null>(null);
+
+  // Save modal state
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  // 当 spec 变化时，重置到第一个 Dataset，同时初始化 draft store baseline
   useEffect(() => {
     if (datasetsData?.items?.length && datasetsData.items.length > 0) {
       setSelectedDatasetId(datasetsData.items[0].id);
+      if (draftStore) {
+        const drafts = datasetsData.items.map(datasetToDomainDraft);
+        draftStore.getState().initBaseline(drafts);
+      }
     } else {
       setSelectedDatasetId(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpec?.id, datasetsData?.items]);
 
-  // 转换数据集数据为前端格式
-  const filteredDatasets = useMemo(() => {
-    if (!datasetsData?.items) return [];
-    let datasets = datasetsData.items;
-    if (searchText) {
-      const keyword = searchText.toLowerCase();
-      datasets = datasets.filter(
-        d => d.dataset_name.toLowerCase().includes(keyword) || (d.description?.toLowerCase().includes(keyword) ?? false)
-      );
-    }
-    return datasets.map(d => ({
-      class: d.class_type,
-      key: String(d.id),
-      keys: [],
-      label: d.description || '',
-      name: d.dataset_name,
-      structure: '',
-      variableCount: d.variable_count
-    }));
-  }, [datasetsData, searchText]);
+  // 转换数据集数据为前端格式 (now DomainDraft[])
+  const filteredDatasets = useMemo((): DomainDraft[] => {
+    // Use draft-aware list when available, fall back to API data
+    const source: DomainDraft[] =
+      draftCurrent.length > 0
+        ? draftCurrent
+        : (datasetsData?.items ?? []).map(datasetToDomainDraft);
+    if (!searchText) return source;
+    const kw = searchText.toLowerCase();
+    return source.filter(
+      d => d.domain_name.toLowerCase().includes(kw) || d.domain_label.toLowerCase().includes(kw)
+    );
+  }, [draftCurrent, datasetsData?.items, searchText]);
 
   // 转换变量数据为前端格式
   const currentVariables = useMemo((): SpecVariable[] => {
@@ -351,7 +406,7 @@ const StudySpec: React.FC = () => {
     [operateType, editingVariable, selectedDatasetId, selectedStandard, t, closeFormDrawer]
   );
 
-  // 处理删除
+  // 处理删除变量
   const handleDelete = useCallback(
     async (variableId: number) => {
       setDeleteLoading(variableId);
@@ -384,11 +439,15 @@ const StudySpec: React.FC = () => {
 
       setAddDatasetLoading(true);
       try {
+        let newDataset: Api.StudySpec.StudyDatasetListItem | null = null;
+
         if (values.type === 'global_library') {
           const result = await addDatasetFromGlobalLibrary(currentSpec.id, {
             base_dataset_id: values.data.base_dataset_id as number
           });
           message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
+          // result may carry the new dataset; shape depends on API
+          newDataset = (result as any).dataset ?? null;
         } else {
           const result = await createCustomDataset(currentSpec.id, {
             class_type: values.data.class_type as string,
@@ -397,6 +456,24 @@ const StudySpec: React.FC = () => {
             inherit_from_model: values.data.inherit_from_model as boolean
           });
           message.success(result.message || t('page.mdr.studySpec.addDataset.success'));
+          newDataset = (result as any).dataset ?? null;
+        }
+
+        // Sync into draft store if we have the returned dataset
+        if (draftStore && newDataset) {
+          const draft: DomainDraft = {
+            _status: 'added',
+            class_type: newDataset.class_type,
+            comments: '',
+            domain_label: newDataset.description ?? '',
+            domain_name: newDataset.dataset_name,
+            id: String(newDataset.id),
+            key_variables: [],
+            origin: newDataset.base_id ? 'global_library' : 'custom',
+            sort_variables: [],
+            structure: '',
+          };
+          draftStore.getState().dispatch({ payload: draft, type: 'ADD_DOMAIN' });
         }
 
         // 刷新数据集列表
@@ -413,10 +490,49 @@ const StudySpec: React.FC = () => {
         setAddDatasetLoading(false);
       }
     },
-    [currentSpec?.id, queryClient, t]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentSpec?.id, draftStore, queryClient, t]
   );
 
-  // 当前 Dataset 信息
+  // Save sequence handler
+  const handleConfirmSave = async () => {
+    if (!currentSpec || !draftStore) return;
+    const { baseline, current } = draftStore.getState();
+    const diff = computeDiff(baseline, current);
+    setSaveLoading(true);
+
+    try {
+      // Process EDITED domains
+      for (const { after } of diff.modified) {
+        await patchDataset(currentSpec.id, Number(after.id), {
+          class_type: after.class_type,
+          comments: after.comments,
+          domain_label: after.domain_label,
+          domain_name: after.domain_name,
+          key_variables: after.key_variables,
+          sort_variables: after.sort_variables,
+          structure: after.structure,
+        });
+      }
+
+      // Process DELETED domains (skip temp IDs that were never persisted)
+      for (const domain of diff.deleted) {
+        if (domain.id.startsWith('new-')) continue;
+        await deleteDataset(currentSpec.id, Number(domain.id));
+      }
+
+      draftStore.getState().commitSave();
+      queryClient.invalidateQueries({ queryKey: ['studySpec'] });
+      message.success('Changes saved successfully');
+      setSaveModalOpen(false);
+    } catch {
+      message.error('Save failed. Your draft has been preserved — please retry.');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // 当前 Dataset 信息 (从 API 数据中获取用于右侧详情)
   const currentDatasetInfo = useMemo(() => {
     if (!datasetsData?.items || !selectedDatasetId) return null;
     const dataset = datasetsData.items.find(d => d.id === selectedDatasetId);
@@ -616,7 +732,7 @@ const StudySpec: React.FC = () => {
         width: 120
       }
     ],
-    [t, openEditDrawer, handleDelete]
+    [t, openEditDrawer, handleDelete, deleteLoading]
   );
 
   return (
@@ -715,14 +831,51 @@ const StudySpec: React.FC = () => {
                 Initialize Spec
               </Button>
             )}
-            <Button
-              icon={<PlusOutlined />}
-              size="small"
-              title={t('page.mdr.studySpec.addDataset.title')}
-              type="primary"
-              onClick={() => setAddDatasetModalOpen(true)}
-            />
           </div>
+
+          {/* Undo / Redo / Add / Save toolbar */}
+          <Space style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+            <Space>
+              <Tooltip title="Undo">
+                <Button
+                  disabled={draftPast.length === 0}
+                  icon={<UndoOutlined />}
+                  onClick={() => draftStore?.getState().undo()}
+                  size="small"
+                />
+              </Tooltip>
+              <Tooltip title="Redo">
+                <Button
+                  disabled={draftFuture.length === 0}
+                  icon={<RedoOutlined />}
+                  onClick={() => draftStore?.getState().redo()}
+                  size="small"
+                />
+              </Tooltip>
+            </Space>
+            <Space>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => setAddDatasetModalOpen(true)}
+                size="small"
+                title={t('page.mdr.studySpec.addDataset.title')}
+                type="primary"
+              >
+                Add Domain
+              </Button>
+              <Badge count={changeCount} size="small">
+                <Button
+                  disabled={!isDirty}
+                  onClick={() => setSaveModalOpen(true)}
+                  size="small"
+                  type="primary"
+                >
+                  Save Changes
+                </Button>
+              </Badge>
+            </Space>
+          </Space>
+
           <div className="flex-1 overflow-auto">
             <Text
               strong
@@ -744,27 +897,74 @@ const StudySpec: React.FC = () => {
               <List
                 dataSource={filteredDatasets}
                 size="small"
-                renderItem={item => {
-                  const isSelected = selectedDatasetId === Number(item.key);
+                renderItem={domain => {
+                  const domainNumId = Number(domain.id);
+                  const isSelected = selectedDatasetId === domainNumId;
+                  const isDeleted = domain._status === 'deleted';
 
                   return (
                     <List.Item
-                      className={`cursor-pointer px-8px rounded transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                      onClick={() => setSelectedDatasetId(Number(item.key))}
+                      className={`cursor-pointer rounded transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      style={statusStyle(domain._status)}
+                      onClick={() => {
+                        if (isDeleted) return;
+                        setSelectedDatasetId(domainNumId);
+                      }}
                     >
                       <div className="w-full flex items-center justify-between">
                         <Space>
-                          <Tag color="blue">{item.name}</Tag>
-                          <span className="text-13px">{item.label}</span>
+                          <Tag color="blue">{domain.domain_name}</Tag>
+                          <span className="text-13px">{domain.domain_label}</span>
                         </Space>
-                        {item.variableCount !== undefined && (
-                          <Tag
-                            className="m-0 text-10px"
-                            color="blue"
-                          >
-                            {item.variableCount}
-                          </Tag>
-                        )}
+                        <Space size={2}>
+                          {!isDeleted ? (
+                            <>
+                              <Tooltip title="Edit domain">
+                                <Button
+                                  icon={<EditOutlined />}
+                                  size="small"
+                                  type="text"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setEditingDomain(domain);
+                                    setEditingDatasetId(domainNumId);
+                                    setEditDrawerOpen(true);
+                                  }}
+                                />
+                              </Tooltip>
+                              <Tooltip title="Delete domain">
+                                <Button
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  size="small"
+                                  type="text"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    draftStore?.getState().dispatch({
+                                      payload: { id: domain.id, snapshot: domain },
+                                      type: 'DELETE_DOMAIN',
+                                    });
+                                  }}
+                                />
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <Tooltip title="Restore domain">
+                              <Button
+                                icon={<RollbackOutlined />}
+                                size="small"
+                                type="text"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  draftStore?.getState().dispatch({
+                                    payload: { id: domain.id, snapshot: domain },
+                                    type: 'RESTORE_DOMAIN',
+                                  });
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                        </Space>
                       </div>
                     </List.Item>
                   );
@@ -1015,12 +1215,17 @@ const StudySpec: React.FC = () => {
           open={domainPickerOpen}
           scopeNodeId={scopeNodeId}
           onConfirm={async (datasetIds) => {
-            await initializeSpec.mutateAsync({
-              scope_node_id: scopeNodeId,
-              spec_type: selectedStandard,
-              selected_dataset_ids: datasetIds,
-            });
-            setDomainPickerOpen(false);
+            try {
+              await initializeSpec.mutateAsync({
+                scope_node_id: scopeNodeId,
+                spec_type: selectedStandard,
+                selected_dataset_ids: datasetIds,
+              });
+              setDomainPickerOpen(false);
+            } catch (err: unknown) {
+              const detail = (err as any)?.response?.data?.detail || (err as any)?.message || 'Failed to initialize spec';
+              message.error(detail);
+            }
           }}
           onCancel={() => setDomainPickerOpen(false)}
         />
@@ -1036,6 +1241,31 @@ const StudySpec: React.FC = () => {
           onSuccess={() => {
             setPushUpstreamOpen(false);
           }}
+        />
+      )}
+
+      {/* Domain Edit Drawer */}
+      {draftStore && editingDomain && (
+        <DomainEditDrawer
+          datasetId={editingDatasetId}
+          domain={editingDomain}
+          onClose={() => {
+            setEditDrawerOpen(false);
+            setEditingDomain(null);
+          }}
+          open={editDrawerOpen}
+          store={draftStore.getState()}
+        />
+      )}
+
+      {/* Save Changes Modal */}
+      {draftStore && (
+        <SaveChangesModal
+          confirmLoading={saveLoading}
+          diff={computeDiff(draftStore.getState().baseline, draftStore.getState().current)}
+          onCancel={() => setSaveModalOpen(false)}
+          onConfirm={handleConfirmSave}
+          open={saveModalOpen}
         />
       )}
     </div>
