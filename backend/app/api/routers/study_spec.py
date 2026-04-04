@@ -23,7 +23,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser
 from app.database import get_db_session
-from app.models import ScopeNode, Specification, TargetDataset, TargetVariable
+from app.models import NodeType, ScopeNode, Specification, TargetDataset, TargetVariable
 from app.models.mapping_enums import DatasetClass, DataType, OriginType, OverrideType, SpecStatus, SpecType, VariableCore
 
 router = APIRouter(prefix="/study-specs", tags=["Study Specification"])
@@ -300,6 +300,114 @@ async def get_study_specs(
         )
 
     return _ok(StudySpecListResponse(total=total, items=items).model_dump())
+
+
+# ============================================================
+# NEW: GET /study-specs/sources
+# ============================================================
+
+class DomainSourceItem(BaseModel):
+    id: int
+    dataset_name: str
+    description: str | None = None
+    class_type: str
+    variable_count: int
+    spec_id: int
+    spec_name: str
+    origin: str  # "cdisc" | "ta" | "product"
+
+
+class SpecSourcesResponse(BaseModel):
+    cdisc_domains: list[DomainSourceItem]
+    ta_domains: list[DomainSourceItem]
+    product_domains: list[DomainSourceItem]
+
+
+@router.get("/sources", summary="Get available domain sources for spec initialization")
+async def get_spec_sources(
+    user: CurrentUser,
+    scope_node_id: int = Query(..., description="Study ScopeNode ID"),
+    spec_type: str = Query("SDTM", description="SDTM or ADaM"),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Return available domains from CDISC Library, TA Spec, and Product Spec for the given study."""
+    # Resolve the study ScopeNode
+    study_q = select(ScopeNode).where(ScopeNode.id == scope_node_id)
+    study_res = await db.execute(study_q)
+    study_node = study_res.scalar_one_or_none()
+    if not study_node:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ScopeNode not found")
+
+    # Walk up the tree to find TA and Compound ancestors
+    ta_node_id: int | None = None
+    product_node_id: int | None = None
+    current = study_node
+    while current.parent_id:
+        parent_q = select(ScopeNode).where(ScopeNode.id == current.parent_id)
+        parent_res = await db.execute(parent_q)
+        parent = parent_res.scalar_one_or_none()
+        if not parent:
+            break
+        if parent.node_type == NodeType.TA:
+            ta_node_id = parent.id
+        elif parent.node_type == NodeType.COMPOUND:
+            product_node_id = parent.id
+        current = parent
+
+    try:
+        target_spec_type = SpecType(spec_type.upper())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid spec_type: {spec_type}")
+
+    async def _get_domains(node_id: int | None, origin: str) -> list[DomainSourceItem]:
+        if node_id is None:
+            return []
+        specs_q = select(Specification).where(
+            Specification.scope_node_id == node_id,
+            Specification.spec_type == target_spec_type,
+            Specification.is_deleted == False,  # noqa: E712
+        )
+        specs_res = await db.execute(specs_q)
+        specs = specs_res.scalars().all()
+        items = []
+        for spec in specs:
+            datasets_q = select(TargetDataset).where(
+                TargetDataset.specification_id == spec.id,
+                TargetDataset.is_deleted == False,  # noqa: E712
+                TargetDataset.override_type != OverrideType.DELETED,
+            )
+            ds_res = await db.execute(datasets_q)
+            datasets = ds_res.scalars().all()
+            for ds in datasets:
+                var_count_q = select(func.count()).where(
+                    TargetVariable.dataset_id == ds.id,
+                    TargetVariable.is_deleted == False,  # noqa: E712
+                )
+                vc_res = await db.execute(var_count_q)
+                vc = vc_res.scalar() or 0
+                items.append(DomainSourceItem(
+                    id=ds.id, dataset_name=ds.dataset_name, description=ds.description,
+                    class_type=ds.class_type.value, variable_count=vc,
+                    spec_id=spec.id, spec_name=spec.name, origin=origin,
+                ))
+        return items
+
+    # CDISC domains: specs attached to CDISC/GLOBAL scope nodes
+    cdisc_q = select(ScopeNode).where(ScopeNode.node_type.in_([NodeType.CDISC, NodeType.GLOBAL]))
+    cdisc_res = await db.execute(cdisc_q)
+    cdisc_nodes = cdisc_res.scalars().all()
+    cdisc_domains: list[DomainSourceItem] = []
+    for cn in cdisc_nodes:
+        cdisc_domains.extend(await _get_domains(cn.id, "cdisc"))
+
+    ta_domains = await _get_domains(ta_node_id, "ta")
+    product_domains = await _get_domains(product_node_id, "product")
+
+    return _ok(SpecSourcesResponse(
+        cdisc_domains=cdisc_domains,
+        ta_domains=ta_domains,
+        product_domains=product_domains,
+    ).model_dump())
 
 
 # ============================================================
