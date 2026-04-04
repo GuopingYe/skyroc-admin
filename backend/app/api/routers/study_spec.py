@@ -721,7 +721,7 @@ class PushUpstreamResponse(BaseModel):
     added_datasets: list[str]
     modified_datasets: list[str]
     deleted_datasets: list[str]
-    status: str  # "pr_created"
+    status: str  # "diff_computed"
 
 
 @router.post("/{spec_id}/push-upstream",
@@ -756,12 +756,13 @@ async def push_upstream(
     modified = [ds.dataset_name for ds in changed_datasets if ds.override_type == OverrideType.MODIFIED]
     deleted = [ds.dataset_name for ds in changed_datasets if ds.override_type == OverrideType.DELETED]
 
+    # TODO: integrate with PR workflow to create actual PR record
     return _ok(PushUpstreamResponse(
         parent_spec_id=spec.base_specification_id,
         added_datasets=added,
         modified_datasets=modified,
         deleted_datasets=deleted,
-        status="pr_created",
+        status="diff_computed",
     ).model_dump())
 
 

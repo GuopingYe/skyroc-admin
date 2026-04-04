@@ -228,7 +228,7 @@ async def test_push_upstream_returns_diff_summary(authenticated_client: AsyncCli
     data = resp.json()["data"]
     assert data["parent_spec_id"] == parent_spec.id
     assert data["added_datasets"] == ["CUSTOM"]
-    assert data["status"] == "pr_created"
+    assert data["status"] == "diff_computed"
 
 
 @pytest.mark.asyncio
