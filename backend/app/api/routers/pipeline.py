@@ -33,7 +33,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, get_db_session
 from app.models import LifecycleStatus, NodeType, ProgrammingTracker, ScopeNode
-from app.models.mapping_enums import SpecType
+from app.models.mapping_enums import SpecStatus, SpecType
 from app.models.specification import Specification
 from app.schemas.pipeline_schemas import (
     MilestoneCreate,
@@ -610,10 +610,37 @@ async def create_node(
         elif data.node_type.upper() == "ANALYSIS":
             spec_status = "inherited"
             # Persist spec_status so GET /pipeline/tree can show badge state.
-            # Task 6 will update this to "customized" when domains are excluded.
             node.extra_attrs = {**(node.extra_attrs or {}), "spec_status": spec_status}
             await db.commit()
             await db.refresh(node)
+
+            # Auto-inherit all parent study specs when creating an ANALYSIS node
+            if parent_id:
+                parent_study_q = select(ScopeNode).where(ScopeNode.id == parent_id)
+                parent_study_res = await db.execute(parent_study_q)
+                parent_study = parent_study_res.scalar_one_or_none()
+
+                if parent_study and parent_study.node_type == NodeType.STUDY:
+                    study_specs_q = select(Specification).where(
+                        Specification.scope_node_id == parent_study.id,
+                        Specification.is_deleted == False,  # noqa: E712
+                    )
+                    study_specs_res = await db.execute(study_specs_q)
+                    study_specs = study_specs_res.scalars().all()
+
+                    for parent_spec in study_specs:
+                        inherited_spec = Specification(
+                            scope_node_id=node.id,
+                            name=f"{node.name} {parent_spec.spec_type.value} Spec",
+                            spec_type=parent_spec.spec_type,
+                            version="1.0",
+                            status=SpecStatus.DRAFT,
+                            base_specification_id=parent_spec.id,
+                            created_by=user.username,
+                        )
+                        db.add(inherited_spec)
+
+                    await db.flush()
 
         node_dict = _format_node(node)
         node_dict["spec_status"] = spec_status

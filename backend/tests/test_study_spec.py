@@ -280,3 +280,45 @@ async def test_initialize_spec_from_selected_datasets(authenticated_client: Asyn
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["dataset_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_create_analysis_auto_inherits_study_specs(authenticated_client: AsyncClient, db_session):
+    """Creating an ANALYSIS node auto-creates inherited Specification records for each study spec."""
+    from app.models import ScopeNode, NodeType, LifecycleStatus
+    from app.models.specification import Specification
+    from app.models.mapping_enums import SpecType, SpecStatus
+    from sqlalchemy import select
+    import uuid
+
+    study = ScopeNode(node_type=NodeType.STUDY, name="Study-Inherit",
+                      code=f"SINHT-{uuid.uuid4().hex[:6]}",
+                      lifecycle_status=LifecycleStatus.ONGOING, created_by="test")
+    db_session.add(study)
+    await db_session.flush()
+
+    # Study has two specs: SDTM + ADaM
+    for stype in (SpecType.SDTM, SpecType.ADAM):
+        spec = Specification(scope_node_id=study.id,
+                             name=f"Study {stype.value}",
+                             spec_type=stype, version="1.0",
+                             status=SpecStatus.ACTIVE, created_by="test")
+        db_session.add(spec)
+    await db_session.flush()
+
+    resp = await authenticated_client.post("/api/v1/pipeline/nodes", json={
+        "title": "ANA-001", "node_type": "ANALYSIS",
+        "parent_id": str(study.id),
+    })
+    assert resp.status_code == 200
+    analysis_id = resp.json()["data"]["id"]
+
+    # Verify two inherited specs were created for analysis
+    inherited_q = select(Specification).where(
+        Specification.scope_node_id == analysis_id,
+        Specification.is_deleted == False,  # noqa: E712
+    )
+    inh_res = await db_session.execute(inherited_q)
+    inherited = inh_res.scalars().all()
+    assert len(inherited) == 2
+    assert all(s.base_specification_id is not None for s in inherited)
