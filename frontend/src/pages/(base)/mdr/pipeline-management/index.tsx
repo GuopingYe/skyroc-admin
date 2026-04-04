@@ -69,6 +69,9 @@ import {
 import { usePermissionCheck } from '@/service/hooks';
 
 import { AssignTeamPanel, ExecutionJobsTable, MilestoneTimeline, MilestoneTrackerTable } from './components';
+import { AnalysisSpecStepModal } from './components/AnalysisSpecStepModal';
+import { StudySpecStepModal } from './components/StudySpecStepModal';
+import { copySpec } from '@/service/api/study-spec';
 import { getMilestoneStats } from './milestoneData';
 import {
   type AnalysisNode,
@@ -341,14 +344,43 @@ const PipelineManagement: React.FC = () => {
         return;
       }
 
-      await createPipelineNode({
+      const specValues = createForm.getFieldsValue(['createSpec', 'specInitMethod', 'copyFromSpecId']);
+
+      const newNode = await createPipelineNode({
         description: values.description,
         node_type: createNodeType!,
         parent_id: selectedNodeId || undefined,
         phase: values.phase,
         protocol_title: values.protocolTitle,
-        title: newTitle
-      });
+        title: newTitle,
+        // Spec init fields
+        create_spec: specValues.createSpec === 'yes',
+        spec_init_method: specValues.createSpec === 'yes' ? (specValues.specInitMethod ?? 'build') : undefined,
+        copy_from_spec_id: specValues.copyFromSpecId ?? undefined
+      } as any);
+
+      // If copy method: clone the source spec to the new node
+      if (
+        specValues.createSpec === 'yes' &&
+        (specValues.specInitMethod === 'copy_study' || specValues.specInitMethod === 'copy_analysis') &&
+        specValues.copyFromSpecId
+      ) {
+        if (newNode?.id != null) {
+          try {
+            await copySpec({
+              source_spec_id: specValues.copyFromSpecId,
+              target_scope_node_id: newNode.id
+            });
+          } catch (copyErr) {
+            console.warn('Spec copy failed (non-critical):', copyErr);
+          }
+        } else {
+          // TODO: createPipelineNode does not return the new node's dbId — spec copy skipped.
+          // Wire this once the API response includes the new ScopeNode id.
+          console.warn('Spec copy skipped: new node ID not available in API response');
+        }
+      }
+
       // Refresh tree from API
       await fetchTree();
       messageApi.success(t('page.mdr.pipelineManagement.createSuccess'));
@@ -370,6 +402,15 @@ const PipelineManagement: React.FC = () => {
           <Space>
             {getNodeIcon(record.nodeType)}
             <span className={record.status === 'Archived' ? 'line-through text-gray-400' : ''}>{text}</span>
+            {record.nodeType === 'STUDY' && record.extra_attrs?.spec_status === 'pending_setup' && (
+              <Tag color="blue" style={{ fontSize: 10 }}>Spec Pending</Tag>
+            )}
+            {record.nodeType === 'STUDY' && record.extra_attrs?.spec_status === 'ready' && (
+              <Tag color="green" style={{ fontSize: 10 }}>Spec Ready</Tag>
+            )}
+            {record.nodeType === 'ANALYSIS' && record.extra_attrs?.spec_status === 'inherited' && (
+              <Tag color="green" style={{ fontSize: 10 }}>Spec Inherited</Tag>
+            )}
           </Space>
         ),
         title: t('page.mdr.pipelineManagement.cols.title')
@@ -641,6 +682,21 @@ const PipelineManagement: React.FC = () => {
                 <Select options={studyPhases} />
               </Form.Item>
             </>
+          )}
+          {createNodeType === 'STUDY' && (
+            <StudySpecStepModal
+              form={createForm}
+              cdiscVersionConfigured={false}
+            />
+          )}
+          {createNodeType === 'ANALYSIS' && (
+            <AnalysisSpecStepModal
+              parentSpecs={[]}
+              allDatasets={[]}
+              excludedDatasetIds={[]}
+              parentSpecReady={false}
+              onToggleExclude={() => {}}
+            />
           )}
         </Form>
       </Modal>

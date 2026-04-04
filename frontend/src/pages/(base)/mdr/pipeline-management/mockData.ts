@@ -34,6 +34,8 @@ export interface PipelineNode {
   createdAt: string;
   /** 数据库主键 ID (ScopeNode.id) - 用于 API 查询 */
   dbId?: number;
+  /** 额外属性（如 spec_status），来自后端动态字段 */
+  extra_attrs?: Record<string, unknown>;
   id: string;
   /** 生命周期状态（状态机） */
   lifecycleStatus: NodeLifecycleStatus;
