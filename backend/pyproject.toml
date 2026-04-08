@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=40"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/migrations/*"]
+
+[tool.coverage.report]
+fail_under = 40
+show_missing = true

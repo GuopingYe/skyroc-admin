@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Environment
-    ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+    ENVIRONMENT: Literal["development", "staging", "production", "test"] = "development"
 
     # CDISC Library API
     CDISC_LIBRARY_API_KEY: str = ""

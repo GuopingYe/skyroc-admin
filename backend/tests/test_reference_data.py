@@ -90,8 +90,8 @@ async def test_list_items(authenticated_client: AsyncClient, db_session: AsyncSe
     resp = await authenticated_client.get("/api/v1/reference-data/POPULATION")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 2
-    codes = {item["code"] for item in data}
+    assert data["total"] == 2
+    codes = {item["code"] for item in data["items"]}
     assert codes == {"Safety", "ITT"}
 
 
@@ -190,7 +190,7 @@ async def test_deactivate_item(admin_authenticated_client: AsyncClient, db_sessi
     # Verify list still shows remaining items
     resp3 = await admin_authenticated_client.get("/api/v1/reference-data/POPULATION")
     assert resp3.status_code == 200
-    assert len(resp3.json()) == 1
+    assert resp3.json()["total"] == 1
 
 
 @pytest.mark.asyncio
@@ -215,6 +215,6 @@ async def test_list_deleted_items(admin_authenticated_client: AsyncClient, db_se
     resp = await admin_authenticated_client.get("/api/v1/reference-data/POPULATION?is_deleted=true")
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["code"] == "Safety"
-    assert data[0]["is_deleted"] is True
+    assert data["total"] == 1
+    assert data["items"][0]["code"] == "Safety"
+    assert data["items"][0]["is_deleted"] is True

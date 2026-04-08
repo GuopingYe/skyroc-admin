@@ -468,3 +468,33 @@ async def test_soft_delete_dataset(authenticated_client, db_session):
 
     await db_session.refresh(ds)
     assert ds.is_deleted is True
+
+
+# ============================================================
+# Additional List/Detail Endpoint Tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_get_study_specs_list(authenticated_client: AsyncClient):
+    """GET /study-specs returns spec list."""
+    resp = await authenticated_client.get("/api/v1/study-specs")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["code"] == "0000"
+    assert isinstance(data["data"]["items"], list)
+
+
+@pytest.mark.asyncio
+async def test_get_study_datasets_missing_spec(authenticated_client: AsyncClient):
+    """GET /study-specs/{spec_id}/datasets returns error for missing spec."""
+    resp = await authenticated_client.get("/api/v1/study-specs/99999/datasets")
+    assert resp.status_code == 200
+    assert resp.json()["code"] == "4040"
+
+
+@pytest.mark.asyncio
+async def test_get_dataset_variables_missing_dataset(authenticated_client: AsyncClient):
+    """GET /study-specs/datasets/{dataset_id}/variables returns error for missing dataset."""
+    resp = await authenticated_client.get("/api/v1/study-specs/datasets/99999/variables")
+    assert resp.status_code == 200
+    assert resp.json()["code"] == "4040"

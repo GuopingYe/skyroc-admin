@@ -339,6 +339,7 @@ async def update_therapeutic_area(
 
     ta.updated_by = user.username
     await db.commit()
+    await db.refresh(ta)
     return _ok(_format_node(ta))
 
 
@@ -517,7 +518,7 @@ async def archive_node(
     node.updated_by = user.username
     await db.commit()
 
-    return _ok({"id": str(node_id), "status": data.status})
+    return _ok({"id": str(node_id), "status": data.status, "dbId": node.id})
 
 
 @router.post("/nodes", summary="Create a new node")
@@ -750,14 +751,16 @@ async def update_milestone(
 ):
     # This is a bit brute force, but works fine for DB-backed JSON arrays without direct indexing
     # We must find which node owns this milestone
-    all_nodes_with_ms = await db.execute(
-        select(ScopeNode).where(ScopeNode.extra_attrs.op("?")("milestones"))
+    # Note: extra_attrs.op("?") is PostgreSQL-specific; filter in Python for cross-dialect support
+    all_nodes_res = await db.execute(
+        select(ScopeNode).where(ScopeNode.is_deleted == False)  # noqa: E712
     )
-    
-    for node in all_nodes_with_ms.scalars():
+
+    for node in all_nodes_res.scalars():
         meta = copy.deepcopy(node.extra_attrs or {})
         ms_list = meta.get("milestones", [])
-        updated = False
+        if not ms_list:
+            continue
         
         for ms in ms_list:
             if ms.get("id") == milestone_id:
@@ -792,14 +795,16 @@ async def delete_milestone(
     user: CurrentUser,
     db: AsyncSession = Depends(get_db_session)
 ):
-    all_nodes_with_ms = await db.execute(
-        select(ScopeNode).where(ScopeNode.extra_attrs.op("?")("milestones"))
+    all_nodes_res = await db.execute(
+        select(ScopeNode).where(ScopeNode.is_deleted == False)  # noqa: E712
     )
-    
-    for node in all_nodes_with_ms.scalars():
+
+    for node in all_nodes_res.scalars():
         meta = copy.deepcopy(node.extra_attrs or {})
         ms_list = meta.get("milestones", [])
-        
+        if not ms_list:
+            continue
+
         new_list = [ms for ms in ms_list if ms.get("id") != milestone_id]
         if len(new_list) < len(ms_list):
             meta["milestones"] = new_list
