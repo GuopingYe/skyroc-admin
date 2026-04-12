@@ -30,6 +30,23 @@ export function getPipelineTree(scopeNodeId?: number) {
   });
 }
 
+/** Save role assignments for a pipeline node (batch) */
+export function saveNodeRoles(nodeId: string, assignments: Array<{ action: 'assign' | 'revoke'; role_code: string; user_id: number }>) {
+  return request<{ applied: number }>({
+    data: { assignments },
+    method: 'post',
+    url: MDR_URLS.PIPELINE_NODE_ROLES.replace(':id', nodeId),
+  });
+}
+
+/** Search users for role assignment dropdown */
+export function searchPipelineUsers(q: string, limit = 20) {
+  return request<Array<{ department: string | null; display_name: string | null; email: string; user_id: number; username: string }>>({
+    params: { limit, q },
+    url: MDR_URLS.PIPELINE_USERS_SEARCH,
+  });
+}
+
 /** Get all products (Compounds), optionally filtered by therapeutic area */
 export function getPipelineProducts(taId?: string) {
   return request<any[]>({

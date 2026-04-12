@@ -100,3 +100,24 @@ export const presetMilestoneOptions = Object.entries(presetMilestoneConfig).map(
   level: config.level,
   value: key as PresetMilestoneType
 }));
+
+// ==================== Role Assignment Types ====================
+
+/** User info returned from role assignment APIs */
+export interface AssignedRoleUser {
+  userId: number;
+  username: string;
+  displayName: string;
+  email: string;
+}
+
+/** Roles grouped by role code, keyed by role code */
+export type AssignedRoles = Record<string, AssignedRoleUser[]>;
+
+/** A single pending role change action */
+export interface RoleChangeAction {
+  roleCode: string;
+  userId: number;
+  action: 'assign' | 'revoke';
+  userDetails?: AssignedRoleUser;
+}

@@ -13,6 +13,8 @@ export const MDR_URLS = {
   PIPELINE_STUDIES: '/api/v1/pipeline/studies',
   PIPELINE_STUDY_CONFIG: '/api/v1/pipeline/studies/:id/config',
   PIPELINE_TREE: '/api/v1/pipeline/tree',
+  PIPELINE_NODE_ROLES: '/api/v1/pipeline/nodes/:id/roles',
+  PIPELINE_USERS_SEARCH: '/api/v1/pipeline/users/search',
 
   // Study Spec
   SPEC_VARIABLE_CREATE: '/api/v1/mdr/spec/variable',
