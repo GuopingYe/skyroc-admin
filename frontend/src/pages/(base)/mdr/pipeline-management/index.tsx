@@ -12,6 +12,7 @@ import {
   ApartmentOutlined,
   DeleteOutlined,
   EditOutlined,
+  ExclamationCircleOutlined,
   ExperimentOutlined,
   FileTextOutlined,
   FundOutlined,
@@ -19,10 +20,12 @@ import {
   MinusSquareOutlined,
   PlusOutlined,
   PlusSquareOutlined,
+  RedoOutlined,
   ReloadOutlined,
   SearchOutlined,
   SettingOutlined,
-  TeamOutlined
+  TeamOutlined,
+  UndoOutlined
 } from '@ant-design/icons';
 import {
   Button,
@@ -71,6 +74,8 @@ import { usePermissionCheck } from '@/service/hooks';
 import { AssignTeamPanel, ExecutionJobsTable, MilestoneTimeline, MilestoneTrackerTable } from './components';
 import { AnalysisSpecStepModal } from './components/AnalysisSpecStepModal';
 import { StudySpecStepModal } from './components/StudySpecStepModal';
+import { RoleAssignmentSection } from './components';
+import { useRoleAssignments } from './hooks/useRoleAssignments';
 import { copySpec } from '@/service/api/study-spec';
 import { getMilestoneStats } from './milestoneData';
 import {
@@ -88,6 +93,7 @@ import {
   studyPhases
 } from './mockData';
 import type { IProjectMilestone } from './types';
+import type { AssignedRoleUser, AssignedRoles } from './types';
 
 const { Text } = Typography;
 
@@ -414,6 +420,27 @@ const PipelineManagement: React.FC = () => {
           </Space>
         ),
         title: t('page.mdr.pipelineManagement.cols.title')
+      },
+      {
+        dataIndex: 'lead',
+        key: 'lead',
+        render: (_: unknown, record: PipelineNode) => {
+          const roles = (record as any).assigned_roles;
+          if (!roles) return '-';
+          const leadRole = roles['COMPOUND_LEAD'] || roles['STUDY_LEAD_PROG'] || roles['TA_HEAD'] || [];
+          const lead = leadRole[0];
+          if (!lead) return <span style={{ color: '#d48806', fontSize: 12 }}>Unassigned</span>;
+          return (
+            <Space size={4}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: '#1677ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 9 }}>
+                {(lead.displayName || lead.username).slice(0, 2).toUpperCase()}
+              </div>
+              <span style={{ fontSize: 12 }}>{lead.displayName || lead.username}</span>
+            </Space>
+          );
+        },
+        title: 'Lead',
+        width: 140,
       },
       {
         dataIndex: 'nodeType',
@@ -770,6 +797,25 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
   treeSearchQuery
 }) => {
   const { t } = useTranslation();
+
+  // Role assignment state
+  const nodeId = selectedNode?.dbId ? String(selectedNode.dbId) : null;
+  const {
+    assignUser,
+    assignedRoles,
+    canRedo,
+    canUndo,
+    discardAll,
+    isDirty: isRoleDirty,
+    pendingCount,
+    redo: redoRoles,
+    removeUser,
+    resetRoles,
+    saveAll: saveRoles,
+    saving: savingRoles,
+    undo: undoRoles,
+  } = useRoleAssignments(nodeId);
+
   // 收集所有可展开节点的 key（仅包含有子节点的节点）
   const getExpandableNodeKeys = useCallback((nodes: DataNode[]): React.Key[] => {
     const keys: React.Key[] = [];
@@ -843,6 +889,16 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
       form.setFieldsValue(selectedNode);
     }
   }, [isEditing, selectedNode, form]);
+
+  // Sync role assignments when selected node changes
+  useEffect(() => {
+    if (selectedNode) {
+      const roles = (selectedNode as any).assigned_roles || {};
+      resetRoles(roles);
+    } else {
+      resetRoles({});
+    }
+  }, [selectedNode?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter tree nodes by search query
   const filteredTreeNodes = useMemo(() => {
@@ -964,7 +1020,22 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
                 selectedKeys={selectedNodeId ? [selectedNodeId] : []}
                 treeData={filteredTreeNodes}
                 onExpand={setExpandedKeys}
-                onSelect={onSelect}
+                onSelect={(keys) => {
+                  if (isRoleDirty) {
+                    Modal.confirm({
+                      cancelText: 'Discard & Switch',
+                      content: 'You have unsaved role changes. Save or discard before switching.',
+                      okText: 'Stay',
+                      onCancel: () => {
+                        discardAll();
+                        onSelect(keys);
+                      },
+                      title: 'Unsaved Changes',
+                    });
+                    return;
+                  }
+                  onSelect(keys);
+                }}
               />
             </div>
           </Spin>
@@ -1063,6 +1134,15 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
           size="small"
           extra={
             <Space>
+              {isRoleDirty && (
+                <>
+                  <Tooltip title="Undo"><Button disabled={!canUndo} icon={<UndoOutlined />} size="small" type="text" onClick={undoRoles} /></Tooltip>
+                  <Tooltip title="Redo"><Button disabled={!canRedo} icon={<RedoOutlined />} size="small" type="text" onClick={redoRoles} /></Tooltip>
+                  <Tag color="warning" style={{ fontSize: 11 }}>{pendingCount} pending</Tag>
+                  <Button loading={savingRoles} size="small" type="primary" onClick={saveRoles}>Save Roles</Button>
+                  <Button size="small" onClick={discardAll}>Discard</Button>
+                </>
+              )}
               {canManage && (
                 <Button
                   disabled={isLocked}
@@ -1110,6 +1190,53 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
             </Space>
           }
         >
+          {/* Role Assignment Sections */}
+          {nodeType === 'TA' && (
+            <RoleAssignmentSection
+              assignedUsers={assignedRoles['TA_HEAD'] || []}
+              editable={isEditing}
+              maxCount={1}
+              onAssign={(user) => assignUser('TA_HEAD', user)}
+              onRemove={(userId) => removeUser('TA_HEAD', userId)}
+              roleCode="TA_HEAD"
+            />
+          )}
+          {nodeType === 'COMPOUND' && (
+            <RoleAssignmentSection
+              assignedUsers={assignedRoles['COMPOUND_LEAD'] || []}
+              editable={isEditing}
+              maxCount={1}
+              onAssign={(user) => assignUser('COMPOUND_LEAD', user)}
+              onRemove={(userId) => removeUser('COMPOUND_LEAD', userId)}
+              roleCode="COMPOUND_LEAD"
+            />
+          )}
+          {nodeType === 'STUDY' && (
+            <>
+              <RoleAssignmentSection
+                assignedUsers={assignedRoles['STUDY_LEAD_PROG'] || []}
+                editable={isEditing}
+                maxCount={1}
+                onAssign={(user) => assignUser('STUDY_LEAD_PROG', user)}
+                onRemove={(userId) => removeUser('STUDY_LEAD_PROG', userId)}
+                roleCode="STUDY_LEAD_PROG"
+              />
+              <RoleAssignmentSection
+                assignedUsers={assignedRoles['STUDY_PROG'] || []}
+                editable={isEditing}
+                onAssign={(user) => assignUser('STUDY_PROG', user)}
+                onRemove={(userId) => removeUser('STUDY_PROG', userId)}
+                roleCode="STUDY_PROG"
+              />
+            </>
+          )}
+          {nodeType === 'ANALYSIS' && (
+            <div style={{ background: '#f0f5ff', border: '1px solid #adc6ff', borderRadius: 6, marginBottom: 16, padding: '8px 12px' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Inherits team from parent Study
+              </Text>
+            </div>
+          )}
           {isEditing ? (
             <Form
               form={form}
