@@ -80,3 +80,12 @@ class SuccessResponse(BaseModel):
     code: str = "0000"
     msg: str = "success"
     data: Any = None
+
+
+class RoleAssignmentAction(BaseModel):
+    role_code: str
+    user_id: int
+    action: Literal["assign", "revoke"]
+
+class RoleAssignmentBatch(BaseModel):
+    assignments: list[RoleAssignmentAction]
