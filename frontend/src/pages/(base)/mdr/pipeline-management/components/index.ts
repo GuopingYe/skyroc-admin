@@ -8,3 +8,4 @@ export { default as MilestoneTrackerTable } from './MilestoneTrackerTable';
 export { default as PendingChangesBanner, type PendingChangesBannerProps } from './PendingChangesBanner';
 export { default as SaveConfirmationModal, type SaveConfirmationModalProps } from './SaveConfirmationModal';
 export { default as UndoRedoToolbar, type UndoRedoToolbarProps } from './UndoRedoToolbar';
+export { default as RoleAssignmentSection } from './RoleAssignmentSection';
