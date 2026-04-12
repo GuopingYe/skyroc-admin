@@ -1,21 +1,9 @@
 /**
- * Pipeline Management Mock 数据 - 研发管线与项目空间管理
+ * Pipeline Management - 类型定义与 UI 配置常量
  *
- * 四级树状结构：TA -> Compound -> Study -> Analysis 数据来源于 @/mock/pipelineMock 统一数据源
+ * 四级树状结构：TA -> Compound -> Study -> Analysis
+ * 数据来源：后端 /api/v1/pipeline/tree（通过 usePipelineActions 加载）
  */
-
-import {
-  type IAnalysis,
-  type IProduct,
-  type IStudy,
-  type IStudyConfiguration,
-  type ITherapeuticArea,
-  analyses,
-  products,
-  studies,
-  studyConfigurations,
-  therapeuticAreas
-} from '@/mock/pipelineMock';
 
 // ==================== 类型定义 ====================
 
@@ -123,88 +111,6 @@ export const studyPhases = [
   { label: 'Phase IV', value: 'Phase IV' }
 ];
 
-// ==================== 数据转换函数 ====================
-
-/** 将 IStudyConfiguration 转换为 StudyConfig */
-const convertStudyConfig = (config: IStudyConfiguration | null): StudyConfig => {
-  if (!config) return {} as StudyConfig;
-  return {
-    adamIgVersion: config.adamIgVersion,
-    adamModelVersion: config.adamModelVersion,
-    meddraVersion: config.meddraVersion,
-    sdtmIgVersion: config.sdtmIgVersion,
-    sdtmModelVersion: config.sdtmModelVersion,
-    whodrugVersion: config.whodrugVersion
-  };
-};
-
-/** 将 IAnalysis 转换为 AnalysisNode */
-const convertToAnalysisNode = (analysis: IAnalysis): AnalysisNode => ({
-  createdAt: analysis.createdAt,
-  description: analysis.description,
-  id: analysis.id,
-  lifecycleStatus: analysis.lifecycleStatus,
-  lockedAt: analysis.lockedAt,
-  lockedBy: analysis.lockedBy,
-  nodeType: 'ANALYSIS',
-  status: analysis.status === 'Completed' ? 'Active' : 'Active',
-  title: analysis.name,
-  updatedAt: analysis.updatedAt
-});
-
-/** 将 IStudy 转换为 StudyNode */
-const convertToStudyNode = (study: IStudy, config: IStudyConfiguration | null): StudyNode => ({
-  children: analyses.filter(a => a.studyId === study.id).map(convertToAnalysisNode),
-  config: convertStudyConfig(config),
-  createdAt: study.createdAt,
-  id: study.id,
-  lifecycleStatus: study.lifecycleStatus,
-  nodeType: 'STUDY',
-  phase: study.phase,
-  protocolTitle: study.protocolTitle,
-  status: study.status === 'Completed' ? 'Active' : study.status,
-  title: study.studyCode,
-  updatedAt: study.updatedAt
-});
-
-/** 将 IProduct 转换为 Compound 节点 */
-const convertToCompoundNode = (product: IProduct): PipelineNode => {
-  const productStudies = studies.filter(s => s.productId === product.id && s.status !== 'Archived');
-  return {
-    children: productStudies.map(study => {
-      const config = studyConfigurations.find(c => c.studyId === study.id) || null;
-      return convertToStudyNode(study, config);
-    }),
-    createdAt: product.createdAt,
-    id: product.id,
-    lifecycleStatus: 'Active',
-    nodeType: 'COMPOUND',
-    status: product.status,
-    title: product.name,
-    updatedAt: product.updatedAt
-  };
-};
-
-/** 将 ITherapeuticArea 转换为 TA 节点 */
-const convertToTANode = (ta: ITherapeuticArea): PipelineNode => {
-  const taProducts = products.filter(p => p.taId === ta.id && p.status === 'Active');
-  return {
-    children: taProducts.map(convertToCompoundNode),
-    createdAt: ta.createdAt,
-    id: ta.id,
-    lifecycleStatus: 'Active',
-    nodeType: 'TA',
-    status: ta.status,
-    title: ta.name,
-    updatedAt: ta.updatedAt
-  };
-};
-
-// ==================== 导出数据 ====================
-
-/** Pipeline 树数据 - 从统一数据源生成 */
-export const pipelineTree: PipelineNode[] = therapeuticAreas.filter(ta => ta.status === 'Active').map(convertToTANode);
-
 // ==================== 辅助函数 ====================
 
 /** 根据 ID 查找节点 */
@@ -212,7 +118,7 @@ export const findNodeById = (nodes: PipelineNode[], id: string): PipelineNode | 
   for (const node of nodes) {
     if (node.id === id) return node;
     if (node.children) {
-      const found = findNodeById(node.children, id);
+      const found = findNodeById(node.children as PipelineNode[], id);
       if (found) return found;
     }
   }
@@ -222,7 +128,7 @@ export const findNodeById = (nodes: PipelineNode[], id: string): PipelineNode | 
 /** 获取节点的所有子节点 */
 export const getChildNodes = (nodes: PipelineNode[], parentId: string): PipelineNode[] => {
   const parent = findNodeById(nodes, parentId);
-  return parent?.children || [];
+  return (parent?.children as PipelineNode[]) || [];
 };
 
 /** 根据节点类型获取允许的子节点类型 */
@@ -233,19 +139,4 @@ export const getAllowedChildType = (nodeType: NodeType): NodeType | null => {
     TA: 'COMPOUND'
   };
   return mapping[nodeType] || null;
-};
-
-/** 根据 Study ID 获取完整的研究信息 */
-export const getStudyById = (studyId: string): IStudy | undefined => {
-  return studies.find(s => s.id === studyId);
-};
-
-/** 根据 Analysis ID 获取完整的分析信息 */
-export const getAnalysisById = (analysisId: string): IAnalysis | undefined => {
-  return analyses.find(a => a.id === analysisId);
-};
-
-/** 根据 Study ID 获取研究配置 */
-export const getStudyConfigById = (studyId: string): IStudyConfiguration | undefined => {
-  return studyConfigurations.find(c => c.studyId === studyId);
 };

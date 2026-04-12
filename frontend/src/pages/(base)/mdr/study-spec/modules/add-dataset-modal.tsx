@@ -149,13 +149,16 @@ const AddDatasetModal: React.FC<AddDatasetModalProps> = ({ loading, onCancel, on
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      form.resetFields();
+      // Note: form.resetFields() intentionally omitted here — the Form is inside the
+      // custom tab which is lazily rendered (not mounted until first visited), so calling
+      // resetFields before mount triggers the "not connected" warning.
+      // State is fully reset via the setters below; the Form will use initialValues on mount.
       setSearchText('');
       setSelectedDatasetId(null);
       setCustomDomainName('');
       setCustomClassType('Events');
     }
-  }, [open, form]);
+  }, [open]);
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
@@ -282,6 +285,9 @@ const AddDatasetModal: React.FC<AddDatasetModalProps> = ({ loading, onCancel, on
         )
       },
       {
+        // forceRender keeps the Form mounted even when this tab is inactive,
+        // so form.validateFields() and field state work correctly on submit.
+        forceRender: true,
         children: (
           <div className="min-h-400px flex gap-12px">
             {/* Left: Form */}

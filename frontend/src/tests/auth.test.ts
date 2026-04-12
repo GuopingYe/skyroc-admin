@@ -3,36 +3,37 @@
  *
  * Tests for:
  *
- * - Token storage
+ * - Token storage (localStg)
  * - User state
  * - Login/logout flow
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Basic auth tests - can be expanded with actual store integration
+import { localStg } from '@/utils/storage';
+
 describe('Authentication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    localStg.clear();
   });
 
   describe('Token Management', () => {
-    it('should store token in localStorage', () => {
-      const token = 'test-access-token';
-      localStorage.setItem('token', token);
-      expect(localStorage.getItem('token')).toBe(token);
+    it('should store and retrieve token via localStg', () => {
+      localStg.set('token', 'test-access-token');
+      expect(localStg.get('token')).toBe('test-access-token');
     });
 
     it('should clear tokens on logout', () => {
-      localStorage.setItem('token', 'access-token');
-      localStorage.setItem('refreshToken', 'refresh-token');
+      localStg.set('token', 'access-token');
+      localStg.set('refreshToken', 'refresh-token');
+      localStg.clear();
 
-      // Simulate logout
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
+      expect(localStg.get('token')).toBeNull();
+      expect(localStg.get('refreshToken')).toBeNull();
+    });
 
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('refreshToken')).toBeNull();
+    it('should return null when no token exists', () => {
+      expect(localStg.get('token')).toBeNull();
     });
   });
 

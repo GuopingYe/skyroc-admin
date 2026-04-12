@@ -11,9 +11,8 @@
  * - 响应式布局，适应小屏幕
  * - 用户可调整列宽
  */
-import { SearchOutlined } from '@ant-design/icons';
-import { Card, Empty, Input, Table, Tag, Tooltip, Typography } from 'antd';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import { Card, Empty, Input, Pagination, Table, Tag, Tooltip, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Resizable } from 'react-resizable';
@@ -69,7 +68,7 @@ interface CodelistViewerProps {
 }
 
 const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const locale = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
   // 状态管理
@@ -263,37 +262,22 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
     }
   ];
 
-  // 事件处理
-  const handleCodelistTableChange = useCallback((paginationConfig: TablePaginationConfig) => {
-    setCodelistPagination({
-      current: paginationConfig.current || 1,
-      pageSize: paginationConfig.pageSize || 20
-    });
-  }, []);
-
-  const handleTermTableChange = useCallback((paginationConfig: TablePaginationConfig) => {
-    setTermPagination({
-      current: paginationConfig.current || 1,
-      pageSize: paginationConfig.pageSize || 50
-    });
-  }, []);
-
   const selectedCodelist = codelistsData?.items?.find(c => c.id === selectedCodelistId);
 
   return (
     <div
-      className="h-full flex gap-12px"
-      style={{ minHeight: 0 }}
+      className="flex gap-12px"
+      style={{ flex: 1, minHeight: 0 }}
     >
       {/* 左侧: Codelist列表 */}
       <Card
         className="flex-shrink-0"
         size="small"
-        style={{ display: 'flex', flexDirection: 'column', minWidth: 280, width: 320 }}
+        style={{ display: 'flex', flexDirection: 'column', minWidth: 240, width: '30%', maxWidth: 380 }}
         extra={
           <Search
             allowClear
-            className="w-120px"
+            className="w-100px"
             placeholder={locale === 'zh' ? '搜索...' : 'Search...'}
             size="small"
             value={codelistSearch}
@@ -314,11 +298,11 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
             >
               {locale === 'zh' ? '代码表列表' : 'Codelists'}
             </Text>
-            {codelistsData && <Tag color="cyan">{codelistsData.total} items</Tag>}
+            {codelistsData && <Tag color="cyan">{codelistsData.total}</Tag>}
           </div>
         }
       >
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <Table
             showHeader
             columns={codelistColumns}
@@ -326,15 +310,7 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
             loading={codelistsLoading}
             rowKey="id"
             size="small"
-            pagination={{
-              current: codelistPagination.current,
-              pageSize: codelistPagination.pageSize,
-              showSizeChanger: false,
-              showTotal: total => `${total} items`,
-              size: 'small',
-              total: codelistsData?.total ?? 0
-            }}
-            onChange={handleCodelistTableChange}
+            pagination={false}
             onRow={record => ({
               onClick: () => {
                 setSelectedCodelistId(record.id);
@@ -345,18 +321,33 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
             })}
           />
         </div>
+        <div
+          className="flex-shrink-0 pt-8px"
+          style={{ borderTop: '1px solid #f0f0f0' }}
+        >
+          <Pagination
+            current={codelistPagination.current}
+            pageSize={codelistPagination.pageSize}
+            showTotal={total => `${total}`}
+            size="small"
+            total={codelistsData?.total ?? 0}
+            onChange={page => {
+              setCodelistPagination(prev => ({ ...prev, current: page }));
+            }}
+          />
+        </div>
       </Card>
 
       {/* 右侧: Terms表格 */}
       <Card
         className="min-w-0 flex-1"
         size="small"
-        style={{ display: 'flex', flexDirection: 'column', minWidth: 400 }}
+        style={{ display: 'flex', flexDirection: 'column', minWidth: 300 }}
         extra={
           selectedCodelistId && (
             <Search
               allowClear
-              className="w-160px"
+              className="w-120px"
               placeholder={locale === 'zh' ? '搜索术语...' : 'Search terms...'}
               size="small"
               value={termSearch}
@@ -386,7 +377,7 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
               >
                 {selectedCodelist.codelist_id}
               </Text>
-              {termsData && <Tag color="green">{termsData.total} terms</Tag>}
+              {termsData && <Tag color="green">{termsData.total}</Tag>}
             </div>
           ) : (
             <Text
@@ -410,31 +401,42 @@ const CodelistViewer: React.FC<CodelistViewerProps> = ({ scopeNodeId }) => {
             <Text type="secondary">{locale === 'zh' ? '加载中...' : 'Loading...'}</Text>
           </div>
         ) : termsData?.items?.length ? (
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <Table
-              columns={termColumns}
-              dataSource={termsData.items}
-              rowKey="id"
-              scroll={{ x: 600 }}
-              size="small"
-              components={{
-                header: {
-                  cell: ResizableTitle
-                }
-              }}
-              pagination={{
-                current: termPagination.current,
-                pageSize: termPagination.pageSize,
-                pageSizeOptions: ['20', '50', '100'],
-                showQuickJumper: true,
-                showSizeChanger: true,
-                showTotal: total => `${total} terms`,
-                size: 'small',
-                total: termsData.total
-              }}
-              onChange={handleTermTableChange}
-            />
-          </div>
+          <>
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              <Table
+                columns={termColumns}
+                dataSource={termsData.items}
+                rowKey="id"
+                scroll={{ x: 600 }}
+                size="small"
+                pagination={false}
+                components={{
+                  header: {
+                    cell: ResizableTitle
+                  }
+                }}
+              />
+            </div>
+            <div
+              className="flex-shrink-0 pt-8px flex items-center justify-between"
+              style={{ borderTop: '1px solid #f0f0f0', flexWrap: 'wrap', gap: 4 }}
+            >
+              <span className="text-12px text-gray-500">
+                {termsData.total} {locale === 'zh' ? '条' : 'terms'}
+              </span>
+              <Pagination
+                current={termPagination.current}
+                pageSize={termPagination.pageSize}
+                pageSizeOptions={['20', '50', '100']}
+                showSizeChanger
+                size="small"
+                total={termsData.total}
+                onChange={(page, pageSize) => {
+                  setTermPagination({ current: page, pageSize });
+                }}
+              />
+            </div>
+          </>
         ) : (
           <div className="h-full flex-center">
             <Empty

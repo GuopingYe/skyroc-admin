@@ -84,7 +84,14 @@
       "Bash(scoop search:*)",
       "Bash(winget install:*)",
       "Bash(opencode models:*)",
-      "Bash(opencode auth:*)"
+      "Bash(opencode auth:*)",
+      "Bash(bash:*)",
+      "Bash(python3 -c \"import sys;print\\('still running'\\)\")",
+      "Bash(xxd D:/github/clinical-mdr/frontend/src/pages/'\\(base\\)'/mdr/pipeline-management/index.tsx)",
+      "Bash(xxd)",
+      "Bash(python3 -c ':*)",
+      "Bash(perl:*)",
+      "Bash(sort -t'%' -k2 -n)"
     ]
   }
 }

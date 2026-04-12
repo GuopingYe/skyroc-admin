@@ -17,5 +17,13 @@
     "node": ">=18.12.0",
     "pnpm": ">=8.7.0"
   },
-  "packageManager": "pnpm@10.4.1"
+  "packageManager": "pnpm@10.4.1",
+  "pnpm": {
+    "overrides": {
+      "unconfig": "^7.5.0"
+    }
+  },
+  "dependencies": {
+    "oh-my-opencode-windows-x64": "^3.14.0"
+  }
 }

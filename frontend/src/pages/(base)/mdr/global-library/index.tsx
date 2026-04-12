@@ -1340,6 +1340,8 @@ const GlobalLibrary: React.FC = () => {
           className="min-h-0 flex-1 overflow-hidden"
           size="small"
           variant="borderless"
+          style={{ display: 'flex', flexDirection: 'column' }}
+          styles={{ body: { display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', padding: 0 } }}
         >
           <CodelistViewer scopeNodeId={selectedCtScopeNodeId} />
         </Card>
