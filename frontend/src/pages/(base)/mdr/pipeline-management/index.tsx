@@ -1109,7 +1109,22 @@ const PortfolioAdminTab: React.FC<PortfolioAdminTabProps> = ({
               selectedKeys={selectedNodeId ? [selectedNodeId] : []}
               treeData={filteredTreeNodes}
               onExpand={setExpandedKeys}
-              onSelect={onSelect}
+              onSelect={(keys) => {
+                if (isRoleDirty) {
+                  Modal.confirm({
+                    cancelText: 'Discard & Switch',
+                    content: 'You have unsaved role changes. Save or discard before switching.',
+                    okText: 'Stay',
+                    onCancel: () => {
+                      discardAll();
+                      onSelect(keys);
+                    },
+                    title: 'Unsaved Changes',
+                  });
+                  return;
+                }
+                onSelect(keys);
+              }}
             />
           </div>
         </Spin>

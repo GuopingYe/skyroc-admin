@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -242,13 +242,14 @@ async def _load_assigned_roles(db: AsyncSession, node_ids: list[int]) -> dict[in
             UserScopeRole.scope_node_id.in_(node_ids),
             UserScopeRole.is_deleted == False,  # noqa: E712
         )
+        .options(
+            selectinload(UserScopeRole.user),
+            selectinload(UserScopeRole.role),
+        )
     )
     rows = result.scalars().all()
-    # Load user and role info
     roles_map: dict[int, dict[str, list[dict]]] = {}
     for usr in rows:
-        # Refresh to load relationships
-        await db.refresh(usr, ["user", "role"])
         nid = usr.scope_node_id
         if nid not in roles_map:
             roles_map[nid] = {}
@@ -968,7 +969,6 @@ async def search_users(
 ):
     """Search active users by username, display_name, or email."""
     pattern = f"%{q}%"
-    from sqlalchemy import or_
     result = await db.execute(
         select(User).where(
             User.is_active == True,  # noqa: E712

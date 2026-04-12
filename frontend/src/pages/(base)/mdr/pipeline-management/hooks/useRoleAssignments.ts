@@ -54,14 +54,15 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
   const [committed, setCommitted] = useState<AssignedRoles>({});
   const [working, setWorking] = useState<AssignedRoles>({});
   const [saving, setSaving] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const pastRef = useRef<AssignedRoles[]>([]);
   const futureRef = useRef<AssignedRoles[]>([]);
 
-  const isDirty = useMemo(() => JSON.stringify(committed) !== JSON.stringify(working), [committed, working]);
   const pendingChanges = useMemo(() => diffRoles(committed, working), [committed, working]);
   const pendingCount = pendingChanges.length;
-  const canUndo = pastRef.current.length > 0;
-  const canRedo = futureRef.current.length > 0;
+  const isDirty = pendingCount > 0;
+  const canUndo = historyVersion > 0 && pastRef.current.length > 0;
+  const canRedo = historyVersion >= 0 && futureRef.current.length > 0;
 
   const resetRoles = useCallback((roles: AssignedRoles) => {
     const cloned = cloneRoles(roles);
@@ -69,6 +70,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
     setWorking(cloned);
     pastRef.current = [];
     futureRef.current = [];
+    setHistoryVersion(0);
   }, []);
 
   const assignUser = useCallback((roleCode: string, user: AssignedRoleUser) => {
@@ -76,6 +78,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
       pastRef.current.push(cloneRoles(prev));
       if (pastRef.current.length > MAX_HISTORY) pastRef.current.shift();
       futureRef.current = [];
+      setHistoryVersion(v => v + 1);
 
       const current = prev[roleCode] || [];
       if (current.some(u => u.userId === user.userId)) return prev;
@@ -88,6 +91,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
       pastRef.current.push(cloneRoles(prev));
       if (pastRef.current.length > MAX_HISTORY) pastRef.current.shift();
       futureRef.current = [];
+      setHistoryVersion(v => v + 1);
 
       const current = prev[roleCode] || [];
       if (!current.some(u => u.userId === userId)) return prev;
@@ -100,6 +104,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
     setWorking(prev => {
       futureRef.current.push(cloneRoles(prev));
       const previous = pastRef.current.pop()!;
+      setHistoryVersion(v => v + 1);
       return previous;
     });
   }, []);
@@ -109,6 +114,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
     setWorking(prev => {
       pastRef.current.push(cloneRoles(prev));
       const next = futureRef.current.pop()!;
+      setHistoryVersion(v => v + 1);
       return next;
     });
   }, []);
@@ -117,6 +123,7 @@ export function useRoleAssignments(nodeId: string | null): UseRoleAssignmentsRet
     setWorking(cloneRoles(committed));
     pastRef.current = [];
     futureRef.current = [];
+    setHistoryVersion(0);
   }, [committed]);
 
   const saveAll = useCallback(async () => {

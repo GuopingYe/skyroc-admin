@@ -56,8 +56,8 @@ const RoleAssignmentSection: React.FC<RoleAssignmentSectionProps> = ({
           }))
         );
       }
-    } catch {
-      // Ignore search errors
+    } catch (err) {
+      console.warn('User search failed:', err);
     } finally {
       setSearchLoading(false);
     }
