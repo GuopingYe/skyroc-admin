@@ -34,12 +34,14 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, get_db_session
 from app.models import LifecycleStatus, NodeType, ProgrammingTracker, ScopeNode
 from app.models.mapping_enums import SpecStatus, SpecType
+from app.models.rbac import Role, User, UserScopeRole
 from app.models.specification import Specification
 from app.schemas.pipeline_schemas import (
     MilestoneCreate,
     MilestoneUpdate,
     NodeArchiveRequest,
     NodeCreate,
+    RoleAssignmentBatch,
     StudyConfigUpdate,
     TherapeuticAreaCreate,
     TherapeuticAreaUpdate,
@@ -230,6 +232,38 @@ def _format_node(node: ScopeNode) -> dict:
 
     return base_dict
 
+async def _load_assigned_roles(db: AsyncSession, node_ids: list[int]) -> dict[int, dict[str, list[dict]]]:
+    """Batch load assigned roles for a list of node IDs."""
+    if not node_ids:
+        return {}
+    result = await db.execute(
+        select(UserScopeRole)
+        .where(
+            UserScopeRole.scope_node_id.in_(node_ids),
+            UserScopeRole.is_deleted == False,  # noqa: E712
+        )
+    )
+    rows = result.scalars().all()
+    # Load user and role info
+    roles_map: dict[int, dict[str, list[dict]]] = {}
+    for usr in rows:
+        # Refresh to load relationships
+        await db.refresh(usr, ["user", "role"])
+        nid = usr.scope_node_id
+        if nid not in roles_map:
+            roles_map[nid] = {}
+        role_code = usr.role.code
+        if role_code not in roles_map[nid]:
+            roles_map[nid][role_code] = []
+        roles_map[nid][role_code].append({
+            "user_id": usr.user.id,
+            "username": usr.user.username,
+            "display_name": usr.user.display_name,
+            "email": usr.user.email,
+        })
+    return roles_map
+
+
 async def _build_tree(db: AsyncSession) -> list[dict]:
     """Retrieve full active TA->Compound->Study->Analysis tree."""
     # Query all active nodes
@@ -237,17 +271,20 @@ async def _build_tree(db: AsyncSession) -> list[dict]:
         select(ScopeNode).where(ScopeNode.is_deleted == False)
     )
     all_nodes = result.scalars().all()
-    
+    # Batch load assigned roles
+    node_ids = [n.id for n in all_nodes]
+    roles_map = await _load_assigned_roles(db, node_ids)
     # Organize by parent ID
-    children_map = {}
+    children_map: dict[int | None, list] = {}
     for n in all_nodes:
-        if n.parent_id not in children_map:
-            children_map[n.parent_id] = []
-        children_map[n.parent_id].append(n)
-        
+        pid = n.parent_id
+        if pid not in children_map:
+            children_map[pid] = []
+        children_map[pid].append(n)
+
     def build_branch(node: ScopeNode):
         f = _format_node(node)
-        # Recursively build children
+        f["assigned_roles"] = roles_map.get(node.id, {})
         kids = children_map.get(node.id, [])
         if kids:
             f["children"] = [build_branch(k) for k in kids]
@@ -914,5 +951,120 @@ async def list_execution_jobs(
             "triggeredBy": t.prod_programmer_id or t.created_by,
             "error": error,
         })
-        
+
     return _ok(formatted)
+
+
+# ============================================================
+# User Search (for Role Assignment)
+# ============================================================
+
+@router.get("/users/search", summary="Search users for role assignment")
+async def search_users(
+    user: CurrentUser,
+    q: str = Query(..., min_length=2, description="Search string (min 2 chars)"),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Search active users by username, display_name, or email."""
+    pattern = f"%{q}%"
+    from sqlalchemy import or_
+    result = await db.execute(
+        select(User).where(
+            User.is_active == True,  # noqa: E712
+            User.is_deleted == False,  # noqa: E712
+            or_(
+                User.username.ilike(pattern),
+                User.display_name.ilike(pattern),
+                User.email.ilike(pattern),
+            ),
+        ).limit(limit)
+    )
+    users = result.scalars().all()
+    return _ok([
+        {
+            "user_id": u.id,
+            "username": u.username,
+            "display_name": u.display_name,
+            "email": u.email,
+            "department": u.department,
+        }
+        for u in users
+    ])
+
+
+@router.post("/nodes/{node_id}/roles", summary="Batch assign/revoke roles on a node")
+async def batch_assign_roles(
+    node_id: str,
+    data: RoleAssignmentBatch,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Batch assign or revoke role assignments on a scope node."""
+    node_id_int = _parse_id(node_id)
+    if not node_id_int:
+        raise HTTPException(status_code=400, detail="Invalid node_id format")
+
+    node_res = await db.execute(select(ScopeNode).where(ScopeNode.id == node_id_int))
+    node = node_res.scalar_one_or_none()
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    applied = 0
+    for action in data.assignments:
+        role_res = await db.execute(select(Role).where(Role.code == action.role_code))
+        role = role_res.scalar_one_or_none()
+        if not role:
+            raise HTTPException(status_code=400, detail=f"Role '{action.role_code}' not found")
+
+        if action.action == "assign":
+            existing = await db.execute(
+                select(UserScopeRole).where(
+                    UserScopeRole.user_id == action.user_id,
+                    UserScopeRole.scope_node_id == node_id_int,
+                    UserScopeRole.role_id == role.id,
+                    UserScopeRole.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_usr = existing.scalar_one_or_none()
+            if existing_usr:
+                continue
+            deleted = await db.execute(
+                select(UserScopeRole).where(
+                    UserScopeRole.user_id == action.user_id,
+                    UserScopeRole.scope_node_id == node_id_int,
+                    UserScopeRole.role_id == role.id,
+                    UserScopeRole.is_deleted == True,  # noqa: E712
+                )
+            )
+            deleted_usr = deleted.scalar_one_or_none()
+            if deleted_usr:
+                deleted_usr.is_deleted = False
+                deleted_usr.deleted_at = None
+                deleted_usr.granted_by = user.username
+            else:
+                usr = UserScopeRole(
+                    user_id=action.user_id,
+                    scope_node_id=node_id_int,
+                    role_id=role.id,
+                    granted_by=user.username,
+                )
+                db.add(usr)
+            applied += 1
+
+        elif action.action == "revoke":
+            existing = await db.execute(
+                select(UserScopeRole).where(
+                    UserScopeRole.user_id == action.user_id,
+                    UserScopeRole.scope_node_id == node_id_int,
+                    UserScopeRole.role_id == role.id,
+                    UserScopeRole.is_deleted == False,  # noqa: E712
+                )
+            )
+            existing_usr = existing.scalar_one_or_none()
+            if existing_usr:
+                existing_usr.soft_delete(deleted_by=user.username)
+                applied += 1
+
+    await db.commit()
+    return _ok({"applied": applied})
