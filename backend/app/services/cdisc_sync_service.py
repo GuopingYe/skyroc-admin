@@ -653,7 +653,7 @@ class CDISCSyncService:
         - ct:  date-stamped packages; extract dates, pick newest
         - others: CDISC API lists versions newest-first, take index 0
         """
-        if standard_type == "tig":
+        if standard_type in ("tig", "integrated"):
             return "all"
 
         if standard_type in ("bc", "qrs"):

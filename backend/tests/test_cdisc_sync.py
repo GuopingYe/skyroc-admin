@@ -1,4 +1,7 @@
 """Tests for CDISC sync service static methods and data utilities."""
+import pytest
+from unittest.mock import AsyncMock
+
 from app.services.cdisc_sync_service import CDISCSyncService, StandardType
 from app.models.mapping_enums import SpecType
 
@@ -83,10 +86,6 @@ def test_format_version_display_ct_package_names():
     assert svc._format_version_display("sendct-2024-09-26") == "2024-09-26"
 
 
-import pytest
-from unittest.mock import AsyncMock
-
-
 # ============================================================
 # _resolve_latest_version tests
 # ============================================================
@@ -96,6 +95,14 @@ async def test_resolve_latest_version_tig_returns_all():
     """TIG has multiple independent products — 'all' syncs everything."""
     svc = CDISCSyncService.__new__(CDISCSyncService)
     result = await svc._resolve_latest_version("tig")
+    assert result == "all"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_integrated_returns_all():
+    """'integrated' is an alias for TIG — should return 'all'."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    result = await svc._resolve_latest_version("integrated")
     assert result == "all"
 
 
