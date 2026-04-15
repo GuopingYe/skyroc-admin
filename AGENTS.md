@@ -1,5 +1,9 @@
 # AGENTS.md - Clinical MDR Platform
 
+**Generated:** 2026-04-13
+**Commit:** 6d6d1551
+**Branch:** main
+
 Clinical Metadata Repository (MDR) Platform for pharmaceutical/clinical trial data management.
 Monorepo: `backend/` (Python FastAPI) + `frontend/` (React 19 + TypeScript + Vite).
 
@@ -143,3 +147,14 @@ alembic revision -m "msg"   # Create new migration
 - Backend: port 8080
 - API prefix: `/api/v1`
 - Docker: PostgreSQL 15 + pgAdmin (`backend/docker-compose.yml`)
+
+## Hierarchy
+```
+./AGENTS.md                    # Root (this file)
+├── backend/AGENTS.md          # Python FastAPI backend
+│   └── backend/app/models/AGENTS.md    # SQLAlchemy models
+│   └── backend/app/api/routers/AGENTS.md  # FastAPI routers
+├── frontend/AGENTS.md         # React frontend
+│   └── frontend/src/service/AGENTS.md   # API service layer
+│   └── frontend/src/features/AGENTS.md  # Feature modules
+```
