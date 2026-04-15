@@ -11,6 +11,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,11 +31,24 @@ from app.schemas.cdisc_sync import (
     SyncTriggerResponse,
 )
 from app.services.cdisc_scheduler import cdisc_scheduler
+from app.services.cdisc_sync_service import CDISCSyncService
 from app.services.cdisc_task_manager import task_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["CDISC Config"])
+
+
+class AvailableVersionsResponse(BaseModel):
+    """Available versions for a CDISC standard type."""
+
+    standard_type: str = Field(..., description="Standard type queried")
+    versions: list[str] = Field(
+        ...,
+        description="Version options — always starts with 'latest'; most types also include 'all'"
+    )
+    count: int = Field(..., description="Total number of options")
+    note: str | None = Field(None, description="Informational note (e.g. for BC/QRS)")
 
 
 # ============================================================
@@ -486,3 +500,85 @@ async def get_sync_log_detail(
             detail=f"Sync log for task {task_id} not found",
         )
     return SyncLogItem.model_validate(log)
+
+
+# ============================================================
+# Available Versions Endpoint
+# ============================================================
+
+
+@router.get(
+    "/sync/cdisc/versions",
+    response_model=AvailableVersionsResponse,
+    summary="Fetch available versions for a CDISC standard type",
+    description=(
+        "Queries the CDISC Library API for available versions of the given standard. "
+        "For CT, returns deduplicated release dates. "
+        "For TIG, returns product name slugs. "
+        "BC and QRS return only 'latest' (no enumerable list). "
+        "All results are prepended with 'latest'; all except BC/QRS also include 'all'."
+    ),
+)
+async def get_available_versions(
+    user: CurrentUser,
+    standard_type: str = Query(..., description="Standard type (sdtm, sdtmig, ct, tig, etc.)"),
+    _: None = Depends(require_superuser),
+) -> AvailableVersionsResponse:
+    """Return available versions for a standard type from the live CDISC API."""
+    import re
+
+    service = CDISCSyncService()
+    try:
+        raw = await service.get_available_versions(standard_type)
+    finally:
+        await service.close()
+
+    # BC and QRS have no enumerable version list
+    if standard_type in ("bc", "qrs"):
+        return AvailableVersionsResponse(
+            standard_type=standard_type,
+            versions=["latest"],
+            count=1,
+            note=(
+                f"{standard_type.upper()} does not support version enumeration. "
+                "Use 'latest' to sync the current release."
+            ),
+        )
+
+    # CT: deduplicate release dates from package names (sdtmct-2026-03-27 → 2026-03-27)
+    if standard_type == "ct":
+        dates: set[str] = set()
+        for pkg in raw:
+            match = re.search(r"(\d{4}-\d{2}-\d{2})$", pkg)
+            if match:
+                dates.add(match.group(1))
+        sorted_dates = sorted(dates, reverse=True)
+        versions = ["latest", "all"] + sorted_dates
+        return AvailableVersionsResponse(
+            standard_type=standard_type,
+            versions=versions,
+            count=len(versions),
+        )
+
+    # TIG: return product name slug (last path segment of href)
+    if standard_type in ("tig", "integrated"):
+        products: list[str] = []
+        for href in raw:
+            slug = href.rstrip("/").split("/")[-1]
+            if slug and slug not in products:
+                products.append(slug)
+        versions = ["latest", "all"] + products
+        return AvailableVersionsResponse(
+            standard_type=standard_type,
+            versions=versions,
+            count=len(versions),
+        )
+
+    # Model / IG types (sdtm, sdtmig, adam, adamig, cdashig, sendig)
+    # CDISC API returns newest first
+    versions = ["latest", "all"] + raw
+    return AvailableVersionsResponse(
+        standard_type=standard_type,
+        versions=versions,
+        count=len(versions),
+    )
