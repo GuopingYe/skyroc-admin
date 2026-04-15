@@ -9,5 +9,7 @@ export const CDISC_SYNC_URLS = {
   RETRY_SYNC: (taskId: string) => `/api/v1/admin/sync/cdisc/${taskId}/retry`,
   TASK_STATUS: (taskId: string) => `/api/v1/admin/sync/cdisc/tasks/${taskId}`,
   SYNC_LOGS: '/api/v1/admin/sync/cdisc/logs',
-  SYNC_LOG_DETAIL: (taskId: string) => `/api/v1/admin/sync/cdisc/logs/${taskId}`
+  SYNC_LOG_DETAIL: (taskId: string) => `/api/v1/admin/sync/cdisc/logs/${taskId}`,
+  AVAILABLE_VERSIONS: (standardType: string) =>
+    `/api/v1/admin/sync/cdisc/versions?standard_type=${standardType}`
 } as const;

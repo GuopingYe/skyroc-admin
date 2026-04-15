@@ -68,3 +68,10 @@ export function fetchSyncLogs(params?: { status?: string; standard_type?: string
     url: CDISC_SYNC_URLS.SYNC_LOGS
   });
 }
+
+export function fetchAvailableVersions(standardType: string) {
+  return rbacRequest<Api.CdiscSync.AvailableVersionsResponse>({
+    method: 'get',
+    url: CDISC_SYNC_URLS.AVAILABLE_VERSIONS(standardType)
+  });
+}

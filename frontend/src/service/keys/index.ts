@@ -68,7 +68,9 @@ export const QUERY_KEYS = {
     CONFIG: ['cdiscSync', 'config'] as const,
     SYNC_LOGS: (params?: { status?: string; standard_type?: string; offset?: number; limit?: number }) =>
       ['cdiscSync', 'logs', params] as const,
-    TASK_STATUS: (taskId: string) => ['cdiscSync', 'taskStatus', taskId] as const
+    TASK_STATUS: (taskId: string) => ['cdiscSync', 'taskStatus', taskId] as const,
+    AVAILABLE_VERSIONS: (standardType: string) =>
+      ['cdiscSync', 'availableVersions', standardType] as const
   },
   // Reference Data
   REFERENCE_DATA: {

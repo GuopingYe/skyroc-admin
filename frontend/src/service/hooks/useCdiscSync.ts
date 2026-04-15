@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   cancelSync,
+  fetchAvailableVersions,
   fetchCdiscConfig,
   fetchSyncLogs,
   fetchTaskStatus,
@@ -103,5 +104,14 @@ export function useSyncLogs(
     queryFn: () => fetchSyncLogs(params),
     queryKey: QUERY_KEYS.CDISC_SYNC.SYNC_LOGS(params),
     staleTime: 30 * 1000
+  });
+}
+
+export function useAvailableVersions(standardType: string) {
+  return useQuery({
+    enabled: Boolean(standardType),
+    queryFn: () => fetchAvailableVersions(standardType),
+    queryKey: QUERY_KEYS.CDISC_SYNC.AVAILABLE_VERSIONS(standardType),
+    staleTime: 5 * 60 * 1000
   });
 }

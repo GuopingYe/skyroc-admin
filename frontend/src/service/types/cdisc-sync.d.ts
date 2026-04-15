@@ -96,5 +96,13 @@ declare namespace Api {
       offset: number;
       limit: number;
     }
+
+    /** Available versions for a standard type */
+    interface AvailableVersionsResponse {
+      standard_type: string;
+      versions: string[];
+      count: number;
+      note?: string | null;
+    }
   }
 }
