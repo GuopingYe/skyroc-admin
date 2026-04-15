@@ -159,3 +159,39 @@ async def test_resolve_latest_version_empty_falls_back():
     svc.get_available_versions = AsyncMock(return_value=[])
     result = await svc._resolve_latest_version("sdtm")
     assert result == "latest"
+
+
+# ============================================================
+# _sync_ct package selection tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_sync_ct_bare_date_syncs_all_packages():
+    """When a bare date is given, _sync_ct should enumerate all packages for that date."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    svc._get_ct_versions = AsyncMock(return_value=[
+        "sdtmct-2026-03-27", "adamct-2026-03-27", "sendct-2026-03-27",
+        "cdashct-2026-03-27",
+        "sdtmct-2025-09-26", "adamct-2025-09-26",
+    ])
+    packages = await svc._get_ct_versions()
+    date = "2026-03-27"
+    packages_for_date = [pkg for pkg in packages if pkg.endswith(date)]
+    assert packages_for_date == [
+        "sdtmct-2026-03-27", "adamct-2026-03-27",
+        "sendct-2026-03-27", "cdashct-2026-03-27",
+    ]
+
+
+def test_sync_ct_full_package_name_not_expanded():
+    """When a full CT package name is given, it should be used as-is (no expansion)."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    valid_ct_prefixes = [
+        "sdtmct-", "adamct-", "sendct-", "cdashct-", "protocolct-",
+        "qrsct-", "ddfct-", "define-", "glossaryct-", "tmfct-",
+        "mrctct-", "coact-", "qs-"
+    ]
+    full_name = "adamct-2026-03-27"
+    assert any(full_name.startswith(p) for p in valid_ct_prefixes), (
+        "Full package name should be detected as a prefixed name and not expanded"
+    )

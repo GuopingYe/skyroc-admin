@@ -718,9 +718,13 @@ class CDISCSyncService:
                 existing.is_deleted = False
                 existing.deleted_at = None
                 existing.deleted_by = None
-                existing.name = name
                 existing.updated_by = "cdisc_sync_restore"
                 logger.info(f"Restored soft-deleted ScopeNode: {code}")
+            # Always update name/description so re-sync corrects stale formatting
+            existing.name = name
+            existing.description = (
+                f"CDISC 官方 {standard_type.upper()} 标准，版本 {self._format_version_display(version)}"
+            )
             return existing
 
         # 创建新节点
@@ -2304,15 +2308,15 @@ class CDISCSyncService:
         端点: /mdr/ct/packages/{package_name}/codelists
         package_name 格式: sdtmct-2024-09-27, adamct-2024-09-27 等
 
-        解析重点: Codelists 和 Terms
+        版本处理:
+        - 完整包名 (如 sdtmct-2026-03-27): 仅同步该包，节点 code = CDISC-CT-sdtmct-2026-03-27
+        - 裸日期 (如 2026-03-27): 同步该日期所有 CT 包 (sdtmct, adamct, sendct 等)，每个包独立节点
 
         防爆机制:
         - 分批提交: 每 CODELIST_BATCH_SIZE 个 Codelist 提交一次
         - 异常隔离: 单个 Codelist 失败不影响整体
-        - 内存管理: 定期清理会话缓存
         """
-        # 防爆配置
-        CODELIST_BATCH_SIZE = 50  # 每50个Codelist提交一次
+        CODELIST_BATCH_SIZE = 50
 
         result = self._init_result("CT", version)
         result["codelists_created"] = 0
@@ -2320,103 +2324,111 @@ class CDISCSyncService:
         result["terms_created"] = 0
         result["terms_updated"] = 0
 
+        valid_ct_prefixes = [
+            "sdtmct-", "adamct-", "sendct-", "cdashct-", "protocolct-",
+            "qrsct-", "ddfct-", "define-", "glossaryct-", "tmfct-",
+            "mrctct-", "coact-", "qs-"
+        ]
+
         try:
-            scope_node = await self._upsert_cdisc_scope_node(
-                session, "ct", version
-            )
-
-            # 确定实际的 package 名称
-            # CT package 名称格式: {ct_type}-{date}，如 sdtmct-2024-09-27, sendct-2024-09-27
-            # 如果 version 已经包含有效的 CT 类型前缀，直接使用；否则假设是旧格式需要添加前缀
-            package_name = version
-            valid_ct_prefixes = [
-                "sdtmct-", "adamct-", "sendct-", "cdashct-", "protocolct-",
-                "qrsct-", "ddfct-", "define-", "glossaryct-", "tmfct-",
-                "mrctct-", "coact-", "qs-"
-            ]
-            if not any(version.startswith(prefix) for prefix in valid_ct_prefixes):
-                # 旧格式或简写，默认添加 sdtmct- 前缀
-                package_name = f"sdtmct-{version}"
-
-            endpoint = f"/mdr/ct/packages/{package_name}/codelists"
-            data = await self._fetch_json(endpoint)
-
-            if not data:
-                result["errors"].append(f"Failed to fetch CT data for package: {package_name}")
-                return result
-
-            links = data.get("_links", {})
-            codelist_links = links.get("codelists", [])
-
-            total_codelists = len(codelist_links)
-            logger.info(f"Found {total_codelists} codelists to process for CT {package_name}")
-
-            # 分批处理 Codelist
-            codelist_count = 0
-            for codelist_link in codelist_links:
-                self._check_cancelled()
-                await self._report_progress(
-                    f"CT: codelist {codelist_count + 1}/{total_codelists}",
-                    codelist_count + 1,
-                    total_codelists,
+            if any(version.startswith(prefix) for prefix in valid_ct_prefixes):
+                # Full package name given: sync just that one package
+                packages_to_sync = [version]
+            else:
+                # Bare date given (e.g. 2026-03-27): sync ALL packages for this date
+                all_packages = await self._get_ct_versions()
+                packages_to_sync = [pkg for pkg in all_packages if pkg.endswith(version)]
+                if not packages_to_sync:
+                    logger.warning(
+                        f"No CT packages found for date {version}, falling back to sdtmct-{version}"
+                    )
+                    packages_to_sync = [f"sdtmct-{version}"]
+                logger.info(
+                    f"CT bare date {version}: syncing {len(packages_to_sync)} packages: {packages_to_sync}"
                 )
-                try:
-                    # 使用 SAVEPOINT 保护主事务
-                    async with session.begin_nested():
-                        codelist_href = codelist_link.get("href", "")
-                        if not codelist_href:
-                            continue
 
-                        codelist_data = await self._fetch_json(codelist_href)
-                        if not codelist_data:
-                            continue
+            for package_name in packages_to_sync:
+                # Each package gets its own scope node keyed by the full package name
+                scope_node = await self._upsert_cdisc_scope_node(session, "ct", package_name)
 
-                        codelist_id = codelist_data.get("conceptId", codelist_href.split("/")[-1])
+                endpoint = f"/mdr/ct/packages/{package_name}/codelists"
+                data = await self._fetch_json(endpoint)
 
-                        codelist = await self._upsert_codelist(
-                            session=session,
-                            scope_node=scope_node,
-                            codelist_id=codelist_id,
-                            name=codelist_data.get("name", codelist_link.get("title", "")),
-                            ncit_code=codelist_data.get("conceptId"),
-                            definition=codelist_data.get("definition", ""),
-                            created=result,
-                        )
+                if not data:
+                    result["errors"].append(f"Failed to fetch CT data for package: {package_name}")
+                    continue
 
-                        terms = codelist_data.get("terms", [])
-                        for idx, term_info in enumerate(terms):
-                            term_value = term_info.get("submissionValue", term_info.get("code", ""))
-                            if not term_value:
+                links = data.get("_links", {})
+                codelist_links = links.get("codelists", [])
+
+                total_codelists = len(codelist_links)
+                logger.info(f"Found {total_codelists} codelists to process for CT {package_name}")
+
+                codelist_count = 0
+                for codelist_link in codelist_links:
+                    self._check_cancelled()
+                    await self._report_progress(
+                        f"CT {package_name}: codelist {codelist_count + 1}/{total_codelists}",
+                        codelist_count + 1,
+                        total_codelists,
+                    )
+                    try:
+                        async with session.begin_nested():
+                            codelist_href = codelist_link.get("href", "")
+                            if not codelist_href:
                                 continue
 
-                            await self._upsert_codelist_term(
+                            codelist_data = await self._fetch_json(codelist_href)
+                            if not codelist_data:
+                                continue
+
+                            codelist_id = codelist_data.get("conceptId", codelist_href.split("/")[-1])
+
+                            codelist = await self._upsert_codelist(
                                 session=session,
-                                codelist=codelist,
-                                term_value=term_value,
-                                ncit_code=term_info.get("conceptId"),
-                                name=term_info.get("preferredTerm", term_info.get("name", "")),
-                                definition=term_info.get("definition", ""),
-                                sort_order=idx,
+                                scope_node=scope_node,
+                                codelist_id=codelist_id,
+                                name=codelist_data.get("name", codelist_link.get("title", "")),
+                                ncit_code=codelist_data.get("conceptId"),
+                                definition=codelist_data.get("definition", ""),
                                 created=result,
                             )
 
-                        codelist_count += 1
+                            terms = codelist_data.get("terms", [])
+                            for idx, term_info in enumerate(terms):
+                                term_value = term_info.get("submissionValue", term_info.get("code", ""))
+                                if not term_value:
+                                    continue
 
-                        # 分批提交 - 每 BATCH_SIZE 个 Codelist 提交一次
-                        if codelist_count % CODELIST_BATCH_SIZE == 0:
-                            await session.commit()
-                            logger.info(f"CT batch committed: {codelist_count}/{total_codelists} codelists processed")
+                                await self._upsert_codelist_term(
+                                    session=session,
+                                    codelist=codelist,
+                                    term_value=term_value,
+                                    ncit_code=term_info.get("conceptId"),
+                                    name=term_info.get("preferredTerm", term_info.get("name", "")),
+                                    definition=term_info.get("definition", ""),
+                                    sort_order=idx,
+                                    created=result,
+                                )
 
-                except Exception as e:
-                    # SAVEPOINT 已自动回滚，记录错误并继续处理下一个 Codelist
-                    logger.warning(f"CT codelist error: {str(e)}")
-                    result["errors"].append(f"Codelist error: {str(e)}")
-                    continue
+                            codelist_count += 1
 
-            # 最终提交剩余的数据
-            await session.commit()
-            logger.info(f"CT sync completed: {codelist_count}/{total_codelists} codelists, "
-                       f"{result['codelists_created']} created, {result['terms_created']} terms")
+                            if codelist_count % CODELIST_BATCH_SIZE == 0:
+                                await session.commit()
+                                logger.info(
+                                    f"CT batch committed: {codelist_count}/{total_codelists} "
+                                    f"codelists processed for {package_name}"
+                                )
+
+                    except Exception as e:
+                        logger.warning(f"CT codelist error ({package_name}): {str(e)}")
+                        result["errors"].append(f"Codelist error ({package_name}): {str(e)}")
+                        continue
+
+                await session.commit()
+                logger.info(
+                    f"CT package {package_name} completed: {codelist_count}/{total_codelists} codelists"
+                )
 
         except Exception as e:
             await session.rollback()
