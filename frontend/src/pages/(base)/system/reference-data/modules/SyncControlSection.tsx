@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 
-import { Button, Card, Input, Progress, Select, Space, Typography, message } from 'antd';
+import { Button, Card, Progress, Select, Space, Typography, message } from 'antd';
 
-import { useCancelSync, useTaskPolling, useTriggerSync } from '@/service/hooks/useCdiscSync';
+import { useAvailableVersions, useCancelSync, useTaskPolling, useTriggerSync } from '@/service/hooks/useCdiscSync';
 
 import { CDISC_STANDARD_TYPES } from './standard-types';
 
@@ -11,14 +11,36 @@ interface SyncControlSectionProps {
   onSyncStart: (taskId: string) => void;
 }
 
+/** All 10 types triggered by Sync All Latest. TIG uses 'all' because it has
+ *  multiple independent products rather than sequential versions. */
+const SYNC_ALL_TARGETS: Array<{ standard_type: string; version: string }> = [
+  { standard_type: 'sdtm', version: 'latest' },
+  { standard_type: 'sdtmig', version: 'latest' },
+  { standard_type: 'adam', version: 'latest' },
+  { standard_type: 'adamig', version: 'latest' },
+  { standard_type: 'cdashig', version: 'latest' },
+  { standard_type: 'sendig', version: 'latest' },
+  { standard_type: 'ct', version: 'latest' },
+  { standard_type: 'bc', version: 'latest' },
+  { standard_type: 'qrs', version: 'latest' },
+  { standard_type: 'tig', version: 'all' }
+];
+
 const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, onSyncStart }) => {
   const [messageApi, contextHolder] = message.useMessage();
-  const [standardType, setStandardType] = useState('SDTM');
+  const [standardType, setStandardType] = useState('sdtm');
   const [version, setVersion] = useState('latest');
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
 
   const triggerMutation = useTriggerSync();
   const cancelMutation = useCancelSync();
   const { data: taskProgress, isLoading: isTaskLoading } = useTaskPolling(activeTaskId);
+  const { data: versionsData, isLoading: isVersionsLoading } = useAvailableVersions(standardType);
+
+  const handleTypeChange = useCallback((type: string) => {
+    setStandardType(type);
+    setVersion('latest');
+  }, []);
 
   const handleSync = useCallback(() => {
     triggerMutation.mutate(
@@ -33,15 +55,32 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
     );
   }, [standardType, version, triggerMutation, onSyncStart, messageApi]);
 
+  const handleSyncAll = useCallback(async () => {
+    setIsSyncingAll(true);
+    try {
+      const results = await Promise.allSettled(
+        SYNC_ALL_TARGETS.map(({ standard_type, version: ver }) =>
+          triggerMutation.mutateAsync({ standard_type, version: ver })
+        )
+      );
+      const started = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed === 0) {
+        messageApi.success(`${started} sync tasks started — check history for progress`);
+      } else {
+        messageApi.warning(`${started} started, ${failed} failed to trigger`);
+      }
+    } finally {
+      setIsSyncingAll(false);
+    }
+  }, [triggerMutation, messageApi]);
+
   const handleCancel = useCallback(() => {
     if (!activeTaskId) return;
     cancelMutation.mutate(activeTaskId, {
       onSuccess: data => {
-        if (data.success) {
-          messageApi.success(data.message);
-        } else {
-          messageApi.error(data.message);
-        }
+        if (data.success) messageApi.success(data.message);
+        else messageApi.error(data.message);
       },
       onError: () => messageApi.error('Failed to cancel sync')
     });
@@ -50,6 +89,11 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
   const isTaskActive =
     taskProgress?.status === 'running' || taskProgress?.status === 'pending';
 
+  const versionOptions = (versionsData?.versions ?? ['latest']).map(v => ({
+    label: v,
+    value: v
+  }));
+
   return (
     <Card title="Sync Control">
       {contextHolder}
@@ -57,17 +101,19 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
         <Space wrap>
           <Select
             value={standardType}
-            onChange={setStandardType}
+            onChange={handleTypeChange}
             options={CDISC_STANDARD_TYPES.map(o => ({ label: o.label, value: o.value }))}
             style={{ width: 200 }}
             disabled={isTaskActive}
           />
-          <Input
+          <Select
             value={version}
-            onChange={e => setVersion(e.target.value)}
-            placeholder="Version"
-            style={{ width: 150 }}
-            disabled={isTaskActive}
+            onChange={setVersion}
+            options={versionOptions}
+            loading={isVersionsLoading}
+            style={{ width: 180 }}
+            disabled={isTaskActive || isVersionsLoading}
+            placeholder="Select version"
           />
           <Button
             type="primary"
@@ -76,6 +122,13 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
             disabled={isTaskActive}
           >
             Sync Now
+          </Button>
+          <Button
+            loading={isSyncingAll}
+            onClick={handleSyncAll}
+            disabled={isTaskActive || isSyncingAll}
+          >
+            Sync All Latest
           </Button>
         </Space>
 
