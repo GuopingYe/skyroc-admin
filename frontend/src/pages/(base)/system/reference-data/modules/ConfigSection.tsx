@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { Checkbox, Form, Input, message, Button, Card, Tag } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
+import { Button, Card, Checkbox, Form, Input, Space, Tag, Tooltip, message } from 'antd';
 
 import {
   useCdiscConfig,
@@ -95,7 +96,14 @@ const ConfigSection: React.FC = () => {
         </Form.Item>
         <Form.Item
           name="enabled_standard_types"
-          label="Enabled Standard Types"
+          label={
+            <Space size={4}>
+              Enabled Standard Types
+              <Tooltip title="Controls which standard types appear in the Sync Control section and are included when 'Sync All Latest' is triggered. Select only the types your team actively uses. Note: this does not delete already-synced data — it only filters what the UI surfaces and what automatic scheduled syncs will target.">
+                <QuestionCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
+              </Tooltip>
+            </Space>
+          }
           rules={[{ required: true, message: 'Select at least one standard type' }]}
         >
           <Checkbox.Group options={CDISC_STANDARD_TYPES.map(t => ({ label: t.label, value: t.value }))} />
