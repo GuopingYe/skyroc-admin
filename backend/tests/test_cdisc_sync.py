@@ -195,3 +195,32 @@ def test_sync_ct_full_package_name_not_expanded():
     assert any(full_name.startswith(p) for p in valid_ct_prefixes), (
         "Full package name should be detected as a prefixed name and not expanded"
     )
+
+
+# ============================================================
+# _get_ct_type_display_name tests
+# ============================================================
+
+def test_get_ct_type_display_name_known_prefixes():
+    """Each known CT prefix maps to a human-readable type label."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._get_ct_type_display_name("sdtmct-2026-03-27") == "SDTM CT"
+    assert svc._get_ct_type_display_name("adamct-2026-03-27") == "ADaM CT"
+    assert svc._get_ct_type_display_name("sendct-2026-03-27") == "SEND CT"
+    assert svc._get_ct_type_display_name("cdashct-2026-03-27") == "CDASH CT"
+    assert svc._get_ct_type_display_name("ddfct-2026-03-27") == "DDF CT"
+    assert svc._get_ct_type_display_name("define-xmlct-2026-03-27") == "Define-XML CT"
+    assert svc._get_ct_type_display_name("glossaryct-2026-03-27") == "Glossary CT"
+
+
+def test_get_ct_type_display_name_bare_date_returns_generic():
+    """Bare date (no package prefix) returns generic 'CT' label."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._get_ct_type_display_name("2026-03-27") == "CT"
+
+
+def test_get_ct_type_display_name_unknown_prefix_falls_back():
+    """Unknown prefix falls back to uppercase prefix + ' CT'."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    result = svc._get_ct_type_display_name("newpkg-2026-03-27")
+    assert result == "NEWPKG CT"

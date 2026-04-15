@@ -144,6 +144,26 @@ class CDISCSyncService:
     支持同步多种 CDISC 标准，采用分类抓取策略
     """
 
+    # Maps CT package prefix to human-readable type label used in scope node names.
+    # e.g. "sdtmct-2026-03-27" → prefix "sdtmct" → "SDTM CT"
+    _CT_PACKAGE_TYPE_NAMES: dict[str, str] = {
+        "sdtmct": "SDTM CT",
+        "adamct": "ADaM CT",
+        "sendct": "SEND CT",
+        "cdashct": "CDASH CT",
+        "ddfct": "DDF CT",
+        "define-xmlct": "Define-XML CT",
+        "define": "Define-XML CT",
+        "protocolct": "Protocol CT",
+        "glossaryct": "Glossary CT",
+        "tmfct": "TMF CT",
+        "mrctct": "mRCT CT",
+        "coact": "CoA CT",
+        "qrsct": "QRS CT",
+        "qs-ft": "QS-FT CT",
+        "qs": "QS CT",
+    }
+
     def __init__(
         self,
         base_url: str | None = None,
@@ -626,6 +646,19 @@ class CDISCSyncService:
     # 基础 Upsert 方法
     # ============================================================
 
+    def _get_ct_type_display_name(self, ct_package_version: str) -> str:
+        """Extract the CT package type display label from a package version string.
+
+        e.g. "sdtmct-2026-03-27"  → "SDTM CT"
+             "adamct-2025-12-27"  → "ADaM CT"
+             "2026-03-27"         → "CT"   (bare date, no type prefix)
+        """
+        match = re.match(r'^([a-z][a-z0-9\-]*?)-\d{4}-\d{2}-\d{2}$', ct_package_version)
+        if match:
+            prefix = match.group(1)
+            return self._CT_PACKAGE_TYPE_NAMES.get(prefix, f"{prefix.upper()} CT")
+        return "CT"
+
     def _format_version_display(self, version: str) -> str:
         """Format a version string for human display.
 
@@ -703,7 +736,13 @@ class CDISCSyncService:
         if suffix:
             code = f"{code}-{suffix}"
 
-        name = f"CDISC {standard_type.upper()} {self._format_version_display(version)}"
+        # For CT packages, use the package-specific type label (e.g. "SDTM CT", "ADaM CT")
+        # so each package type is distinguishable in the global library dropdown.
+        if standard_type == "ct":
+            ct_type = self._get_ct_type_display_name(version)
+            name = f"CDISC {ct_type} {self._format_version_display(version)}"
+        else:
+            name = f"CDISC {standard_type.upper()} {self._format_version_display(version)}"
         if suffix:
             name = f"{name} - {suffix}"
 
