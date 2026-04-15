@@ -116,7 +116,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
             type="primary"
             loading={triggerMutation.isPending}
             onClick={handleSync}
-            disabled={isTaskActive}
+            disabled={isTaskActive || isVersionsLoading || isVersionsError}
           >
             Sync Now
           </Button>
