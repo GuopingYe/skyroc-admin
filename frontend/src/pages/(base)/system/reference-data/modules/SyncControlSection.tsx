@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { Button, Card, Progress, Select, Space, Typography, message } from 'antd';
 
-import { useAvailableVersions, useCancelSync, useTaskPolling, useTriggerSync } from '@/service/hooks/useCdiscSync';
+import { useAvailableVersions, useCancelSync, useCdiscConfig, useTaskPolling, useTriggerSync } from '@/service/hooks/useCdiscSync';
 
 import { CDISC_STANDARD_TYPES } from './standard-types';
 
@@ -11,20 +11,6 @@ interface SyncControlSectionProps {
   onSyncStart: (taskId: string) => void;
 }
 
-/** All 10 types triggered by Sync All Latest. TIG uses 'all' because it has
- *  multiple independent products rather than sequential versions. */
-const SYNC_ALL_TARGETS: Array<{ standard_type: string; version: string }> = [
-  { standard_type: 'sdtm', version: 'latest' },
-  { standard_type: 'sdtmig', version: 'latest' },
-  { standard_type: 'adam', version: 'latest' },
-  { standard_type: 'adamig', version: 'latest' },
-  { standard_type: 'cdashig', version: 'latest' },
-  { standard_type: 'sendig', version: 'latest' },
-  { standard_type: 'ct', version: 'latest' },
-  { standard_type: 'bc', version: 'latest' },
-  { standard_type: 'qrs', version: 'latest' },
-  { standard_type: 'tig', version: 'all' }
-];
 
 const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, onSyncStart }) => {
   const [messageApi, contextHolder] = message.useMessage();
@@ -35,7 +21,8 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
   const triggerMutation = useTriggerSync();
   const cancelMutation = useCancelSync();
   const { data: taskProgress, isLoading: isTaskLoading } = useTaskPolling(activeTaskId);
-  const { data: versionsData, isLoading: isVersionsLoading } = useAvailableVersions(standardType);
+  const { data: versionsData, isLoading: isVersionsLoading, isError: isVersionsError } = useAvailableVersions(standardType);
+  const { data: cdiscConfig } = useCdiscConfig();
 
   const handleTypeChange = useCallback((type: string) => {
     setStandardType(type);
@@ -57,14 +44,24 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
 
   const handleSyncAll = useCallback(async () => {
     setIsSyncingAll(true);
+    const syncAllTargets = (cdiscConfig?.enabled_standard_types ?? []).map(type => ({
+      standard_type: type,
+      version: type === 'tig' ? 'all' : 'latest'
+    }));
     try {
       const results = await Promise.allSettled(
-        SYNC_ALL_TARGETS.map(({ standard_type, version: ver }) =>
+        syncAllTargets.map(({ standard_type, version: ver }) =>
           triggerMutation.mutateAsync({ standard_type, version: ver })
         )
       );
       const started = results.filter(r => r.status === 'fulfilled').length;
       const failed = results.filter(r => r.status === 'rejected').length;
+      const firstFulfilled = results.find(
+        (r): r is PromiseFulfilledResult<Api.CdiscSync.SyncTriggerResponse> => r.status === 'fulfilled'
+      );
+      if (firstFulfilled) {
+        onSyncStart(firstFulfilled.value.task_id);
+      }
       if (failed === 0) {
         messageApi.success(`${started} sync tasks started — check history for progress`);
       } else {
@@ -73,7 +70,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
     } finally {
       setIsSyncingAll(false);
     }
-  }, [triggerMutation, messageApi]);
+  }, [cdiscConfig?.enabled_standard_types, triggerMutation, messageApi, onSyncStart]);
 
   const handleCancel = useCallback(() => {
     if (!activeTaskId) return;
@@ -89,7 +86,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
   const isTaskActive =
     taskProgress?.status === 'running' || taskProgress?.status === 'pending';
 
-  const versionOptions = (versionsData?.versions ?? ['latest']).map(v => ({
+  const versionOptions = (versionsData?.versions ?? []).map(v => ({
     label: v,
     value: v
   }));
@@ -112,7 +109,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
             options={versionOptions}
             loading={isVersionsLoading}
             style={{ width: 180 }}
-            disabled={isTaskActive || isVersionsLoading}
+            disabled={isTaskActive || isVersionsLoading || isVersionsError}
             placeholder="Select version"
           />
           <Button
