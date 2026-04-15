@@ -622,11 +622,18 @@ class CDISCSyncService:
     def _format_version_display(self, version: str) -> str:
         """Format a version string for human display.
 
-        Date-based versions (YYYY-MM-DD, used by CT) are returned as-is.
-        Numeric versions (e.g. '3-4') become 'v3.4'.
+        - Bare date (YYYY-MM-DD): returned as-is, e.g. "2026-03-27"
+        - CT package name (*-YYYY-MM-DD): extract and return just the date, e.g. "2026-03-27"
+        - Numeric (e.g. '3-4'): becomes 'v3.4'
         """
+        # Bare date
         if re.match(r'^\d{4}-\d{2}-\d{2}$', version):
             return version
+        # CT package name with date suffix (e.g. sdtmct-2026-03-27)
+        match = re.search(r'(\d{4}-\d{2}-\d{2})$', version)
+        if match:
+            return match.group(1)
+        # Numeric version
         return f"v{version.replace('-', '.')}"
 
     async def _upsert_cdisc_scope_node(
@@ -722,11 +729,11 @@ class CDISCSyncService:
             scope_node_id=scope_node.id,
             name=name,
             spec_type=spec_type,
-            version=self._format_version_display(version).lstrip("v"),
+            version=self._format_version_display(version).removeprefix("v"),
             status=SpecStatus.ACTIVE,
             description=f"CDISC {spec_type.value} {self._format_version_display(version)} 标准规范",
             standard_name=scope_node.name,
-            standard_version=self._format_version_display(version).lstrip("v"),
+            standard_version=self._format_version_display(version).removeprefix("v"),
             created_by="cdisc_sync",
         )
         session.add(new_spec)

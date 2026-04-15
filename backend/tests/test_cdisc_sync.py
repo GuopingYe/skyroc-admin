@@ -1,5 +1,5 @@
 """Tests for CDISC sync service static methods and data utilities."""
-from app.services.cdisc_sync_service import StandardType
+from app.services.cdisc_sync_service import CDISCSyncService, StandardType
 from app.models.mapping_enums import SpecType
 
 
@@ -60,7 +60,6 @@ def test_standard_type_get_spec_type():
 
 def test_format_version_display_date_versions():
     """Date-based versions (YYYY-MM-DD) are returned as-is, no 'v' prefix."""
-    from app.services.cdisc_sync_service import CDISCSyncService
     svc = CDISCSyncService.__new__(CDISCSyncService)
     assert svc._format_version_display("2026-03-27") == "2026-03-27"
     assert svc._format_version_display("2025-09-26") == "2025-09-26"
@@ -69,9 +68,16 @@ def test_format_version_display_date_versions():
 
 def test_format_version_display_numeric_versions():
     """Numeric versions get 'v' prefix and dashes become dots."""
-    from app.services.cdisc_sync_service import CDISCSyncService
     svc = CDISCSyncService.__new__(CDISCSyncService)
     assert svc._format_version_display("3-4") == "v3.4"
     assert svc._format_version_display("1-3") == "v1.3"
     assert svc._format_version_display("2-1") == "v2.1"
     assert svc._format_version_display("2-0") == "v2.0"
+
+
+def test_format_version_display_ct_package_names():
+    """CT package names (prefix-YYYY-MM-DD) extract and return just the date."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._format_version_display("sdtmct-2026-03-27") == "2026-03-27"
+    assert svc._format_version_display("adamct-2025-12-27") == "2025-12-27"
+    assert svc._format_version_display("sendct-2024-09-26") == "2024-09-26"
