@@ -52,3 +52,26 @@ def test_standard_type_get_spec_type():
     assert StandardType.get_spec_type("ct") is None
     assert StandardType.get_spec_type("bc") is None
     assert StandardType.get_spec_type("unknown") is None
+
+
+# ============================================================
+# _format_version_display tests
+# ============================================================
+
+def test_format_version_display_date_versions():
+    """Date-based versions (YYYY-MM-DD) are returned as-is, no 'v' prefix."""
+    from app.services.cdisc_sync_service import CDISCSyncService
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._format_version_display("2026-03-27") == "2026-03-27"
+    assert svc._format_version_display("2025-09-26") == "2025-09-26"
+    assert svc._format_version_display("2024-12-27") == "2024-12-27"
+
+
+def test_format_version_display_numeric_versions():
+    """Numeric versions get 'v' prefix and dashes become dots."""
+    from app.services.cdisc_sync_service import CDISCSyncService
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._format_version_display("3-4") == "v3.4"
+    assert svc._format_version_display("1-3") == "v1.3"
+    assert svc._format_version_display("2-1") == "v2.1"
+    assert svc._format_version_display("2-0") == "v2.0"

@@ -21,6 +21,7 @@ CDISC Library Sync Service - 深度重构版
 """
 import asyncio
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -618,6 +619,16 @@ class CDISCSyncService:
     # 基础 Upsert 方法
     # ============================================================
 
+    def _format_version_display(self, version: str) -> str:
+        """Format a version string for human display.
+
+        Date-based versions (YYYY-MM-DD, used by CT) are returned as-is.
+        Numeric versions (e.g. '3-4') become 'v3.4'.
+        """
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', version):
+            return version
+        return f"v{version.replace('-', '.')}"
+
     async def _upsert_cdisc_scope_node(
         self,
         session: AsyncSession,
@@ -638,7 +649,7 @@ class CDISCSyncService:
         if suffix:
             code = f"{code}-{suffix}"
 
-        name = f"CDISC {standard_type.upper()} v{version.replace('-', '.')}"
+        name = f"CDISC {standard_type.upper()} {self._format_version_display(version)}"
         if suffix:
             name = f"{name} - {suffix}"
 
@@ -662,7 +673,7 @@ class CDISCSyncService:
         new_node = ScopeNode(
             code=code,
             name=name,
-            description=f"CDISC 官方 {standard_type.upper()} 标准，版本 {version.replace('-', '.')}",
+            description=f"CDISC 官方 {standard_type.upper()} 标准，版本 {self._format_version_display(version)}",
             node_type=NodeType.CDISC,
             lifecycle_status=LifecycleStatus.COMPLETED,
             parent_id=None,
@@ -711,11 +722,11 @@ class CDISCSyncService:
             scope_node_id=scope_node.id,
             name=name,
             spec_type=spec_type,
-            version=version.replace("-", "."),
+            version=self._format_version_display(version).lstrip("v"),
             status=SpecStatus.ACTIVE,
-            description=f"CDISC {spec_type.value} v{version.replace('-', '.')} 标准规范",
+            description=f"CDISC {spec_type.value} {self._format_version_display(version)} 标准规范",
             standard_name=scope_node.name,
-            standard_version=version.replace("-", "."),
+            standard_version=self._format_version_display(version).lstrip("v"),
             created_by="cdisc_sync",
         )
         session.add(new_spec)
