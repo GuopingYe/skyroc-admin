@@ -1,5 +1,6 @@
 [tool.pytest.ini_options]
 addopts = "--cov=app --cov-report=term-missing --cov-fail-under=40"
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["app"]

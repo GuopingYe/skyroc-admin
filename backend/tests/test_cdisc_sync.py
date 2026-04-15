@@ -81,3 +81,66 @@ def test_format_version_display_ct_package_names():
     assert svc._format_version_display("sdtmct-2026-03-27") == "2026-03-27"
     assert svc._format_version_display("adamct-2025-12-27") == "2025-12-27"
     assert svc._format_version_display("sendct-2024-09-26") == "2024-09-26"
+
+
+import pytest
+from unittest.mock import AsyncMock
+
+
+# ============================================================
+# _resolve_latest_version tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_tig_returns_all():
+    """TIG has multiple independent products — 'all' syncs everything."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    result = await svc._resolve_latest_version("tig")
+    assert result == "all"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_bc_returns_latest():
+    """BC has no version enumeration — pass 'latest' through unchanged."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    result = await svc._resolve_latest_version("bc")
+    assert result == "latest"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_qrs_returns_latest():
+    """QRS has no version enumeration — pass 'latest' through unchanged."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    result = await svc._resolve_latest_version("qrs")
+    assert result == "latest"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_ct_picks_newest_date():
+    """CT: deduplicate dates from package names, return most recent."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    svc._get_ct_versions = AsyncMock(return_value=[
+        "sdtmct-2026-03-27", "adamct-2026-03-27", "sendct-2026-03-27",
+        "sdtmct-2025-12-27", "adamct-2025-12-27",
+        "sdtmct-2025-09-26",
+    ])
+    result = await svc._resolve_latest_version("ct")
+    assert result == "2026-03-27"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_sdtmig_picks_first():
+    """Model/IG: CDISC API returns newest first, so take versions[0]."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    svc.get_available_versions = AsyncMock(return_value=["3-4", "3-3", "3-2"])
+    result = await svc._resolve_latest_version("sdtmig")
+    assert result == "3-4"
+
+
+@pytest.mark.asyncio
+async def test_resolve_latest_version_empty_falls_back():
+    """If CDISC API returns nothing, fall back to 'latest' string."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    svc.get_available_versions = AsyncMock(return_value=[])
+    result = await svc._resolve_latest_version("sdtm")
+    assert result == "latest"

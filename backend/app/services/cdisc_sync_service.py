@@ -479,6 +479,13 @@ class CDISCSyncService:
                 f"Supported: {StandardType.all()}"
             )
 
+        # Resolve 'latest' to the actual newest version from CDISC API
+        if version.lower() == "latest":
+            version = await self._resolve_latest_version(standard_type)
+            logger.info(
+                f"Resolved 'latest' for {standard_type.upper()} → {version}"
+            )
+
         # 特殊处理: "all" 版本 - 动态获取所有版本并遍历
         if version.lower() == "all":
             return await self._sync_all_versions(session, standard_type)
@@ -635,6 +642,43 @@ class CDISCSyncService:
             return match.group(1)
         # Numeric version
         return f"v{version.replace('-', '.')}"
+
+    async def _resolve_latest_version(self, standard_type: str) -> str:
+        """Resolve the 'latest' sentinel to the actual newest version.
+
+        Called from sync() when version='latest' is requested.
+        Each standard type has different versioning semantics:
+        - tig:  multiple independent products, use 'all' to sync everything
+        - bc/qrs: no enumerable version list, pass 'latest' through as-is
+        - ct:  date-stamped packages; extract dates, pick newest
+        - others: CDISC API lists versions newest-first, take index 0
+        """
+        if standard_type == "tig":
+            return "all"
+
+        if standard_type in ("bc", "qrs"):
+            return "latest"
+
+        if standard_type == "ct":
+            packages = await self._get_ct_versions()
+            dates: set[str] = set()
+            for pkg in packages:
+                match = re.search(r"(\d{4}-\d{2}-\d{2})$", pkg)
+                if match:
+                    dates.add(match.group(1))
+            if not dates:
+                logger.warning("CT: no dates found in package list, falling back to 'latest'")
+                return "latest"
+            return sorted(dates, reverse=True)[0]
+
+        # sdtm, sdtmig, adam, adamig, cdashig, sendig, integrated
+        versions = await self.get_available_versions(standard_type)
+        if not versions:
+            logger.warning(
+                f"{standard_type.upper()}: no versions from CDISC API, falling back to 'latest'"
+            )
+            return "latest"
+        return versions[0]
 
     async def _upsert_cdisc_scope_node(
         self,
