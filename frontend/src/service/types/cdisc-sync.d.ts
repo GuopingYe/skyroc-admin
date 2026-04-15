@@ -8,7 +8,7 @@ declare namespace Api {
       id: number;
       api_base_url: string;
       api_key_masked: string;
-      enabled_standard_types: string[];
+      enabled_standard_types: string[] | null;
       sync_schedule: ScheduleInfo | null;
       sync_enabled: boolean;
       updated_at: string;

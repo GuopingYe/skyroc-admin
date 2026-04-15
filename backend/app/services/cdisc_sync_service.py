@@ -316,7 +316,7 @@ class CDISCSyncService:
             "sdtmig": ("data-tabulation", "sdtmig"),
             "sendig": ("data-tabulation", "sendig"),
             "adam": ("data-analysis", "adam"),
-            "adamig": ("data-analysis", "adam"),
+            "adamig": ("data-analysis", "adamig"),
             "cdash": ("data-collection", "cdash"),
             "cdashig": ("data-collection", "cdashig"),
         }
@@ -629,10 +629,13 @@ class CDISCSyncService:
     def _format_version_display(self, version: str) -> str:
         """Format a version string for human display.
 
-        - Bare date (YYYY-MM-DD): returned as-is, e.g. "2026-03-27"
-        - CT package name (*-YYYY-MM-DD): extract and return just the date, e.g. "2026-03-27"
-        - Numeric (e.g. '3-4'): becomes 'v3.4'
+        Sentinel strings ('latest', 'all') are returned as-is.
+        Date-based versions (YYYY-MM-DD, used by CT) are returned as-is.
+        Numeric versions (e.g. '3-4') become 'v3.4'.
         """
+        # Sentinel strings
+        if version.lower() in ("latest", "all"):
+            return version
         # Bare date
         if re.match(r'^\d{4}-\d{2}-\d{2}$', version):
             return version

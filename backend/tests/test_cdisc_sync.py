@@ -90,6 +90,14 @@ def test_format_version_display_ct_package_names():
 # _resolve_latest_version tests
 # ============================================================
 
+def test_format_version_display_sentinel_strings():
+    """Sentinel strings 'latest' and 'all' are returned as-is without modification."""
+    svc = CDISCSyncService.__new__(CDISCSyncService)
+    assert svc._format_version_display("latest") == "latest"
+    assert svc._format_version_display("all") == "all"
+    assert svc._format_version_display("LATEST") == "LATEST"
+
+
 @pytest.mark.asyncio
 async def test_resolve_latest_version_tig_returns_all():
     """TIG has multiple independent products — 'all' syncs everything."""

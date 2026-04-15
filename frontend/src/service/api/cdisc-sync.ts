@@ -41,7 +41,7 @@ export function triggerSync(data: Api.CdiscSync.SyncTriggerRequest) {
 }
 
 export function cancelSync(taskId: string) {
-  return rbacRequest<{ success: boolean; message: string }>({
+  return rbacRequest<Api.CdiscSync.SyncTriggerResponse>({
     method: 'post',
     url: CDISC_SYNC_URLS.CANCEL_SYNC(taskId)
   });

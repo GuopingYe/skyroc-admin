@@ -46,7 +46,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
     setIsSyncingAll(true);
     const syncAllTargets = (cdiscConfig?.enabled_standard_types ?? []).map(type => ({
       standard_type: type,
-      version: type === 'tig' ? 'all' : 'latest'
+      version: type === 'tig' || type === 'integrated' ? 'all' : 'latest'
     }));
     try {
       const results = await Promise.allSettled(
@@ -76,8 +76,7 @@ const SyncControlSection: React.FC<SyncControlSectionProps> = ({ activeTaskId, o
     if (!activeTaskId) return;
     cancelMutation.mutate(activeTaskId, {
       onSuccess: data => {
-        if (data.success) messageApi.success(data.message);
-        else messageApi.error(data.message);
+        messageApi.success(data.message);
       },
       onError: () => messageApi.error('Failed to cancel sync')
     });
