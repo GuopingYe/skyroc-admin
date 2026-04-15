@@ -8,6 +8,7 @@ Global Library API Router
 2. 获取版本下的数据集列表（支持分页和搜索）
 3. 获取数据集下的变量列表（支持分页、搜索和 core 过滤）
 """
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -151,15 +152,13 @@ def format_ct_version_name(node_name: str) -> str:
     """
     将 CT 版本名称格式化为人类可读格式
 
-    输入示例: "CDISC CT vadamct.2014.09.26" 或 "CDISC CT vsdtmct.2016.06.24"
-    输出示例: "ADaM CT 2014-09-26" 或 "SDTM CT 2016-06-24"
+    新格式输入: "CDISC SDTM CT 2026-03-27" → "SDTM CT 2026-03-27"
+    旧格式输入: "CDISC CT vsdtmct.2016.06.24"  → "SDTM CT 2016-06-24"
     """
     if not node_name:
         return "CT Package"
 
-    # 匹配格式: v{type}ct-{date} 或 v{type}ct.{date}
-    # 例如: vadamct-2014-09-26, vsdtmct-2016-06-24
-    import re
+    # Legacy format: v{type}ct-{date} or v{type}ct.{date}
     match = re.search(r'v([a-z]+)ct[.\-](\d{4})[.\-](\d{2})[.\-](\d{2})', node_name, re.IGNORECASE)
     if match:
         ct_type = match.group(1).lower()
@@ -167,7 +166,6 @@ def format_ct_version_name(node_name: str) -> str:
         month = match.group(3)
         day = match.group(4)
 
-        # 映射 CT 类型
         ct_type_map = {
             'ada': 'ADaM CT',
             'sdt': 'SDTM CT',
@@ -181,8 +179,12 @@ def format_ct_version_name(node_name: str) -> str:
         ct_label = ct_type_map.get(ct_type, f'{ct_type.upper()} CT')
         return f"{ct_label} {year}-{month}-{day}"
 
-    # 如果无法解析，返回原名（去除前缀）
-    clean_name = node_name.replace("CDISC ", "").replace("CT ", "").strip()
+    # New format: "CDISC {Type} CT {date}" — strip "CDISC " prefix
+    if node_name.startswith("CDISC ") and re.search(r'\bCT\b', node_name):
+        return node_name[6:]
+
+    # Fallback — strip "CDISC " prefix only
+    clean_name = node_name.replace("CDISC ", "").strip()
     return clean_name if clean_name else "CT Package"
 
 
