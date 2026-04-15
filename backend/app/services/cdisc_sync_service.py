@@ -1596,7 +1596,8 @@ class CDISCSyncService:
 
             # CDASHIG 的 classes 直接在根响应中
             classes = data.get("classes", [])
-            logger.info(f"CDASHIG {version}: found {len(classes)} classes")
+            total_classes = len(classes)
+            logger.info(f"CDASHIG {version}: found {total_classes} classes")
 
             total_datasets = 0
             total_variables = 0
@@ -1727,7 +1728,8 @@ class CDISCSyncService:
 
             # SENDIG 的 classes 直接在根响应中，但不包含 datasets
             classes = data.get("classes", [])
-            logger.info(f"SENDIG {version}: found {len(classes)} classes")
+            total_classes = len(classes)
+            logger.info(f"SENDIG {version}: found {total_classes} classes")
 
             total_datasets = 0
             total_variables = 0
@@ -2346,6 +2348,21 @@ class CDISCSyncService:
                 logger.info(
                     f"CT bare date {version}: syncing {len(packages_to_sync)} packages: {packages_to_sync}"
                 )
+                # Soft-delete the old bare-date scope node (code = CDISC-CT-{date}) if it
+                # exists so it does not duplicate the new package-specific nodes in the UI.
+                old_bare_code = f"CDISC-CT-{version}"
+                old_node_result = await session.execute(
+                    select(ScopeNode).where(
+                        ScopeNode.code == old_bare_code,
+                        ScopeNode.is_deleted.is_(False),
+                    )
+                )
+                old_bare_node = old_node_result.scalar_one_or_none()
+                if old_bare_node:
+                    old_bare_node.soft_delete(deleted_by="cdisc_sync_migration")
+                    logger.info(
+                        f"Soft-deleted legacy bare-date CT scope node: {old_bare_code}"
+                    )
 
             for package_name in packages_to_sync:
                 # Each package gets its own scope node keyed by the full package name
