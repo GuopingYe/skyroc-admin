@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from app.services.cdisc_sync_service import CDISCSyncService, StandardType
+from app.services.cdisc_sync_service import CDISCSyncService, CT_PACKAGE_TYPE_NAMES, StandardType
 from app.models.mapping_enums import SpecType
 
 
@@ -185,14 +185,8 @@ async def test_sync_ct_bare_date_syncs_all_packages():
 
 def test_sync_ct_full_package_name_not_expanded():
     """When a full CT package name is given, it should be used as-is (no expansion)."""
-    svc = CDISCSyncService.__new__(CDISCSyncService)
-    valid_ct_prefixes = [
-        "sdtmct-", "adamct-", "sendct-", "cdashct-", "protocolct-",
-        "qrsct-", "ddfct-", "define-", "glossaryct-", "tmfct-",
-        "mrctct-", "coact-", "qs-"
-    ]
     full_name = "adamct-2026-03-27"
-    assert any(full_name.startswith(p) for p in valid_ct_prefixes), (
+    assert any(full_name.startswith(p) for p in CT_PACKAGE_TYPE_NAMES), (
         "Full package name should be detected as a prefixed name and not expanded"
     )
 
@@ -204,13 +198,10 @@ def test_sync_ct_full_package_name_not_expanded():
 def test_get_ct_type_display_name_known_prefixes():
     """Each known CT prefix maps to a human-readable type label."""
     svc = CDISCSyncService.__new__(CDISCSyncService)
-    assert svc._get_ct_type_display_name("sdtmct-2026-03-27") == "SDTM CT"
-    assert svc._get_ct_type_display_name("adamct-2026-03-27") == "ADaM CT"
-    assert svc._get_ct_type_display_name("sendct-2026-03-27") == "SEND CT"
-    assert svc._get_ct_type_display_name("cdashct-2026-03-27") == "CDASH CT"
-    assert svc._get_ct_type_display_name("ddfct-2026-03-27") == "DDF CT"
-    assert svc._get_ct_type_display_name("define-xmlct-2026-03-27") == "Define-XML CT"
-    assert svc._get_ct_type_display_name("glossaryct-2026-03-27") == "Glossary CT"
+    for prefix, label in CT_PACKAGE_TYPE_NAMES.items():
+        assert svc._get_ct_type_display_name(f"{prefix}-2026-03-27") == label, (
+            f"Prefix '{prefix}' should map to '{label}'"
+        )
 
 
 def test_get_ct_type_display_name_bare_date_returns_generic():

@@ -52,6 +52,26 @@ from app.models.mapping_enums import (
 
 logger = logging.getLogger(__name__)
 
+# Single source of truth for CT package prefix → human-readable type label.
+# Used by CDISCSyncService, global_library API, and sync scripts.
+CT_PACKAGE_TYPE_NAMES: dict[str, str] = {
+    "sdtmct": "SDTM CT",
+    "adamct": "ADaM CT",
+    "sendct": "SEND CT",
+    "cdashct": "CDASH CT",
+    "ddfct": "DDF CT",
+    "define-xmlct": "Define-XML CT",
+    "define": "Define-XML CT",
+    "protocolct": "Protocol CT",
+    "glossaryct": "Glossary CT",
+    "tmfct": "TMF CT",
+    "mrctct": "MRCT CT",
+    "coact": "COA CT",
+    "qrsct": "QRS CT",
+    "qs-ft": "QS-FT CT",
+    "qs": "QS CT",
+}
+
 
 class CDISCSyncError(Exception):
     """CDISC 同步错误"""
@@ -143,26 +163,6 @@ class CDISCSyncService:
 
     支持同步多种 CDISC 标准，采用分类抓取策略
     """
-
-    # Maps CT package prefix to human-readable type label used in scope node names.
-    # e.g. "sdtmct-2026-03-27" → prefix "sdtmct" → "SDTM CT"
-    _CT_PACKAGE_TYPE_NAMES: dict[str, str] = {
-        "sdtmct": "SDTM CT",
-        "adamct": "ADaM CT",
-        "sendct": "SEND CT",
-        "cdashct": "CDASH CT",
-        "ddfct": "DDF CT",
-        "define-xmlct": "Define-XML CT",
-        "define": "Define-XML CT",
-        "protocolct": "Protocol CT",
-        "glossaryct": "Glossary CT",
-        "tmfct": "TMF CT",
-        "mrctct": "mRCT CT",
-        "coact": "CoA CT",
-        "qrsct": "QRS CT",
-        "qs-ft": "QS-FT CT",
-        "qs": "QS CT",
-    }
 
     def __init__(
         self,
@@ -656,7 +656,7 @@ class CDISCSyncService:
         match = re.match(r'^([a-z][a-z0-9\-]*?)-\d{4}-\d{2}-\d{2}$', ct_package_version)
         if match:
             prefix = match.group(1)
-            return self._CT_PACKAGE_TYPE_NAMES.get(prefix, f"{prefix.upper()} CT")
+            return CT_PACKAGE_TYPE_NAMES.get(prefix, f"{prefix.upper()} CT")
         return "CT"
 
     def _format_version_display(self, version: str) -> str:
@@ -737,8 +737,7 @@ class CDISCSyncService:
             code = f"{code}-{suffix}"
 
         # For CT packages, use the package-specific type label (e.g. "SDTM CT", "ADaM CT")
-        # so each package type is distinguishable in the global library dropdown.
-        if standard_type == "ct":
+        if standard_type == StandardType.CT:
             ct_type = self._get_ct_type_display_name(version)
             name = f"CDISC {ct_type} {self._format_version_display(version)}"
         else:
@@ -753,17 +752,17 @@ class CDISCSyncService:
 
         if existing:
             if existing.is_deleted:
-                # 恢复已软删除的节点
                 existing.is_deleted = False
                 existing.deleted_at = None
                 existing.deleted_by = None
                 existing.updated_by = "cdisc_sync_restore"
                 logger.info(f"Restored soft-deleted ScopeNode: {code}")
-            # Always update name/description so re-sync corrects stale formatting
-            existing.name = name
-            existing.description = (
+            description = (
                 f"CDISC 官方 {standard_type.upper()} 标准，版本 {self._format_version_display(version)}"
             )
+            if existing.name != name or existing.description != description:
+                existing.name = name
+                existing.description = description
             return existing
 
         # 创建新节点

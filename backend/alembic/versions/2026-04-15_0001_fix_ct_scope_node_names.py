@@ -56,9 +56,9 @@ def upgrade() -> None:
             WHEN code LIKE 'CDISC-CT-tmfct-%'
                 THEN 'CDISC TMF CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
             WHEN code LIKE 'CDISC-CT-mrctct-%'
-                THEN 'CDISC mRCT CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
+                THEN 'CDISC MRCT CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
             WHEN code LIKE 'CDISC-CT-coact-%'
-                THEN 'CDISC CoA CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
+                THEN 'CDISC COA CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
             WHEN code LIKE 'CDISC-CT-qrsct-%'
                 THEN 'CDISC QRS CT ' || substring(code from '\\d{4}-\\d{2}-\\d{2}$')
             WHEN code LIKE 'CDISC-CT-qs-ft-%'

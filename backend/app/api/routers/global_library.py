@@ -21,6 +21,7 @@ from app.database import get_db_session
 from app.models import Codelist, CodelistTerm, ScopeNode, Specification, TargetDataset, TargetVariable
 from app.models.enums import NodeType
 from app.models.mapping_enums import SpecType, VariableCore
+from app.services.cdisc_sync_service import CT_PACKAGE_TYPE_NAMES
 
 router = APIRouter(prefix="/global-library", tags=["Global Library"])
 
@@ -148,6 +149,20 @@ class TermListResponse(BaseModel):
     items: list[TermListItem] = Field(..., description="Term列表")
 
 
+# Legacy format regex captures truncated type fragments (e.g. 'sdt' from vsdtmct).
+# Map those fragments to the canonical labels from CT_PACKAGE_TYPE_NAMES.
+_CT_LEGACY_TYPE_MAP: dict[str, str] = {
+    'sdt': CT_PACKAGE_TYPE_NAMES['sdtmct'],
+    'ada': CT_PACKAGE_TYPE_NAMES['adamct'],
+    'cda': CT_PACKAGE_TYPE_NAMES['cdashct'],
+    'sen': CT_PACKAGE_TYPE_NAMES['sendct'],
+    'sdtm': CT_PACKAGE_TYPE_NAMES['sdtmct'],
+    'adam': CT_PACKAGE_TYPE_NAMES['adamct'],
+    'cdash': CT_PACKAGE_TYPE_NAMES['cdashct'],
+    'send': CT_PACKAGE_TYPE_NAMES['sendct'],
+}
+
+
 def format_ct_version_name(node_name: str) -> str:
     """
     将 CT 版本名称格式化为人类可读格式
@@ -166,21 +181,11 @@ def format_ct_version_name(node_name: str) -> str:
         month = match.group(3)
         day = match.group(4)
 
-        ct_type_map = {
-            'ada': 'ADaM CT',
-            'sdt': 'SDTM CT',
-            'cda': 'CDASH CT',
-            'sen': 'SEND CT',
-            'adam': 'ADaM CT',
-            'sdtm': 'SDTM CT',
-            'cdash': 'CDASH CT',
-            'send': 'SEND CT',
-        }
-        ct_label = ct_type_map.get(ct_type, f'{ct_type.upper()} CT')
+        ct_label = _CT_LEGACY_TYPE_MAP.get(ct_type, f'{ct_type.upper()} CT')
         return f"{ct_label} {year}-{month}-{day}"
 
     # New format: "CDISC {Type} CT {date}" — strip "CDISC " prefix
-    if node_name.startswith("CDISC ") and re.search(r'\bCT\b', node_name):
+    if node_name.startswith("CDISC ") and " CT " in node_name:
         return node_name[6:]
 
     # Fallback — strip "CDISC " prefix only

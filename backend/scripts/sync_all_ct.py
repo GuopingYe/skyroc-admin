@@ -42,7 +42,7 @@ sys.path.insert(0, str(project_root))
 
 from sqlalchemy import text
 from app.database import async_session_factory
-from app.services.cdisc_sync_service import CDISCSyncService
+from app.services.cdisc_sync_service import CDISCSyncService, CT_PACKAGE_TYPE_NAMES
 
 # 配置日志
 logging.basicConfig(
@@ -52,21 +52,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# CT 类型配置
+# CT type display order (prefix → sort order). Labels come from CT_PACKAGE_TYPE_NAMES.
+_CT_TYPE_ORDER = {
+    "sdtmct": 1, "adamct": 2, "sendct": 3, "cdashct": 4,
+    "protocolct": 5, "qrsct": 6, "ddfct": 7, "define-xmlct": 8,
+    "define": 9, "glossaryct": 10, "tmfct": 11, "mrctct": 12,
+    "coact": 13, "qs-ft": 14, "qs": 15,
+}
+
 CT_TYPE_CONFIG = {
-    "sdtmct": {"label": "SDTM CT", "order": 1},
-    "adamct": {"label": "ADaM CT", "order": 2},
-    "sendct": {"label": "SEND CT", "order": 3},
-    "cdashct": {"label": "CDASH CT", "order": 4},
-    "protocolct": {"label": "Protocol CT", "order": 5},
-    "qrsct": {"label": "QRS CT", "order": 6},
-    "ddfct": {"label": "DDF CT", "order": 7},
-    "define": {"label": "Define-XML CT", "order": 8},
-    "glossaryct": {"label": "Glossary CT", "order": 9},
-    "tmfct": {"label": "TMF CT", "order": 10},
-    "mrctct": {"label": "MRCT CT", "order": 11},
-    "coact": {"label": "COA CT", "order": 12},
-    "qs": {"label": "QS CT", "order": 13},
+    prefix: {"label": label, "order": _CT_TYPE_ORDER.get(prefix, 99)}
+    for prefix, label in CT_PACKAGE_TYPE_NAMES.items()
 }
 
 
