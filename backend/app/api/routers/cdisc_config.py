@@ -8,6 +8,7 @@ Provides endpoints for:
 4. Sync history logs
 """
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -525,8 +526,6 @@ async def get_available_versions(
     _: None = Depends(require_superuser),
 ) -> AvailableVersionsResponse:
     """Return available versions for a standard type from the live CDISC API."""
-    import re
-
     service = CDISCSyncService()
     try:
         raw = await service.get_available_versions(standard_type)
