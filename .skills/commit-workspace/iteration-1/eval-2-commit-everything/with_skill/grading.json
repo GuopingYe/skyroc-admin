@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-2-commit-everything-with_skill",
+  "eval_name": "commit-everything",
+  "configuration": "with_skill",
+  "assertions": [
+    {"text": "Detects changes in both backend/ and frontend/", "passed": true, "evidence": "Phase 2 identifies: Backend: 2 files, Frontend: 2 files"},
+    {"text": "Suggests splitting into separate commits for monorepo", "passed": true, "evidence": "Shows split suggestion with per-side breakdown and asks user"},
+    {"text": "Cleans up sedXYZ123 temp file", "passed": true, "evidence": "Phase 1: deletes backend/sedXYZ123 matching sed* pattern"},
+    {"text": "Plans to run ruff check for backend", "passed": true, "evidence": "Phase 3: cd d:/github/clinical-mdr/backend && ruff check app/ --quiet"},
+    {"text": "Plans to run tsc for frontend", "passed": true, "evidence": "Phase 3: cd d:/github/clinical-mdr/frontend && npx tsc --noEmit"},
+    {"text": "Uses conventional commit type prefix (feat/fix/refactor)", "passed": true, "evidence": "feat(backend): and feat(frontend): messages"},
+    {"text": "Includes Co-Authored-By trailer", "passed": true, "evidence": "Both commits include Co-Authored-By: Claude <noreply@anthropic.com>"}
+  ]
+}

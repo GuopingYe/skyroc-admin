@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-3-frontend-feature-with_skill",
+  "eval_name": "frontend-feature",
+  "configuration": "with_skill",
+  "assertions": [
+    {"text": "Does NOT stage .env.local", "passed": true, "evidence": "Only stages permissionStore.ts and MenuProvider.tsx"},
+    {"text": "Warns about secrets in .env.local", "passed": true, "evidence": "Phase 2 safety scan flags API_SECRET_KEY and DATABASE_URL"},
+    {"text": "Runs tsc --noEmit as pre-commit check", "passed": true, "evidence": "Phase 3: cd d:/github/clinical-mdr/frontend && npx tsc --noEmit"},
+    {"text": "Uses feat(frontend): conventional commit prefix", "passed": true, "evidence": "Message: 'feat(frontend): add RBAC permission store and integrate with MenuProvider'"},
+    {"text": "Stages only the two .ts/.tsx files", "passed": true, "evidence": "git add for exactly permissionStore.ts and MenuProvider.tsx"},
+    {"text": "Includes Co-Authored-By trailer", "passed": true, "evidence": "Co-Authored-By: Claude <noreply@anthropic.com>"},
+    {"text": "Uses imperative mood (not past tense)", "passed": true, "evidence": "'add' and 'integrate' — imperative mood"}
+  ]
+}

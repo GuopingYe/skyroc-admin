@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-1-backend-fix-with_skill",
+  "eval_name": "backend-fix",
+  "configuration": "with_skill",
+  "assertions": [
+    {"text": "Uses fix(backend): conventional commit prefix", "passed": true, "evidence": "Message: 'fix(backend): handle unexpected version format in CDISC sync'"},
+    {"text": "Runs ruff check as pre-commit step", "passed": true, "evidence": "Phase 3 runs: cd d:/github/clinical-mdr/backend && ruff check app/ --quiet"},
+    {"text": "Skips the .tmp temp file from staging", "passed": true, "evidence": "Phase 1 cleanup: deletes backend/.tmp_sync_test.py before staging"},
+    {"text": "Uses imperative mood in commit message", "passed": true, "evidence": "'handle' not 'handled' or 'handles'"},
+    {"text": "Includes Co-Authored-By trailer", "passed": true, "evidence": "Co-Authored-By: Claude <noreply@anthropic.com>"},
+    {"text": "Does not use git add -A or git add .", "passed": true, "evidence": "Uses 'git add backend/...sync.py backend/...admin.py' — specific files only"},
+    {"text": "Stages only the two specified backend files", "passed": true, "evidence": "git add for exactly the two files user mentioned"}
+  ]
+}

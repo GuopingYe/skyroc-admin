@@ -91,7 +91,10 @@
       "Bash(xxd)",
       "Bash(python3 -c ':*)",
       "Bash(perl:*)",
-      "Bash(sort -t'%' -k2 -n)"
+      "Bash(sort -t'%' -k2 -n)",
+      "Bash(python -c \"import pytest; print\\(pytest.__version__\\)\")",
+      "Bash(python -c \"import pytest_asyncio; print\\(pytest_asyncio.__version__\\)\")",
+      "Bash(claude plugins *)"
     ]
   }
 }

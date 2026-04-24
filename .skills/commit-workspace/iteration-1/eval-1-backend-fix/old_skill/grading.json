@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-1-backend-fix-old_skill",
+  "eval_name": "backend-fix",
+  "configuration": "old_skill",
+  "assertions": [
+    {"text": "Uses fix(backend): conventional commit prefix", "passed": false, "evidence": "Message: 'fix crash in CDISC sync...' — no type(scope): format"},
+    {"text": "Runs ruff check as pre-commit step", "passed": false, "evidence": "No pre-commit checks mentioned"},
+    {"text": "Skips the .tmp temp file from staging", "passed": false, "evidence": "No mention of .tmp file cleanup"},
+    {"text": "Uses imperative mood in commit message", "passed": true, "evidence": "'fix crash' — imperative mood, though ambiguous"},
+    {"text": "Includes Co-Authored-By trailer", "passed": false, "evidence": "No Co-Authored-By in commit command"},
+    {"text": "Does not use git add -A or git add .", "passed": true, "evidence": "Uses specific file paths"},
+    {"text": "Stages only the two specified backend files", "passed": true, "evidence": "git add for the two mentioned files"}
+  ]
+}

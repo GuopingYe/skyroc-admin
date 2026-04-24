@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "backend-fix",
+  "prompt": "I just fixed a bug where the CDISC sync was crashing when the external API returned an unexpected version format. The fix is in backend/app/services/cdisc_sync.py and backend/app/api/routers/admin.py. Please commit the backend changes.",
+  "assertions": []
+}

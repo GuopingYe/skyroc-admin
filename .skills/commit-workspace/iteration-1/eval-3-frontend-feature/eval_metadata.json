@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "frontend-feature",
+  "prompt": "I added a new Zustand store for managing RBAC permissions and updated the MenuProvider component to use it. Files changed: frontend/src/features/rbac/stores/permissionStore.ts and frontend/src/features/menu/MenuProvider.tsx. Also there's a .env.local that got modified but I don't want that committed.",
+  "assertions": []
+}

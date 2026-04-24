@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-2-commit-everything-old_skill",
+  "eval_name": "commit-everything",
+  "configuration": "old_skill",
+  "assertions": [
+    {"text": "Detects changes in both backend/ and frontend/", "passed": true, "evidence": "Stages all 4 modified files"},
+    {"text": "Suggests splitting into separate commits for monorepo", "passed": false, "evidence": "Bundles everything into a single commit"},
+    {"text": "Cleans up sedXYZ123 temp file", "passed": false, "evidence": "No mention of temp file cleanup"},
+    {"text": "Plans to run ruff check for backend", "passed": false, "evidence": "No pre-commit checks"},
+    {"text": "Plans to run tsc for frontend", "passed": false, "evidence": "No pre-commit checks"},
+    {"text": "Uses conventional commit type prefix (feat/fix/refactor)", "passed": false, "evidence": "Message: 'add ordered children endpoint...' — no type(scope): prefix"},
+    {"text": "Includes Co-Authored-By trailer", "passed": false, "evidence": "No Co-Authored-By in commit"}
+  ]
+}

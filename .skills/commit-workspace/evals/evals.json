@@ -1,0 +1,50 @@
+{
+  "skill_name": "commit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just fixed a bug where the CDISC sync was crashing when the external API returned an unexpected version format. The fix is in backend/app/services/cdisc_sync.py and backend/app/api/routers/admin.py. Please commit the backend changes.",
+      "expected_output": "Should detect backend-only changes, run ruff check, stage only backend/ files, craft a message like 'fix(backend): handle unexpected version format in CDISC sync' with imperative mood, include Co-Authored-By trailer.",
+      "files": [],
+      "assertions": [
+        {"text": "Uses fix(backend): conventional commit prefix", "type": "contains_pattern", "pattern": "fix\\(backend\\)"},
+        {"text": "Runs ruff check as pre-commit step", "type": "contains_pattern", "pattern": "ruff"},
+        {"text": "Skips the .tmp temp file from staging", "type": "contains_any", "patterns": [".tmp", "temp file", "cleanup", "skip"]},
+        {"text": "Uses imperative mood in commit message", "type": "not_contains_pattern", "pattern": "(fixed|added|updated|changed) "},
+        {"text": "Includes Co-Authored-By trailer", "type": "contains_pattern", "pattern": "Co-Authored-By"},
+        {"text": "Does not use git add -A or git add .", "type": "not_contains_pattern", "pattern": "git add (-A|\\.)"},
+        {"text": "Stages only the two specified backend files", "type": "contains_pattern", "pattern": "git add.*disc_sync\\.py.*admin\\.py|git add.*admin\\.py.*disc_sync\\.py"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "commit everything",
+      "expected_output": "Should gather context, detect both backend and frontend changed, suggest splitting if both have meaningful changes, run appropriate lint/type checks, clean temp files, craft conventional commit with scope matching changed directory.",
+      "files": [],
+      "assertions": [
+        {"text": "Detects changes in both backend/ and frontend/", "type": "contains_all", "patterns": ["backend", "frontend"]},
+        {"text": "Suggests splitting into separate commits for monorepo", "type": "contains_any", "patterns": ["split", "separate commit", "two commit", "backend.*frontend.*separate", "separately"]},
+        {"text": "Cleans up sedXYZ123 temp file", "type": "contains_any", "patterns": ["sed", "temp file", "cleanup", ".tmp"]},
+        {"text": "Plans to run ruff check for backend", "type": "contains_pattern", "pattern": "ruff"},
+        {"text": "Plans to run tsc for frontend", "type": "contains_any", "patterns": ["tsc", "typescript", "type.check"]},
+        {"text": "Uses conventional commit type prefix (feat/fix/refactor)", "type": "contains_pattern", "pattern": "(feat|fix|refactor|chore)(\\(.*\\))?:\\s"},
+        {"text": "Includes Co-Authored-By trailer", "type": "contains_pattern", "pattern": "Co-Authored-By"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I added a new Zustand store for managing RBAC permissions and updated the MenuProvider component to use it. Files changed: frontend/src/features/rbac/stores/permissionStore.ts and frontend/src/features/menu/MenuProvider.tsx. Also there's a .env.local that got modified but I don't want that committed.",
+      "expected_output": "Should detect frontend-only changes, run tsc --noEmit, stage only the two .ts/.tsx files (NOT .env.local), warn about the .env file being modified but not staged, craft message like 'feat(frontend): add RBAC permission store and integrate with MenuProvider'.",
+      "files": [],
+      "assertions": [
+        {"text": "Does NOT stage .env.local", "type": "not_contains_pattern", "pattern": "git add.*\\.env"},
+        {"text": "Warns about secrets in .env.local", "type": "contains_any", "patterns": ["secret", ".env", "credential", "API_SECRET", "sensitive"]},
+        {"text": "Runs tsc --noEmit as pre-commit check", "type": "contains_any", "patterns": ["tsc", "type.check", "typescript"]},
+        {"text": "Uses feat(frontend): conventional commit prefix", "type": "contains_pattern", "pattern": "feat\\(frontend\\)"},
+        {"text": "Stages only the two .ts/.tsx files", "type": "contains_all", "patterns": ["permissionStore", "MenuProvider"]},
+        {"text": "Includes Co-Authored-By trailer", "type": "contains_pattern", "pattern": "Co-Authored-By"},
+        {"text": "Uses imperative mood (not past tense)", "type": "not_contains_pattern", "pattern": "(added|integrated) "}
+      ]
+    }
+  ]
+}

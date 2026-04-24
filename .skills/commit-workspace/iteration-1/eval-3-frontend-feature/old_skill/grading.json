@@ -1,0 +1,14 @@
+{
+  "run_id": "eval-3-frontend-feature-old_skill",
+  "eval_name": "frontend-feature",
+  "configuration": "old_skill",
+  "assertions": [
+    {"text": "Does NOT stage .env.local", "passed": true, "evidence": "Only stages the two files user specified"},
+    {"text": "Warns about secrets in .env.local", "passed": false, "evidence": "No safety mechanism — relies entirely on user remembering"},
+    {"text": "Runs tsc --noEmit as pre-commit check", "passed": false, "evidence": "No pre-commit checks"},
+    {"text": "Uses feat(frontend): conventional commit prefix", "passed": false, "evidence": "Message: 'add RBAC permission store...' — no type(scope): format"},
+    {"text": "Stages only the two .ts/.tsx files", "passed": true, "evidence": "Stages only the two mentioned files"},
+    {"text": "Includes Co-Authored-By trailer", "passed": false, "evidence": "No Co-Authored-By in commit"},
+    {"text": "Uses imperative mood (not past tense)", "passed": true, "evidence": "'add' is ambiguous but can be read as imperative"}
+  ]
+}
